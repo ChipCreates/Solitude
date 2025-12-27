@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../games/game_interface.dart';
-import '../games/klondike/klondike_game.dart';
+import '../games/game_factory.dart';
 import '../models/card.dart';
 import '../models/pile.dart';
 import '../models/move.dart';
@@ -55,10 +55,8 @@ class GameController extends ChangeNotifier {
     required this.timerState,
     required this.audioService,
   }) {
-    _game = KlondikeGame(
-      drawMode: settingsProvider.difficulty.drawMode,
-      maxStockRecycles: settingsProvider.difficulty.maxStockRecycles,
-    );
+    _game = GameFactory.createGame(GameType.klondike);
+    _game.applyDifficulty(settingsProvider.difficulty);
     _game.initialize();
     // Listen to settings changes to respond to autoplay and audio toggles
     settingsProvider.addListener(_onSettingsChanged);
@@ -79,30 +77,35 @@ class GameController extends ChangeNotifier {
 
   int get moveCount => _game.moveCount;
   bool get canUndo => _game.moveHistory.isNotEmpty;
-  bool get canRedo => _game is KlondikeGame && (klondike.redoStack.isNotEmpty);
+  bool get canRedo => _game.canRedo;
   bool get isWon => _state == GameState.won;
   bool get isLost => _state == GameState.lost;
 
   // Move history for UI display
   List<Move> get moveHistory => _game.moveHistory;
-  List<Move> get redoHistory => _game is KlondikeGame ? klondike.redoStack : [];
-  
-  // Klondike-specific getters
-  KlondikeGame get klondike => _game as KlondikeGame;
-  Pile get stock => klondike.stock;
-  Pile get waste => klondike.waste;
-  List<Pile> get foundations => klondike.foundations;
-  List<Pile> get tableau => klondike.tableau;
+  List<Move> get redoHistory => _game.redoStack;
+
+  // Game-agnostic pile accessors
+  Pile? get stock => _game.stockPile;
+  Pile? get waste => _game.wastePile;
+  List<Pile> get foundations => _game.foundationPiles;
+  List<Pile> get tableau => _game.tableauPiles;
 
   /// Initialize pile keys for position tracking
   void initializePileKeys() {
     pileKeys.clear();
-    pileKeys[stock] = GlobalKey();
-    pileKeys[waste] = GlobalKey();
-    for (final foundation in foundations) {
+    final stockPile = _game.stockPile;
+    final wastePile = _game.wastePile;
+    if (stockPile != null) {
+      pileKeys[stockPile] = GlobalKey();
+    }
+    if (wastePile != null) {
+      pileKeys[wastePile] = GlobalKey();
+    }
+    for (final foundation in _game.foundationPiles) {
       pileKeys[foundation] = GlobalKey();
     }
-    for (final tableauPile in tableau) {
+    for (final tableauPile in _game.tableauPiles) {
       pileKeys[tableauPile] = GlobalKey();
     }
   }
@@ -136,12 +139,8 @@ class GameController extends ChangeNotifier {
     timerState.reset();
     _gameStarted = false;
 
-    // Update difficulty settings (draw mode and stock recycle limit)
-    if (_game is KlondikeGame) {
-      final klondikeGame = _game as KlondikeGame;
-      klondikeGame.drawMode = settingsProvider.difficulty.drawMode;
-      klondikeGame.maxStockRecycles = settingsProvider.difficulty.maxStockRecycles;
-    }
+    // Update difficulty settings via game interface
+    _game.applyDifficulty(settingsProvider.difficulty);
 
     _game.initialize();
     _state = GameState.playing;
@@ -242,19 +241,24 @@ class GameController extends ChangeNotifier {
   void cycleFocusForward() {
     if (_state != GameState.playing) return;
 
-    // Order: stock/waste -> tableau[0] -> tableau[1] -> ... -> tableau[6] -> back to stock
+    final tableauPiles = _game.tableauPiles;
+    final tableauCount = tableauPiles.length;
+    final wastePile = _game.wastePile;
+    final stockPile = _game.stockPile;
+
+    // Order: stock/waste -> tableau[0] -> tableau[1] -> ... -> tableau[n-1] -> back to stock
     if (_focusedPileIndex == -1) {
       // Move from stock to first tableau
       _focusedPileIndex = 0;
-      _focusedPile = klondike.tableau[0];
-    } else if (_focusedPileIndex < 6) {
+      _focusedPile = tableauPiles.isNotEmpty ? tableauPiles[0] : stockPile;
+    } else if (_focusedPileIndex < tableauCount - 1) {
       // Move to next tableau pile
       _focusedPileIndex++;
-      _focusedPile = klondike.tableau[_focusedPileIndex];
+      _focusedPile = tableauPiles[_focusedPileIndex];
     } else {
-      // Wrap around to stock
+      // Wrap around to stock/waste
       _focusedPileIndex = -1;
-      _focusedPile = klondike.waste.isEmpty ? klondike.stock : klondike.waste;
+      _focusedPile = (wastePile != null && !wastePile.isEmpty) ? wastePile : stockPile;
     }
 
     notifyListeners();
@@ -264,18 +268,23 @@ class GameController extends ChangeNotifier {
   void cycleFocusBackward() {
     if (_state != GameState.playing) return;
 
+    final tableauPiles = _game.tableauPiles;
+    final tableauCount = tableauPiles.length;
+    final wastePile = _game.wastePile;
+    final stockPile = _game.stockPile;
+
     if (_focusedPileIndex == -1) {
       // Move from stock to last tableau
-      _focusedPileIndex = 6;
-      _focusedPile = klondike.tableau[6];
+      _focusedPileIndex = tableauCount - 1;
+      _focusedPile = tableauPiles.isNotEmpty ? tableauPiles[_focusedPileIndex] : stockPile;
     } else if (_focusedPileIndex > 0) {
       // Move to previous tableau pile
       _focusedPileIndex--;
-      _focusedPile = klondike.tableau[_focusedPileIndex];
+      _focusedPile = tableauPiles[_focusedPileIndex];
     } else {
-      // Wrap around to stock
+      // Wrap around to stock/waste
       _focusedPileIndex = -1;
-      _focusedPile = klondike.waste.isEmpty ? klondike.stock : klondike.waste;
+      _focusedPile = (wastePile != null && !wastePile.isEmpty) ? wastePile : stockPile;
     }
 
     notifyListeners();
@@ -285,13 +294,16 @@ class GameController extends ChangeNotifier {
   void activateFocusedPile() {
     if (_state != GameState.playing || _focusedPile == null) return;
 
+    final stockPile = _game.stockPile;
+    final wastePile = _game.wastePile;
+
     // If focused pile is stock or waste, tap it
-    if (_focusedPile == klondike.stock || _focusedPile == klondike.waste) {
-      if (_focusedPile == klondike.stock) {
-        tapPile(klondike.stock);
-      } else if (!klondike.waste.isEmpty) {
+    if (_focusedPile == stockPile || _focusedPile == wastePile) {
+      if (_focusedPile == stockPile && stockPile != null) {
+        tapPile(stockPile);
+      } else if (wastePile != null && !wastePile.isEmpty) {
         // Select top card of waste
-        selectCard(klondike.waste, klondike.waste.topCard!);
+        selectCard(wastePile, wastePile.topCard!);
       }
     } else {
       // For tableau piles, select the top face-up card
@@ -457,53 +469,12 @@ class GameController extends ChangeNotifier {
 
     _recordGameStart();
 
-    Pile? destinationPile;
+    // Get cards to move (for tableau, may be a stack)
+    final cardIndex = pile.indexOfCard(card);
+    final cardsToMove = cardIndex >= 0 ? pile.cards.sublist(cardIndex) : [card];
 
-    // Priority 1: Aces go to empty foundations
-    if (card.rank == Rank.ace) {
-      for (final foundation in klondike.foundations) {
-        if (foundation.isEmpty && _game.isValidMove(pile, foundation, [card])) {
-          destinationPile = foundation;
-          break;
-        }
-      }
-    }
-
-    // Priority 2: Cards that can go to foundation (build on existing)
-    if (destinationPile == null) {
-      for (final foundation in klondike.foundations) {
-        if (_game.isValidMove(pile, foundation, [card])) {
-          destinationPile = foundation;
-          break;
-        }
-      }
-    }
-
-    // Priority 3: Kings go to empty tableau
-    if (destinationPile == null && card.rank == Rank.king) {
-      final cardIndex = pile.indexOfCard(card);
-      final cardsToMove = cardIndex >= 0 ? pile.cards.sublist(cardIndex) : [card];
-
-      for (final tableau in klondike.tableau) {
-        if (tableau.isEmpty && tableau != pile && _game.isValidMove(pile, tableau, cardsToMove)) {
-          destinationPile = tableau;
-          break;
-        }
-      }
-    }
-
-    // Priority 4: Any valid tableau move (prefer non-empty piles)
-    if (destinationPile == null) {
-      final cardIndex = pile.indexOfCard(card);
-      final cardsToMove = cardIndex >= 0 ? pile.cards.sublist(cardIndex) : [card];
-
-      for (final tableau in klondike.tableau) {
-        if (!tableau.isEmpty && tableau != pile && _game.isValidMove(pile, tableau, cardsToMove)) {
-          destinationPile = tableau;
-          break;
-        }
-      }
-    }
+    // Ask the game for the best destination
+    final destinationPile = _game.findBestAutoMoveDestination(pile, cardsToMove);
 
     // If we found a destination, animate the move
     if (destinationPile != null) {
@@ -523,7 +494,7 @@ class GameController extends ChangeNotifier {
         await Future.delayed(const Duration(milliseconds: 300));
 
         // Execute the move
-        final move = _game.executeMove(pile, destinationPile, [card]);
+        final move = _game.executeMove(pile, destinationPile, cardsToMove);
         audioService.playCardPlace();
         if (move?.flippedCard == true) {
           audioService.playCardFlip();
@@ -546,87 +517,34 @@ class GameController extends ChangeNotifier {
     if (_state != GameState.playing) return false;
     if (!card.faceUp) return false;
     _resetInactivityTimer();
-    
+
     // Only allow double-tap on top card of pile (or waste)
     if (pile.topCard != card && pile.type != PileType.tableau) return false;
-    
+
     // For tableau, only allow if it's the top card
     if (pile.type == PileType.tableau && pile.topCard != card) return false;
-    
+
     _recordGameStart();
-    
-    // Priority 1: Aces go to empty foundations
-    if (card.rank == Rank.ace) {
-      for (final foundation in klondike.foundations) {
-        if (foundation.isEmpty && _game.isValidMove(pile, foundation, [card])) {
-          final move = _game.executeMove(pile, foundation, [card]);
-          audioService.playCardPlace();
-          if (move?.flippedCard == true) {
-            audioService.playCardFlip();
-          }
-          clearSelection();
-          _checkGameState();
-          notifyListeners();
-          return true;
-        }
-      }
-    }
 
-    // Priority 2: Cards that can go to foundation (build on existing)
-    for (final foundation in klondike.foundations) {
-      if (_game.isValidMove(pile, foundation, [card])) {
-        final move = _game.executeMove(pile, foundation, [card]);
-        audioService.playCardPlace();
-        if (move?.flippedCard == true) {
-          audioService.playCardFlip();
-        }
-        clearSelection();
-        _checkGameState();
-        notifyListeners();
-        return true;
-      }
-    }
-    
-    // Priority 3: Kings go to empty tableau
-    if (card.rank == Rank.king) {
-      // Get all cards from this card to top (for tableau moves)
-      final cardIndex = pile.indexOfCard(card);
-      final cardsToMove = cardIndex >= 0 ? pile.cards.sublist(cardIndex) : [card];
-      
-      for (final tableau in klondike.tableau) {
-        if (tableau.isEmpty && tableau != pile && _game.isValidMove(pile, tableau, cardsToMove)) {
-          final move = _game.executeMove(pile, tableau, cardsToMove);
-          audioService.playCardPlace();
-          if (move?.flippedCard == true) {
-            audioService.playCardFlip();
-          }
-          clearSelection();
-          _checkGameState();
-          notifyListeners();
-          return true;
-        }
-      }
-    }
-
-    // Priority 4: Any valid tableau move (prefer non-empty piles)
+    // Get cards to move (for tableau, may be a stack)
     final cardIndex = pile.indexOfCard(card);
     final cardsToMove = cardIndex >= 0 ? pile.cards.sublist(cardIndex) : [card];
 
-    // First try non-empty piles
-    for (final tableau in klondike.tableau) {
-      if (!tableau.isEmpty && tableau != pile && _game.isValidMove(pile, tableau, cardsToMove)) {
-        final move = _game.executeMove(pile, tableau, cardsToMove);
-        audioService.playCardPlace();
-        if (move?.flippedCard == true) {
-          audioService.playCardFlip();
-        }
-        clearSelection();
-        _checkGameState();
-        notifyListeners();
-        return true;
+    // Ask the game for the best destination
+    final destinationPile = _game.findBestAutoMoveDestination(pile, cardsToMove);
+
+    if (destinationPile != null) {
+      final move = _game.executeMove(pile, destinationPile, cardsToMove);
+      audioService.playCardPlace();
+      if (move?.flippedCard == true) {
+        audioService.playCardFlip();
       }
+      clearSelection();
+      _checkGameState();
+      notifyListeners();
+      return true;
     }
-    
+
     return false;
   }
   
@@ -667,27 +585,23 @@ class GameController extends ChangeNotifier {
 
   void redo() {
     if (_state == GameState.autoCompleting || _state == GameState.autoplaying) return;
-    if (_game is! KlondikeGame) return;
 
-    if (klondike.redo()) {
+    if (_game.redo()) {
       clearSelection();
       // Check game state after redo
       _checkGameState();
       notifyListeners();
     }
   }
-  
+
   /// Check game state after any move and update accordingly
   void _checkGameState() {
     if (_game.checkWin()) {
       _handleWin();
     } else if (settingsProvider.autoComplete && _game.canAutoComplete()) {
       _startAutoComplete();
-    } else if (_game is KlondikeGame) {
-      final k = _game as KlondikeGame;
-      if (k.isTrulyLost()) {
-        _handleLoss();
-      }
+    } else if (_game.isLost) {
+      _handleLoss();
     }
   }
 
@@ -700,11 +614,8 @@ class GameController extends ChangeNotifier {
     if (settingsProvider.scoringMode == ScoringMode.vegas) {
       // Count cards in foundations
       int cardsInFoundations = 0;
-      if (_game is KlondikeGame) {
-        final klondikeGame = _game as KlondikeGame;
-        for (final foundation in klondikeGame.foundations) {
-          cardsInFoundations += foundation.length;
-        }
+      for (final foundation in _game.foundationPiles) {
+        cardsInFoundations += foundation.length;
       }
       // Calculate Vegas score: -52 to start + $5 per card
       final vegasScore = ScoringMode.vegas.vegasGameCost + (cardsInFoundations * ScoringMode.vegas.vegasCardValue);
@@ -772,18 +683,12 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> _runAutoplay() async {
-    if (_game is! KlondikeGame) {
-      _state = GameState.playing;
-      notifyListeners();
-      return;
-    }
-    
-    final k = _game as KlondikeGame;
-    
+    final stockPile = _game.stockPile;
+    final wastePile = _game.wastePile;
+
     // Track progress through the stock to detect when we've cycled without progress
-    // int drawsSinceLastMove = 0;  // Currently unused, may be used for future heuristics
     int recyclesSinceLastMove = 0;
-    
+
     // Track recent moves to detect oscillation
     final List<String> recentMoveSignatures = [];
     const int maxRecentMoves = 10;
@@ -794,31 +699,33 @@ class GameController extends ChangeNotifier {
         _handleWin();
         return;
       }
-      
+
       // Check if truly lost
-      if (k.isTrulyLost()) {
+      if (_game.isLost) {
         _handleLoss();
         return;
       }
-      
+
       // Try to get a hint
       final hint = _game.getHint();
-      
+
       if (hint != null) {
         // Create a signature for this move to detect oscillation
         final sig = _createMoveSignature(hint.from, hint.to, hint.cards);
-        
+
         // Check for oscillation (same move appearing multiple times recently)
         final occurrences = recentMoveSignatures.where((s) => s == sig).length;
         if (occurrences >= 2) {
           // We're oscillating - check if there's anything left to try
-          if (k.stock.isEmpty && k.waste.isEmpty) {
+          final stockEmpty = stockPile == null || stockPile.isEmpty;
+          final wasteEmpty = wastePile == null || wastePile.isEmpty;
+          if (stockEmpty && wasteEmpty) {
             _handleLoss();
             return;
           }
           // Try drawing instead of repeating the move
           _recordGameStart();
-          final move = k.tapStock();
+          final move = _game.tapStock();
           // Play appropriate sound based on draw mode
           if (move != null && move.cards.isNotEmpty) {
             if (move.cards.length == 1) {
@@ -827,12 +734,11 @@ class GameController extends ChangeNotifier {
               audioService.playCardDraw();
             }
           }
-          // drawsSinceLastMove++;
           notifyListeners();
           await Future.delayed(const Duration(milliseconds: 300));
           continue;
         }
-        
+
         // Execute the move
         _recordGameStart();
         final move = _game.executeMove(hint.from, hint.to, hint.cards);
@@ -846,31 +752,32 @@ class GameController extends ChangeNotifier {
         if (recentMoveSignatures.length > maxRecentMoves) {
           recentMoveSignatures.removeAt(0);
         }
-        
+
         // Reset counters since we made progress
-        // drawsSinceLastMove = 0;
         recyclesSinceLastMove = 0;
-        
+
         notifyListeners();
         await Future.delayed(const Duration(milliseconds: 400));
-        
+
       } else {
         // No hint available - try drawing from stock
-        if (k.stock.isEmpty && k.waste.isEmpty) {
+        final stockEmpty = stockPile == null || stockPile.isEmpty;
+        final wasteEmpty = wastePile == null || wastePile.isEmpty;
+        if (stockEmpty && wasteEmpty) {
           // Nothing to draw at all
           _handleLoss();
           return;
         }
-        
+
         // Check if we've recycled twice without making any moves
         // This means we've gone through the entire deck twice with no progress
         if (recyclesSinceLastMove >= 2) {
           _handleLoss();
           return;
         }
-        
+
         _recordGameStart();
-        final move = k.tapStock();
+        final move = _game.tapStock();
         // Play appropriate sound based on draw mode
         if (move != null && move.cards.isNotEmpty) {
           if (move.cards.length == 1) {
@@ -879,19 +786,18 @@ class GameController extends ChangeNotifier {
             audioService.playCardDraw();
           }
         }
-        // drawsSinceLastMove++;
-        
+
         // If we just recycled (waste -> stock), track it
         if (move != null && move.toPile.type == PileType.stock) {
           recyclesSinceLastMove++;
-          
+
           // After recycling, immediately check if we're truly lost
-          if (k.isTrulyLost()) {
+          if (_game.isLost) {
             _handleLoss();
             return;
           }
         }
-        
+
         notifyListeners();
         await Future.delayed(const Duration(milliseconds: 300));
       }

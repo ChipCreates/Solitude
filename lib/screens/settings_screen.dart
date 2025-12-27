@@ -690,7 +690,7 @@ class _GameplayTab extends StatelessWidget {
                     ],
                     onChanged: (difficulty) {
                       settings.setDifficulty(difficulty);
-                      context.read<GameController>().klondike.setDrawMode(difficulty.drawMode);
+                      context.read<GameController>().game.applyDifficulty(difficulty);
                     },
                   );
                 }),

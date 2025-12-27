@@ -4,8 +4,8 @@ import '../../models/card.dart';
 import '../../models/deck.dart';
 import '../../models/pile.dart';
 import '../../models/move.dart';
-
-enum DrawMode { one, three }
+import '../../models/draw_mode.dart';
+import '../../models/difficulty.dart';
 
 class KlondikeGame implements GameInterface {
   late Pile stock;
@@ -73,7 +73,11 @@ class KlondikeGame implements GameInterface {
   @override
   List<Move> get moveHistory => List.unmodifiable(_moveHistory);
 
+  @override
   List<Move> get redoStack => List.unmodifiable(_redoStack);
+
+  @override
+  bool get canRedo => _redoStack.isNotEmpty;
 
   int get stockRecycleCount => _stockRecycleCount;
 
@@ -90,6 +94,83 @@ class KlondikeGame implements GameInterface {
     hasStock: true,
     hasWaste: true,
   );
+
+  // ==========================================================================
+  // Pile Accessors (GameInterface)
+  // ==========================================================================
+
+  @override
+  Pile? get stockPile => stock;
+
+  @override
+  Pile? get wastePile => waste;
+
+  @override
+  List<Pile> get foundationPiles => foundations;
+
+  @override
+  List<Pile> get tableauPiles => tableau;
+
+  // ==========================================================================
+  // Loss Detection (GameInterface)
+  // ==========================================================================
+
+  @override
+  bool get isLost => isTrulyLost();
+
+  // ==========================================================================
+  // Configuration (GameInterface)
+  // ==========================================================================
+
+  @override
+  void applyDifficulty(Difficulty difficulty) {
+    drawMode = difficulty.drawMode;
+    maxStockRecycles = difficulty.maxStockRecycles;
+  }
+
+  // ==========================================================================
+  // Auto-Move (GameInterface)
+  // ==========================================================================
+
+  @override
+  Pile? findBestAutoMoveDestination(Pile fromPile, List<PlayingCard> cards) {
+    if (cards.isEmpty) return null;
+    final card = cards.first;
+
+    // Priority 1: Aces go to empty foundations
+    if (card.rank == Rank.ace) {
+      for (final foundation in foundations) {
+        if (foundation.isEmpty && isValidMove(fromPile, foundation, [card])) {
+          return foundation;
+        }
+      }
+    }
+
+    // Priority 2: Cards that can stack on foundations
+    for (final foundation in foundations) {
+      if (isValidMove(fromPile, foundation, [card])) {
+        return foundation;
+      }
+    }
+
+    // Priority 3: Kings to empty tableau
+    if (card.rank == Rank.king) {
+      for (final t in tableau) {
+        if (t.isEmpty && t != fromPile && isValidMove(fromPile, t, cards)) {
+          return t;
+        }
+      }
+    }
+
+    // Priority 4: Any valid tableau (prefer non-empty)
+    for (final t in tableau) {
+      if (!t.isEmpty && t != fromPile && isValidMove(fromPile, t, cards)) {
+        return t;
+      }
+    }
+
+    return null;
+  }
   
   @override
   bool isValidMove(Pile from, Pile to, List<PlayingCard> cards) {
@@ -264,6 +345,7 @@ class KlondikeGame implements GameInterface {
   }
 
   /// Redo the last undone move
+  @override
   bool redo() {
     if (_redoStack.isEmpty) return false;
 

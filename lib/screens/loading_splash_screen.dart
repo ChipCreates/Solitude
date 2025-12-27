@@ -38,7 +38,7 @@ class _LoadingSplashScreenState extends State<LoadingSplashScreen>
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        backgroundColor: const Color(0xFF3A3A3C),
+        backgroundColor: const Color(0xFF393738),
         body: LayoutBuilder(
           builder: (context, constraints) {
             // Calculate responsive dimensions based on screen width

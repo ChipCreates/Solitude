@@ -33,7 +33,10 @@
       "Bash(/home/chip/development/flutter/bin/flutter devices:*)",
       "Bash(adb devices:*)",
       "Bash(/home/chip/Android/Sdk/platform-tools/adb devices)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git push:*)",
+      "Bash(mkdir:*)"
     ]
   }
 }

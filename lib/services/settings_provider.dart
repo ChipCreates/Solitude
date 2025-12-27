@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../games/klondike/klondike_game.dart';
+import '../models/draw_mode.dart';
 import '../models/difficulty.dart';
 import '../models/theme_preset.dart';
 

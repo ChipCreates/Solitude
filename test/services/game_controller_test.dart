@@ -38,7 +38,7 @@ void main() {
       controller.initializePileKeys();
 
       expect(controller.pileKeys.length, greaterThan(0));
-      expect(controller.getKeyForPile(controller.stock), isNotNull);
+      expect(controller.getKeyForPile(controller.stock!), isNotNull);
     });
   });
 
@@ -76,7 +76,7 @@ void main() {
       expect(stats.gamesStartedCount, 0);
 
       // Make first move via controller - this should trigger game start recording
-      controller.tapPile(controller.stock);
+      controller.tapPile(controller.stock!);
 
       expect(stats.gamesStartedCount, 1);
     });
@@ -250,12 +250,12 @@ void main() {
         timerState: TimerStateNotifier(),
       );
 
-      final stockBefore = controller.stock.length;
+      final stockBefore = controller.stock!.length;
 
-      controller.tapPile(controller.stock);
+      controller.tapPile(controller.stock!);
 
-      expect(controller.waste.length, 1);
-      expect(controller.stock.length, stockBefore - 1);
+      expect(controller.waste!.length, 1);
+      expect(controller.stock!.length, stockBefore - 1);
     });
 
     test('tapPile() on selected pile clears selection', () {
@@ -462,15 +462,15 @@ void main() {
       // Focus on stock
       controller.cycleFocusForward();
       if (controller.focusedPile == controller.stock) {
-        final stockBefore = controller.stock.length;
+        final stockBefore = controller.stock!.length;
         controller.activateFocusedPile();
-        expect(controller.stock.length, lessThan(stockBefore));
+        expect(controller.stock!.length, lessThan(stockBefore));
       }
     });
   });
 
   group('GameController Getters', () {
-    test('klondike returns game as KlondikeGame', () {
+    test('game returns GameInterface', () {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
@@ -479,7 +479,7 @@ void main() {
         timerState: TimerStateNotifier(),
       );
 
-      expect(controller.klondike, isA<KlondikeGame>());
+      expect(controller.game, isA<KlondikeGame>());
     });
 
     test('stock, waste, foundations, tableau return correct piles', () {
@@ -491,8 +491,8 @@ void main() {
         timerState: TimerStateNotifier(),
       );
 
-      expect(controller.stock.type, PileType.stock);
-      expect(controller.waste.type, PileType.waste);
+      expect(controller.stock!.type, PileType.stock);
+      expect(controller.waste!.type, PileType.waste);
       expect(controller.foundations.length, 4);
       expect(controller.tableau.length, 7);
     });
@@ -614,7 +614,7 @@ void main() {
       );
 
       // Start the game by making a move (triggers inactivity timer)
-      controller.tapPile(controller.stock);
+      controller.tapPile(controller.stock!);
 
       // Initially no hint should be showing
       expect(controller.hintDestination, isNull);
@@ -708,8 +708,8 @@ void main() {
       );
 
       // Clear all piles first
-      controller.stock.clear();
-      controller.waste.clear();
+      controller.stock!.clear();
+      controller.waste!.clear();
       for (final t in controller.tableau) {
         t.clear();
       }
@@ -729,10 +729,10 @@ void main() {
 
       // Put one king in the waste pile to move to foundation
       final kingOfHearts = PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
-      controller.waste.addCard(kingOfHearts);
+      controller.waste!.addCard(kingOfHearts);
 
       // Use doubleTapCard which triggers win check - this moves king to hearts foundation
-      controller.doubleTapCard(controller.waste, kingOfHearts);
+      controller.doubleTapCard(controller.waste!, kingOfHearts);
 
       // Now we need to complete remaining 3 foundations
       // Add remaining kings directly to foundations
@@ -907,7 +907,7 @@ void main() {
       );
 
       // Make a move
-      controller.tapPile(controller.stock);
+      controller.tapPile(controller.stock!);
       expect(controller.canUndo, isTrue);
 
       // Force state to autoCompleting (normally set internally)
@@ -930,11 +930,11 @@ void main() {
       );
 
       // Make a move
-      controller.tapPile(controller.stock);
+      controller.tapPile(controller.stock!);
 
       // Select a card
-      if (!controller.waste.isEmpty) {
-        controller.selectCard(controller.waste, controller.waste.topCard!);
+      if (!controller.waste!.isEmpty) {
+        controller.selectCard(controller.waste!, controller.waste!.topCard!);
         expect(controller.selectedCards, isNotNull);
       }
 
@@ -957,7 +957,7 @@ void main() {
       );
 
       // Make a move
-      controller.tapPile(controller.stock);
+      controller.tapPile(controller.stock!);
 
       // Manually trigger lost state via clearLoss then losing again
       // We need to access the private method or trigger it through game logic

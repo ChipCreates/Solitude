@@ -1,93 +1,135 @@
 import 'package:flutter/material.dart';
-import '../games/klondike/klondike_game.dart';
+import 'draw_mode.dart';
+import '../games/game_factory.dart';
 
-/// Difficulty levels for Klondike Solitaire
-enum Difficulty {
+/// Base difficulty levels (game-agnostic)
+enum DifficultyLevel {
   easy,
   medium,
   hard;
 
   String get displayName {
     switch (this) {
-      case Difficulty.easy:
+      case DifficultyLevel.easy:
         return 'Easy';
-      case Difficulty.medium:
+      case DifficultyLevel.medium:
         return 'Medium';
-      case Difficulty.hard:
+      case DifficultyLevel.hard:
         return 'Hard';
     }
   }
 
   String get shortName {
     switch (this) {
-      case Difficulty.easy:
+      case DifficultyLevel.easy:
         return 'EASY';
-      case Difficulty.medium:
+      case DifficultyLevel.medium:
         return 'MED';
-      case Difficulty.hard:
+      case DifficultyLevel.hard:
         return 'HARD';
     }
   }
 
-  /// Draw mode for this difficulty
-  DrawMode get drawMode {
+  Color get color {
     switch (this) {
-      case Difficulty.easy:
-        return DrawMode.one; // Draw 1 card
-      case Difficulty.medium:
-        return DrawMode.one; // Draw 1 card
-      case Difficulty.hard:
-        return DrawMode.three; // Draw 3 cards
+      case DifficultyLevel.easy:
+        return Colors.green;
+      case DifficultyLevel.medium:
+        return Colors.orange;
+      case DifficultyLevel.hard:
+        return Colors.red;
     }
   }
 
-  /// Maximum number of times the stock can be recycled (null = unlimited)
-  int? get maxStockRecycles {
-    switch (this) {
-      case Difficulty.easy:
-        return null; // Unlimited
-      case Difficulty.medium:
-        return null; // Unlimited
-      case Difficulty.hard:
-        return 2; // 3 passes total (initial + 2 recycles)
+  /// Get the description for a specific game type
+  String descriptionFor(GameType gameType) {
+    switch (gameType) {
+      case GameType.klondike:
+        return _klondikeDescription;
     }
   }
 
-  /// Description of the difficulty rules
-  String get description {
+  String get _klondikeDescription {
     switch (this) {
-      case Difficulty.easy:
+      case DifficultyLevel.easy:
         return 'Draw 1 card • Unlimited passes';
-      case Difficulty.medium:
+      case DifficultyLevel.medium:
         return 'Draw 1 card • Unlimited passes';
-      case Difficulty.hard:
+      case DifficultyLevel.hard:
         return 'Draw 3 cards • 3 passes max';
     }
   }
 
-  /// Full explanation of the difficulty
-  String get fullDescription {
-    switch (this) {
-      case Difficulty.easy:
-        return 'Relaxed gameplay with 1-card draw and unlimited deck recycling. Perfect for learning the game.';
-      case Difficulty.medium:
-        return 'Standard Klondike rules with 1-card draw. A good balance of challenge and flexibility.';
-      case Difficulty.hard:
-        return 'Challenge mode: 3-card draw and limited to 3 passes through the deck.';
+  /// Get full description for a specific game type
+  String fullDescriptionFor(GameType gameType) {
+    switch (gameType) {
+      case GameType.klondike:
+        return _klondikeFullDescription;
     }
   }
 
-  /// Color associated with this difficulty level
-  Color get color {
+  String get _klondikeFullDescription {
     switch (this) {
-      case Difficulty.easy:
-        return Colors.green;
-      case Difficulty.medium:
-        return Colors.orange;
-      case Difficulty.hard:
-        return Colors.red;
+      case DifficultyLevel.easy:
+        return 'Relaxed gameplay with 1-card draw and unlimited deck recycling. Perfect for learning the game.';
+      case DifficultyLevel.medium:
+        return 'Standard Klondike rules with 1-card draw. A good balance of challenge and flexibility.';
+      case DifficultyLevel.hard:
+        return 'Challenge mode: 3-card draw and limited to 3 passes through the deck.';
     }
   }
+}
+
+/// Klondike-specific difficulty configuration
+class KlondikeDifficulty {
+  final DrawMode drawMode;
+  final int? maxStockRecycles;
+
+  const KlondikeDifficulty({
+    required this.drawMode,
+    this.maxStockRecycles,
+  });
+
+  /// Create from a difficulty level
+  factory KlondikeDifficulty.fromLevel(DifficultyLevel level) {
+    switch (level) {
+      case DifficultyLevel.easy:
+        return const KlondikeDifficulty(
+          drawMode: DrawMode.one,
+          maxStockRecycles: null, // Unlimited
+        );
+      case DifficultyLevel.medium:
+        return const KlondikeDifficulty(
+          drawMode: DrawMode.one,
+          maxStockRecycles: null, // Unlimited
+        );
+      case DifficultyLevel.hard:
+        return const KlondikeDifficulty(
+          drawMode: DrawMode.three,
+          maxStockRecycles: 2, // 3 passes total
+        );
+    }
+  }
+}
+
+/// Legacy typedef for backward compatibility
+/// TODO: Remove once all code migrates to DifficultyLevel
+typedef Difficulty = DifficultyLevel;
+
+/// Extension to provide Klondike-specific getters on DifficultyLevel
+/// for backward compatibility during migration
+extension KlondikeDifficultyExtension on DifficultyLevel {
+  /// Draw mode for Klondike
+  DrawMode get drawMode => KlondikeDifficulty.fromLevel(this).drawMode;
+
+  /// Maximum stock recycles for Klondike
+  int? get maxStockRecycles => KlondikeDifficulty.fromLevel(this).maxStockRecycles;
+
+  /// Description (defaults to Klondike for backward compatibility)
+  String get description => descriptionFor(GameType.klondike);
+
+  /// Full description (defaults to Klondike for backward compatibility)
+  String get fullDescription => fullDescriptionFor(GameType.klondike);
 }
 
 /// Scoring mode for Klondike Solitaire

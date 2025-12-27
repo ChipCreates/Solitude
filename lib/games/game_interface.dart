@@ -2,10 +2,31 @@ import 'dart:math';
 import '../models/card.dart';
 import '../models/pile.dart';
 import '../models/move.dart';
+import '../models/difficulty.dart';
 
 /// Abstract interface that all solitaire game types must implement.
 /// This allows for future expansion to Spider, FreeCell, etc.
 abstract class GameInterface {
+  // ==========================================================================
+  // Pile Accessors
+  // ==========================================================================
+
+  /// Get the stock pile (if any). Returns null for games without stock.
+  Pile? get stockPile;
+
+  /// Get the waste pile (if any). Returns null for games without waste.
+  Pile? get wastePile;
+
+  /// Get foundation piles. Empty list for games without foundations.
+  List<Pile> get foundationPiles;
+
+  /// Get tableau piles.
+  List<Pile> get tableauPiles;
+
+  // ==========================================================================
+  // Lifecycle
+  // ==========================================================================
+
   /// Initialize a new game with shuffled deck.
   /// Optionally accepts a [Random] instance for deterministic testing.
   void initialize({Random? random});
@@ -51,7 +72,49 @@ abstract class GameInterface {
 
   /// Returns true if any legal move or draw is possible (used for loss detection)
   bool hasAnyMove();
-  
+
+  // ==========================================================================
+  // Redo Support
+  // ==========================================================================
+
+  /// Redo the last undone move. Returns true if successful.
+  /// Default implementation returns false (no redo support).
+  bool redo() => false;
+
+  /// Get the redo stack for UI display.
+  /// Default implementation returns empty list.
+  List<Move> get redoStack => const [];
+
+  /// Whether redo is available.
+  bool get canRedo => redoStack.isNotEmpty;
+
+  // ==========================================================================
+  // Loss Detection
+  // ==========================================================================
+
+  /// Check if the game is in an unwinnable state (no progress possible).
+  /// Returns false if unknown or if the game can continue.
+  /// Default implementation returns false (no loss detection).
+  bool get isLost => false;
+
+  // ==========================================================================
+  // Auto-Move (Double-Tap)
+  // ==========================================================================
+
+  /// Find the best destination for auto-moving cards (double-tap behavior).
+  /// Returns null if no auto-move is appropriate.
+  /// Each game implements its own priority logic.
+  Pile? findBestAutoMoveDestination(Pile fromPile, List<PlayingCard> cards);
+
+  // ==========================================================================
+  // Configuration
+  // ==========================================================================
+
+  /// Apply game-specific difficulty settings.
+  /// Each game type interprets difficulty differently.
+  /// Default implementation does nothing.
+  void applyDifficulty(Difficulty difficulty) {}
+
   /// Game-specific layout configuration
   LayoutConfig get layoutConfig;
 }

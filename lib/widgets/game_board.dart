@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/card.dart';
+import '../models/difficulty.dart';
 import '../services/game_controller.dart';
 import '../services/settings_provider.dart';
-import '../games/klondike/klondike_game.dart';
 import 'pile_widget.dart';
 import 'card_widget.dart';
 
@@ -96,42 +96,47 @@ class _GameBoardState extends State<GameBoard> {
   Widget _buildTopRow(BuildContext context, GameController controller, _BoardLayout layout) {
     // Calculate the width of the first 3 tableau piles section
     final first3Width = layout.cardWidth * 3 + layout.pileSpacing * 2;
+    final stockPile = controller.stock;
+    final wastePile = controller.waste;
+    final settings = Provider.of<SettingsProvider>(context, listen: false);
 
     return SizedBox(
       height: layout.cardHeight,
       child: Row(
         children: [
-          // Stock
-          SizedBox(
-            width: layout.cardWidth,
-            child: Container(
-              key: controller.getKeyForPile(controller.stock),
-              child: StockPileWidget(
-                pile: controller.stock,
-                cardWidth: layout.cardWidth,
-                controller: controller,
+          // Stock (only show if game has stock)
+          if (stockPile != null)
+            SizedBox(
+              width: layout.cardWidth,
+              child: Container(
+                key: controller.getKeyForPile(stockPile),
+                child: StockPileWidget(
+                  pile: stockPile,
+                  cardWidth: layout.cardWidth,
+                  controller: controller,
+                ),
               ),
             ),
-          ),
-          SizedBox(width: layout.pileSpacing),
-          // Waste
-          SizedBox(
-            width: layout.cardWidth,
-            child: Container(
-              key: controller.getKeyForPile(controller.waste),
-              child: WastePileWidget(
-                pile: controller.waste,
-                cardWidth: layout.cardWidth,
-                spreadCount: controller.klondike.drawMode == DrawMode.one ? 1 : 3,
-                controller: controller,
+          if (stockPile != null) SizedBox(width: layout.pileSpacing),
+          // Waste (only show if game has waste)
+          if (wastePile != null)
+            SizedBox(
+              width: layout.cardWidth,
+              child: Container(
+                key: controller.getKeyForPile(wastePile),
+                child: WastePileWidget(
+                  pile: wastePile,
+                  cardWidth: layout.cardWidth,
+                  spreadCount: settings.difficulty.drawMode.drawCount,
+                  controller: controller,
+                ),
               ),
             ),
-          ),
           // Spacer to fill remaining space in "first 3 piles" section
           SizedBox(width: first3Width - (layout.cardWidth * 2 + layout.pileSpacing)),
           SizedBox(width: layout.pileSpacing),
           // Foundations aligned with last 4 tableau piles
-          for (int i = 0; i < 4; i++) ...[
+          for (int i = 0; i < controller.foundations.length; i++) ...[
             SizedBox(
               width: layout.cardWidth,
               child: Container(
@@ -144,7 +149,7 @@ class _GameBoardState extends State<GameBoard> {
                 ),
               ),
             ),
-            if (i < 3) SizedBox(width: layout.pileSpacing),
+            if (i < controller.foundations.length - 1) SizedBox(width: layout.pileSpacing),
           ],
         ],
       ),

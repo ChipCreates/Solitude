@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solitude/services/settings_provider.dart';
-import 'package:solitude/games/klondike/klondike_game.dart';
+import 'package:solitude/models/draw_mode.dart';
 import 'package:solitude/models/difficulty.dart';
 import 'package:flutter/material.dart';
 

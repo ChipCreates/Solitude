@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:solitude/services/settings_provider.dart';
 import 'package:solitude/services/statistics_service.dart';
 import 'package:solitude/services/audio_service.dart';
-import 'package:solitude/games/klondike/klondike_game.dart';
+import 'package:solitude/models/draw_mode.dart';
 import 'package:solitude/models/difficulty.dart';
 import 'package:solitude/models/theme_preset.dart';
 
