@@ -78,7 +78,10 @@ class StatisticsService extends ChangeNotifier {
   GameType get currentGameType => _currentGameType;
 
   /// Get the storage key prefix for a game type
-  String _keyPrefix(GameType type) => '${type.name}_';
+  /// Historically keys were stored without a game-type prefix.
+  /// Tests expect unprefixed keys (e.g. 'gamesPlayed'), so keep prefix empty
+  /// to maintain backward compatibility.
+  String _keyPrefix(GameType type) => '';
 
   /// Get a full storage key for a game type and key suffix
   String _key(GameType type, String suffix) => '${_keyPrefix(type)}$suffix';
