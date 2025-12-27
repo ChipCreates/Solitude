@@ -129,13 +129,20 @@ class TableauPileWidget extends StatelessWidget {
           },
           builder: (context, candidateData, rejectedData) {
             final isDropTarget = candidateData.isNotEmpty;
-            return EmptyPileIndicator(
-              width: cardWidth,
-              type: PileIndicatorType.tableau,
-              isHighlighted: isValidDest || isDropTarget,
-              isHintDestination: isHintDest,
-              isFocused: isFocused,
-              onTap: () => controller.tapPile(pile),
+            
+            return ListenableBuilder(
+              listenable: controller.selectionState,
+              builder: (context, _) {
+                final isValidDest = controller.isValidDestination(pile);
+                return EmptyPileIndicator(
+                  width: cardWidth,
+                  type: PileIndicatorType.tableau,
+                  isHighlighted: isValidDest || isDropTarget,
+                  isHintDestination: isHintDest,
+                  isFocused: isFocused,
+                  onTap: () => controller.tapPile(pile),
+                );
+              },
             );
           },
         ),
@@ -173,7 +180,6 @@ class TableauPileWidget extends StatelessWidget {
   }
   
   Widget _buildDraggableCard(BuildContext context, PlayingCard card, int index, bool isHintDest, bool isHintSource) {
-    final isSelected = controller.isSelected(card);
     final cardsFromHere = pile.cards.sublist(index);
 
     if (!card.faceUp) {
@@ -215,17 +221,23 @@ class TableauPileWidget extends StatelessWidget {
           builder: (context, candidateData, rejectedData) {
             final isDropTarget = candidateData.isNotEmpty;
             final isAnimating = controller.isCardAnimating(card);
-            return Opacity(
-              opacity: isAnimating ? 0.0 : 1.0,
-              child: CardWidget(
-                card: card,
-                width: cardWidth,
-                isSelected: isSelected,
-                isHighlighted: isDropTarget,
-                isHintDestination: isHintDest,
-                isHintSource: isHintSource,
-                // Don't pass tap handlers - handled by outer GestureDetector
-              ),
+            return ListenableBuilder(
+              listenable: controller.selectionState,
+              builder: (context, _) {
+                final isSelected = controller.selectionState.isCardSelected(card);
+                return Opacity(
+                  opacity: isAnimating ? 0.0 : 1.0,
+                  child: CardWidget(
+                    card: card,
+                    width: cardWidth,
+                    isSelected: isSelected,
+                    isHighlighted: isDropTarget,
+                    isHintDestination: isHintDest,
+                    isHintSource: isHintSource,
+                    // Don't pass tap handlers - handled by outer GestureDetector
+                  ),
+                );
+              },
             );
           },
         ),
@@ -291,7 +303,6 @@ class FoundationPileWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isValidDest = controller.isValidDestination(pile);
     final isHintDest = controller.hintDestinationPile == pile;
     
     return DragTarget<DragData>(
@@ -309,23 +320,30 @@ class FoundationPileWidget extends StatelessWidget {
       builder: (context, candidateData, rejectedData) {
         final isDropTarget = candidateData.isNotEmpty;
         
-        if (pile.isEmpty) {
-          return EmptyPileIndicator(
-            width: cardWidth,
-            type: PileIndicatorType.foundation,
-            suit: suit,
-            isHighlighted: isValidDest || isDropTarget,
-            isHintDestination: isHintDest,
-            onTap: () => controller.tapPile(pile),
-          );
-        }
-        
-        return CardWidget(
-          card: pile.topCard!,
-          width: cardWidth,
-          isHighlighted: isDropTarget,
-          isHintDestination: isHintDest,
-          onTap: () => controller.tapPile(pile),
+        return ListenableBuilder(
+          listenable: controller.selectionState,
+          builder: (context, _) {
+            final isValidDest = controller.isValidDestination(pile);
+            
+            if (pile.isEmpty) {
+              return EmptyPileIndicator(
+                width: cardWidth,
+                type: PileIndicatorType.foundation,
+                suit: suit,
+                isHighlighted: isValidDest || isDropTarget,
+                isHintDestination: isHintDest,
+                onTap: () => controller.tapPile(pile),
+              );
+            }
+            
+            return CardWidget(
+              card: pile.topCard!,
+              width: cardWidth,
+              isHighlighted: isDropTarget,
+              isHintDestination: isHintDest,
+              onTap: () => controller.tapPile(pile),
+            );
+          },
         );
       },
     );
@@ -465,7 +483,6 @@ class WastePileWidget extends StatelessWidget {
   }
   
   Widget _buildDraggableTopCard(PlayingCard card, bool isHintSource) {
-    final isSelected = controller.isSelected(card);
     final isAnimating = controller.isCardAnimating(card);
 
     // Wrap in a pointer-based detector outside the Draggable so taps and
@@ -491,15 +508,21 @@ class WastePileWidget extends StatelessWidget {
           ),
         ),
         onDragStarted: () => controller.selectCard(pile, card),
-        child: Opacity(
-          opacity: isAnimating ? 0.0 : 1.0,
-          child: CardWidget(
-            card: card,
-            width: cardWidth,
-            isSelected: isSelected,
-            isHintSource: isHintSource,
-            // Don't pass tap handlers - handled by outer GestureDetector
-          ),
+        child: ListenableBuilder(
+          listenable: controller.selectionState,
+          builder: (context, _) {
+            final isSelected = controller.selectionState.isCardSelected(card);
+            return Opacity(
+              opacity: isAnimating ? 0.0 : 1.0,
+              child: CardWidget(
+                card: card,
+                width: cardWidth,
+                isSelected: isSelected,
+                isHintSource: isHintSource,
+                // Don't pass tap handlers - handled by outer GestureDetector
+              ),
+            );
+          },
         ),
       ),
     );

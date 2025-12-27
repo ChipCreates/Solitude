@@ -12,6 +12,7 @@ import 'statistics_service.dart';
 import 'audio_service.dart';
 import 'animation_state_notifier.dart';
 import 'hint_state_notifier.dart';
+import 'selection_state_notifier.dart';
 import 'timer_state_notifier.dart';
 
 enum GameState { playing, won, autoCompleting, autoplaying, lost }
@@ -24,14 +25,11 @@ class GameController extends ChangeNotifier {
   // Separate notifiers for performance optimization
   final AnimationStateNotifier animationState;
   final HintStateNotifier hintState;
+  final SelectionStateNotifier selectionState;
   final TimerStateNotifier timerState;
 
   late GameInterface _game;
   GameState _state = GameState.playing;
-
-  // Selection state
-  Pile? _selectedPile;
-  List<PlayingCard>? _selectedCards;
 
   // Keyboard focus state - tracks which pile has keyboard focus
   Pile? _focusedPile;
@@ -52,6 +50,7 @@ class GameController extends ChangeNotifier {
     required this.statisticsService,
     required this.animationState,
     required this.hintState,
+    required this.selectionState,
     required this.timerState,
     required this.audioService,
   }) {
@@ -61,12 +60,12 @@ class GameController extends ChangeNotifier {
     // Listen to settings changes to respond to autoplay and audio toggles
     settingsProvider.addListener(_onSettingsChanged);
   }
-  
+
   // Getters
   GameInterface get game => _game;
   GameState get state => _state;
-  Pile? get selectedPile => _selectedPile;
-  List<PlayingCard>? get selectedCards => _selectedCards;
+  Pile? get selectedPile => selectionState.selectedPile;
+  List<PlayingCard>? get selectedCards => selectionState.selectedCards;
   Pile? get hintSourcePile => hintState.sourcePile;
   List<PlayingCard>? get hintCards => hintState.cards;
   Pile? get hintDestinationPile => hintState.destinationPile;
@@ -178,7 +177,7 @@ class GameController extends ChangeNotifier {
   
   /// Called when player has been inactive - show a hint
   void _onInactivityTimeout() {
-    if (_state == GameState.playing && !hintState.isActive && _selectedCards == null) {
+    if (_state == GameState.playing && !hintState.isActive && !selectionState.hasSelection) {
       showHint();
       // Restart timer so hint shows again if still inactive
       _resetInactivityTimer();
@@ -204,39 +203,33 @@ class GameController extends ChangeNotifier {
   
   void selectCard(Pile pile, PlayingCard card) {
     if (_state != GameState.playing) return;
-    
+
     // If same card selected, deselect
-    if (_selectedPile == pile && _selectedCards?.first == card) {
+    if (selectionState.selectedPile == pile && selectionState.selectedCards?.first == card) {
       clearSelection();
       return;
     }
-    
+
     // Can only select face-up cards
     if (!card.faceUp) return;
-    
+
     // Get all cards from selected card to top of pile
     final cardIndex = pile.indexOfCard(card);
     if (cardIndex == -1) return;
-    
+
     final cards = pile.cards.sublist(cardIndex);
-    
+
     // For waste pile, can only select top card
     if (pile.type == PileType.waste && cards.length > 1) {
-      _selectedPile = pile;
-      _selectedCards = [pile.topCard!];
+      selectionState.setSelection(pile: pile, cards: [pile.topCard!]);
     } else {
-      _selectedPile = pile;
-      _selectedCards = cards;
+      selectionState.setSelection(pile: pile, cards: cards);
     }
-    
-    notifyListeners();
   }
-  
+
   void clearSelection() {
-    _selectedPile = null;
-    _selectedCards = null;
+    selectionState.clear();
     clearHint();
-    notifyListeners();
   }
 
   void clearHint() {
@@ -379,24 +372,28 @@ class GameController extends ChangeNotifier {
   }
   
   bool isSelected(PlayingCard card) {
-    return _selectedCards?.contains(card) ?? false;
+    return selectionState.isCardSelected(card);
   }
-  
+
   bool isValidDestination(Pile pile) {
-    if (_selectedPile == null || _selectedCards == null) return false;
-    return _game.isValidMove(_selectedPile!, pile, _selectedCards!);
+    final selectedPile = selectionState.selectedPile;
+    final selectedCards = selectionState.selectedCards;
+    if (selectedPile == null || selectedCards == null) return false;
+    return _game.isValidMove(selectedPile, pile, selectedCards);
   }
-  
+
   List<Pile> getValidDestinations() {
-    if (_selectedPile == null || _selectedCards == null) return [];
-    return _game.getValidDestinations(_selectedPile!, _selectedCards!);
+    final selectedPile = selectionState.selectedPile;
+    final selectedCards = selectionState.selectedCards;
+    if (selectedPile == null || selectedCards == null) return [];
+    return _game.getValidDestinations(selectedPile, selectedCards);
   }
   
   void tapPile(Pile pile) {
     if (_state != GameState.playing) return;
     _resetInactivityTimer();
     clearHint();
-    
+
     // Handle stock tap
     if (pile.type == PileType.stock) {
       _recordGameStart();
@@ -410,12 +407,14 @@ class GameController extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    
+
     // If we have a selection, try to move to this pile
-    if (_selectedPile != null && _selectedCards != null) {
-      if (_game.isValidMove(_selectedPile!, pile, _selectedCards!)) {
+    final selectedPile = selectionState.selectedPile;
+    final selectedCards = selectionState.selectedCards;
+    if (selectedPile != null && selectedCards != null) {
+      if (_game.isValidMove(selectedPile, pile, selectedCards)) {
         _recordGameStart();
-        final move = _game.executeMove(_selectedPile!, pile, _selectedCards!);
+        final move = _game.executeMove(selectedPile, pile, selectedCards);
         audioService.playCardPlace();
         if (move?.flippedCard == true) {
           audioService.playCardFlip();
@@ -428,7 +427,7 @@ class GameController extends ChangeNotifier {
         audioService.playInvalidMove();
       }
     }
-    
+
     // Select the top card of the pile
     if (!pile.isEmpty && pile.topCard!.faceUp) {
       selectCard(pile, pile.topCard!);
@@ -441,12 +440,14 @@ class GameController extends ChangeNotifier {
     if (_state != GameState.playing) return;
     _resetInactivityTimer();
     clearHint();
-    
+
     // If we have a selection, try to move to this pile
-    if (_selectedPile != null && _selectedCards != null && pile != _selectedPile) {
-      if (_game.isValidMove(_selectedPile!, pile, _selectedCards!)) {
+    final selectedPile = selectionState.selectedPile;
+    final selectedCards = selectionState.selectedCards;
+    if (selectedPile != null && selectedCards != null && pile != selectedPile) {
+      if (_game.isValidMove(selectedPile, pile, selectedCards)) {
         _recordGameStart();
-        final move = _game.executeMove(_selectedPile!, pile, _selectedCards!);
+        final move = _game.executeMove(selectedPile, pile, selectedCards);
         audioService.playCardPlace();
         if (move?.flippedCard == true) {
           audioService.playCardFlip();
@@ -457,7 +458,7 @@ class GameController extends ChangeNotifier {
         return;
       }
     }
-    
+
     // Select this card
     selectCard(pile, card);
   }

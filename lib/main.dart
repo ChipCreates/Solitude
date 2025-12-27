@@ -7,6 +7,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'services/game_controller.dart';
 import 'services/animation_state_notifier.dart';
 import 'services/hint_state_notifier.dart';
+import 'services/selection_state_notifier.dart';
 import 'services/timer_state_notifier.dart';
 import 'services/svg_preload_service.dart';
 import 'services/audio_service.dart';
@@ -92,6 +93,7 @@ Future<void> _initializeApp() async {
         ChangeNotifierProvider.value(value: statisticsService),
         ChangeNotifierProvider(create: (_) => AnimationStateNotifier()),
         ChangeNotifierProvider(create: (_) => HintStateNotifier()),
+        ChangeNotifierProvider(create: (_) => SelectionStateNotifier()),
         ChangeNotifierProvider(create: (_) => TimerStateNotifier()),
         ChangeNotifierProvider(
           create: (context) => GameController(
@@ -99,6 +101,7 @@ Future<void> _initializeApp() async {
             statisticsService: statisticsService,
             animationState: context.read<AnimationStateNotifier>(),
             hintState: context.read<HintStateNotifier>(),
+            selectionState: context.read<SelectionStateNotifier>(),
             timerState: context.read<TimerStateNotifier>(),
             audioService: audioService,
           ),

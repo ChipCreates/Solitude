@@ -6,6 +6,7 @@ import 'package:solitude/services/settings_provider.dart';
 import 'package:solitude/services/statistics_service.dart';
 import 'package:solitude/services/animation_state_notifier.dart';
 import 'package:solitude/services/hint_state_notifier.dart';
+import 'package:solitude/services/selection_state_notifier.dart';
 import 'package:solitude/services/timer_state_notifier.dart';
 import 'package:solitude/theme/app_theme.dart';
 import 'package:solitude/models/theme_preset.dart';
@@ -25,6 +26,7 @@ class TestHarness {
   /// [statistics] - Optional StatisticsService (uses mock if not provided)
   /// [animationState] - Optional AnimationStateNotifier
   /// [hintState] - Optional HintStateNotifier
+  /// [selectionState] - Optional SelectionStateNotifier
   /// [timerState] - Optional TimerStateNotifier
   /// [themeMode] - Theme mode for the app (defaults to dark)
   static Widget buildTestWidget(
@@ -34,6 +36,7 @@ class TestHarness {
     StatisticsService? statistics,
     AnimationStateNotifier? animationState,
     HintStateNotifier? hintState,
+    SelectionStateNotifier? selectionState,
     TimerStateNotifier? timerState,
     ThemeMode themeMode = ThemeMode.dark,
   }) {
