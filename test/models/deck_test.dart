@@ -199,6 +199,32 @@ void main() {
     });
   });
 
+  group('Deck with Multiple Decks', () {
+    test('deck with deckCount=2 contains exactly 104 cards', () {
+      final deck = Deck(deckCount: 2);
+      expect(deck.length, 104);
+    });
+
+    test('deck with deckCount=2 has two of each card', () {
+      final deck = Deck(deckCount: 2);
+      final cardCounts = <PlayingCard, int>{};
+
+      for (final card in deck.cards) {
+        cardCounts[card] = (cardCounts[card] ?? 0) + 1;
+      }
+
+      // Each unique card should appear exactly twice
+      for (final count in cardCounts.values) {
+        expect(count, 2);
+      }
+    });
+
+    test('deck with deckCount=3 contains exactly 156 cards', () {
+      final deck = Deck(deckCount: 3);
+      expect(deck.length, 156);
+    });
+  });
+
   group('Deck Integration', () {
     test('multiple operations maintain deck integrity', () {
       final deck = Deck();

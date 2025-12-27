@@ -4,15 +4,17 @@ import 'card.dart';
 class Deck {
   final List<PlayingCard> _cards = [];
   
-  Deck() {
-    _createStandardDeck();
+  Deck({int deckCount = 1}) {
+    _createStandardDeck(deckCount);
   }
   
-  void _createStandardDeck() {
+  void _createStandardDeck(int deckCount) {
     _cards.clear();
-    for (final suit in Suit.values) {
-      for (final rank in Rank.values) {
-        _cards.add(PlayingCard(suit: suit, rank: rank));
+    for (int deck = 0; deck < deckCount; deck++) {
+      for (final suit in Suit.values) {
+        for (final rank in Rank.values) {
+          _cards.add(PlayingCard(suit: suit, rank: rank));
+        }
       }
     }
   }

@@ -961,7 +961,11 @@ void main() {
       game.initialize();
       game.waste.clear();
       game.waste.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.two, faceUp: true));
-      // No foundation or tableau accepts a 2
+      // Clear tableau to ensure no valid tableau moves
+      for (final pile in game.tableau) {
+        pile.clear();
+      }
+      // No foundation accepts a 2 (only ace), and no tableau
       expect(game.hasValidWasteMoves(), isFalse);
     });
 
