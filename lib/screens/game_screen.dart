@@ -103,23 +103,25 @@ class _GameScreenState extends State<GameScreen> {
       child: Scaffold(
         body: Stack(
         children: [
-          // Main game - only rebuilds when game state changes
-          Consumer<GameController>(
-            builder: (context, controller, _) {
-              return Column(
-                children: [
-                  GameToolbar(
+          // Main game - toolbar rebuilds only on move count changes, board uses granular selectors
+          Column(
+            children: [
+              Selector<GameController, int>(
+                selector: (_, controller) => controller.moveCount,
+                builder: (context, moveCount, _) {
+                  final controller = context.read<GameController>();
+                  return GameToolbar(
                     controller: controller,
                     onMenuPressed: () => _showSettings(context),
                     onNewGame: () => _confirmNewGame(context, controller),
                     onStatsPressed: () => _showStatistics(context),
-                  ),
-                  const Expanded(
-                    child: GameBoard(),
-                  ),
-                ],
-              );
-            },
+                  );
+                },
+              ),
+              const Expanded(
+                child: GameBoard(),
+              ),
+            ],
           ),
 
           // Card animation overlay - only rebuilds when animation state changes

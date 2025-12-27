@@ -44,6 +44,7 @@ class TestHarness {
     final effectiveStats = statistics ?? MockStatisticsService();
     final effectiveAnimationState = animationState ?? AnimationStateNotifier();
     final effectiveHintState = hintState ?? HintStateNotifier();
+    final effectiveSelectionState = selectionState ?? SelectionStateNotifier();
     final effectiveTimerState = timerState ?? TimerStateNotifier();
 
     final effectiveController = controller ??
@@ -53,6 +54,7 @@ class TestHarness {
           audioService: MockAudioService(),
           animationState: effectiveAnimationState,
           hintState: effectiveHintState,
+          selectionState: effectiveSelectionState,
           timerState: effectiveTimerState,
         );
 
@@ -70,6 +72,8 @@ class TestHarness {
               value: effectiveAnimationState),
           ChangeNotifierProvider<HintStateNotifier>.value(
               value: effectiveHintState),
+          ChangeNotifierProvider<SelectionStateNotifier>.value(
+              value: effectiveSelectionState),
           ChangeNotifierProvider<TimerStateNotifier>.value(
               value: effectiveTimerState),
           ChangeNotifierProvider<GameController>.value(
@@ -101,6 +105,7 @@ class TestHarness {
     MockAudioService? audio,
     AnimationStateNotifier? animationState,
     HintStateNotifier? hintState,
+    SelectionStateNotifier? selectionState,
     TimerStateNotifier? timerState,
   }) {
     return GameController(
@@ -109,6 +114,7 @@ class TestHarness {
       audioService: audio ?? MockAudioService(),
       animationState: animationState ?? AnimationStateNotifier(),
       hintState: hintState ?? HintStateNotifier(),
+      selectionState: selectionState ?? SelectionStateNotifier(),
       timerState: timerState ?? TimerStateNotifier(),
     );
   }

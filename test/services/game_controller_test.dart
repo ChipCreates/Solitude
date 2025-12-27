@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:solitude/services/game_controller.dart';
 import 'package:solitude/services/animation_state_notifier.dart';
 import 'package:solitude/services/hint_state_notifier.dart';
+import 'package:solitude/services/selection_state_notifier.dart';
 import 'package:solitude/services/timer_state_notifier.dart';
 import 'package:solitude/games/klondike/klondike_game.dart';
 import 'package:solitude/models/card.dart';
@@ -19,6 +20,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -35,6 +37,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -53,6 +56,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -75,6 +79,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -95,6 +100,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -116,6 +122,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -137,6 +144,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -154,6 +162,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -176,6 +185,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -197,6 +207,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -219,6 +230,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -242,6 +254,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -261,6 +274,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -279,6 +293,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -299,6 +314,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -318,6 +334,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -339,6 +356,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -359,6 +377,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -380,6 +399,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -405,6 +425,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -420,6 +441,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -435,6 +457,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -450,6 +473,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -467,6 +491,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -482,6 +507,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -503,6 +529,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -516,6 +543,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -532,6 +560,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -550,6 +579,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -571,6 +601,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -591,6 +622,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -612,6 +644,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -627,6 +660,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -645,6 +679,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -667,6 +702,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -690,6 +726,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -715,6 +752,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -743,6 +781,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -805,6 +844,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -827,6 +867,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -849,6 +890,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -875,6 +917,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -895,6 +938,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -914,6 +958,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -949,6 +994,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -973,6 +1019,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -1001,6 +1048,7 @@ void main() {
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
+        selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
