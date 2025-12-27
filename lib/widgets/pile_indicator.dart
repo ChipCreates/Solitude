@@ -11,6 +11,7 @@ class EmptyPileIndicator extends StatelessWidget {
   final Suit? suit;
   final bool isHighlighted;
   final bool isHintDestination;
+  final bool isHintSource;
   final bool isFocused;
   final VoidCallback? onTap;
 
@@ -21,6 +22,7 @@ class EmptyPileIndicator extends StatelessWidget {
     this.suit,
     this.isHighlighted = false,
     this.isHintDestination = false,
+    this.isHintSource = false,
     this.isFocused = false,
     this.onTap,
   });
@@ -51,6 +53,17 @@ class EmptyPileIndicator extends StatelessWidget {
         ),
       ];
     } else if (isHintDestination) {
+      backgroundColor = AppColors.gold.withValues(alpha:0.2);
+      borderColor = AppColors.gold;
+      borderWidth = 2.5;
+      shadows = [
+        BoxShadow(
+          color: AppColors.gold.withValues(alpha:0.4),
+          blurRadius: 16,
+          spreadRadius: 3,
+        ),
+      ];
+    } else if (isHintSource) {
       backgroundColor = AppColors.gold.withValues(alpha:0.2);
       borderColor = AppColors.gold;
       borderWidth = 2.5;

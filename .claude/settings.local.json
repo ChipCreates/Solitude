@@ -36,7 +36,8 @@
       "Bash(python3:*)",
       "Bash(git remote set-url:*)",
       "Bash(git push:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(tee:*)"
     ]
   }
 }

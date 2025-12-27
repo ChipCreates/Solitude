@@ -409,4 +409,135 @@ void main() {
       expect(pile.isEmpty, isTrue);
     });
   });
+
+  group('Pile version tracking', () {
+    test('version starts at 0', () {
+      final pile = Pile(type: PileType.tableau);
+      expect(pile.version, 0);
+    });
+
+    test('addCard increments version', () {
+      final pile = Pile(type: PileType.tableau);
+      final initialVersion = pile.version;
+
+      pile.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.ace));
+
+      expect(pile.version, initialVersion + 1);
+    });
+
+    test('addCards increments version', () {
+      final pile = Pile(type: PileType.tableau);
+      final initialVersion = pile.version;
+
+      pile.addCards([
+        PlayingCard(suit: Suit.hearts, rank: Rank.ace),
+        PlayingCard(suit: Suit.hearts, rank: Rank.two),
+      ]);
+
+      expect(pile.version, initialVersion + 1);
+    });
+
+    test('removeTop increments version', () {
+      final pile = Pile(type: PileType.tableau);
+      pile.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.ace));
+      final versionAfterAdd = pile.version;
+
+      pile.removeTop();
+
+      expect(pile.version, versionAfterAdd + 1);
+    });
+
+    test('removeTop on empty pile does not increment version', () {
+      final pile = Pile(type: PileType.tableau);
+      final initialVersion = pile.version;
+
+      pile.removeTop();
+
+      expect(pile.version, initialVersion);
+    });
+
+    test('removeFrom increments version when cards removed', () {
+      final pile = Pile(type: PileType.tableau);
+      pile.addCards([
+        PlayingCard(suit: Suit.hearts, rank: Rank.ace),
+        PlayingCard(suit: Suit.hearts, rank: Rank.two),
+        PlayingCard(suit: Suit.hearts, rank: Rank.three),
+      ]);
+      final versionAfterAdd = pile.version;
+
+      pile.removeFrom(1);
+
+      expect(pile.version, versionAfterAdd + 1);
+    });
+
+    test('removeFrom does not increment version for invalid index', () {
+      final pile = Pile(type: PileType.tableau);
+      pile.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.ace));
+      final versionAfterAdd = pile.version;
+
+      pile.removeFrom(10);  // Invalid index
+
+      expect(pile.version, versionAfterAdd);
+    });
+
+    test('removeAll increments version', () {
+      final pile = Pile(type: PileType.tableau);
+      pile.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.ace));
+      final versionAfterAdd = pile.version;
+
+      pile.removeAll();
+
+      expect(pile.version, versionAfterAdd + 1);
+    });
+
+    test('clear increments version', () {
+      final pile = Pile(type: PileType.tableau);
+      pile.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.ace));
+      final versionAfterAdd = pile.version;
+
+      pile.clear();
+
+      expect(pile.version, versionAfterAdd + 1);
+    });
+
+    test('flipTopCard increments version when card flipped', () {
+      final pile = Pile(type: PileType.tableau);
+      pile.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: false));
+      final versionAfterAdd = pile.version;
+
+      pile.flipTopCard();
+
+      expect(pile.version, versionAfterAdd + 1);
+    });
+
+    test('flipTopCard does not increment version when card already face up', () {
+      final pile = Pile(type: PileType.tableau);
+      pile.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true));
+      final versionAfterAdd = pile.version;
+
+      pile.flipTopCard();
+
+      expect(pile.version, versionAfterAdd);
+    });
+
+    test('multiple operations increment version correctly', () {
+      final pile = Pile(type: PileType.tableau);
+      expect(pile.version, 0);
+
+      pile.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: false));
+      expect(pile.version, 1);
+
+      pile.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.two, faceUp: false));
+      expect(pile.version, 2);
+
+      pile.flipTopCard();
+      expect(pile.version, 3);
+
+      pile.removeTop();
+      expect(pile.version, 4);
+
+      pile.clear();
+      expect(pile.version, 5);
+    });
+  });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solitude/services/game_controller.dart';
 import 'package:solitude/services/animation_state_notifier.dart';
+import 'package:solitude/services/hint_state_notifier.dart';
 import 'package:solitude/services/timer_state_notifier.dart';
 import 'package:solitude/games/klondike/klondike_game.dart';
 import 'package:solitude/models/card.dart';
@@ -17,6 +18,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -32,6 +34,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -49,6 +52,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -70,6 +74,7 @@ void main() {
         statisticsService: stats,
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -89,6 +94,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -109,6 +115,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -129,6 +136,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -145,6 +153,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -166,6 +175,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -186,6 +196,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -207,6 +218,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -229,6 +241,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -247,6 +260,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -264,6 +278,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -283,6 +298,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -301,6 +317,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -321,6 +338,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -340,6 +358,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -360,6 +379,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -384,6 +404,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -398,6 +419,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -412,6 +434,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -426,6 +449,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -442,6 +466,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -456,6 +481,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -476,6 +502,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -488,6 +515,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -503,6 +531,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -520,6 +549,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -540,6 +570,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -559,6 +590,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -579,6 +611,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -593,6 +626,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -610,6 +644,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -617,7 +652,7 @@ void main() {
       controller.tapPile(controller.stock!);
 
       // Initially no hint should be showing
-      expect(controller.hintDestination, isNull);
+      expect(controller.hintDestinationPile, isNull);
 
       // Note: Testing the actual 8-second timeout would require advancing time
       // This test verifies the basic structure is in place
@@ -631,6 +666,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -653,6 +689,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -677,6 +714,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -704,6 +742,7 @@ void main() {
         statisticsService: stats,
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -765,6 +804,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -786,6 +826,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -797,8 +838,8 @@ void main() {
       controller.showHint();
 
       // Should have selected the card and set hint destination
-      expect(controller.selectedCards, isNotNull);
-      expect(controller.hintDestination, isNotNull);
+      expect(controller.hintCards, isNotNull);
+      expect(controller.hintDestinationPile, isNotNull);
     });
 
     test('clearSelection() also clears hint destination', () {
@@ -807,6 +848,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -816,11 +858,11 @@ void main() {
       controller.tableau[0].addCard(ace);
       controller.showHint();
 
-      expect(controller.hintDestination, isNotNull);
+      expect(controller.hintDestinationPile, isNotNull);
 
       controller.clearSelection();
 
-      expect(controller.hintDestination, isNull);
+      expect(controller.hintDestinationPile, isNull);
       expect(controller.selectedCards, isNull);
     });
   });
@@ -832,6 +874,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -851,6 +894,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -869,6 +913,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -903,6 +948,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -926,6 +972,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 
@@ -953,6 +1000,7 @@ void main() {
         statisticsService: MockStatisticsService(),
         audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
+        hintState: HintStateNotifier(),
         timerState: TimerStateNotifier(),
       );
 

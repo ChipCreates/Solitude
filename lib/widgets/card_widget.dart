@@ -13,6 +13,7 @@ class CardWidget extends StatelessWidget {
   final bool isSelected;
   final bool isHighlighted;
   final bool isHintDestination;
+  final bool isHintSource;
   final bool isDragging;
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
@@ -24,6 +25,7 @@ class CardWidget extends StatelessWidget {
     this.isSelected = false,
     this.isHighlighted = false,
     this.isHintDestination = false,
+    this.isHintSource = false,
     this.isDragging = false,
     this.onTap,
     this.onDoubleTap,
@@ -126,7 +128,7 @@ class CardWidget extends StatelessWidget {
     );
 
     if (isSelected) shadows.add(_selectionGlow);
-    if (isHintDestination) shadows.add(_hintGlow);
+    if (isHintDestination || isHintSource) shadows.add(_hintGlow);
     if (isHighlighted) shadows.add(_highlightGlow);
 
     return shadows;
@@ -149,7 +151,7 @@ class CardWidget extends StatelessWidget {
     // Determine highlight border color (inside the dark edge)
     Color? highlightBorderColor;
     double highlightBorderWidth = 0;
-    if (isSelected || isHintDestination) {
+    if (isSelected || isHintDestination || isHintSource) {
       highlightBorderColor = AppColors.gold;
       highlightBorderWidth = 2.0;
     } else if (isHighlighted) {

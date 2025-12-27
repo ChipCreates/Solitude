@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/card.dart';
-import '../models/difficulty.dart';
+import '../models/pile_render_data.dart';
 import '../services/game_controller.dart';
 import '../services/settings_provider.dart';
 import 'pile_widget.dart';
 import 'card_widget.dart';
+import 'game_layout_delegate.dart';
 
 class GameBoard extends StatefulWidget {
   const GameBoard({super.key});
@@ -17,7 +17,10 @@ class GameBoard extends StatefulWidget {
 class _GameBoardState extends State<GameBoard> {
   // Cache for layout calculation memoization
   BoxConstraints? _lastConstraints;
-  _BoardLayout? _cachedLayout;
+  BoardLayoutData? _cachedLayout;
+
+  // Layout strategy
+  final GameLayoutDelegate _layoutDelegate = const KlondikeLayoutDelegate();
 
   @override
   void initState() {
@@ -31,34 +34,33 @@ class _GameBoardState extends State<GameBoard> {
 
   @override
   Widget build(BuildContext context) {
+    // Get controller without listening - child widgets use Selector for granular updates
+    final controller = Provider.of<GameController>(context, listen: false);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final layout = _calculateLayout(constraints);
-        return Consumer<GameController>(
-          builder: (context, controller, _) {
-            return Container(
-              decoration: _buildFeltBackground(context),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  layout.padding + 24,  // Left padding
-                  layout.padding,
-                  layout.padding + 24,  // Right padding (equal to left)
-                  layout.padding,
+        return Container(
+          decoration: _buildFeltBackground(context),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              layout.padding + 24,  // Left padding
+              layout.padding,
+              layout.padding + 24,  // Right padding (equal to left)
+              layout.padding,
+            ),
+            child: Column(
+              children: [
+                // Top row: Delegated to strategy (uses Selectors internally)
+                _layoutDelegate.buildTopRow(context, controller, layout),
+                SizedBox(height: layout.rowSpacing),
+                // Tableau - uses Selectors for granular rebuilds
+                Expanded(
+                  child: _buildTableau(context, controller, layout),
                 ),
-                child: Column(
-                  children: [
-                    // Top row: Stock, Waste, spacer, Foundations
-                    _buildTopRow(context, controller, layout),
-                    SizedBox(height: layout.rowSpacing),
-                    // Tableau
-                    Expanded(
-                      child: _buildTableau(context, controller, layout),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+              ],
+            ),
+          ),
         );
       },
     );
@@ -92,95 +94,33 @@ class _GameBoardState extends State<GameBoard> {
       ),
     );
   }
-  
-  Widget _buildTopRow(BuildContext context, GameController controller, _BoardLayout layout) {
-    // Calculate the width of the first 3 tableau piles section
-    final first3Width = layout.cardWidth * 3 + layout.pileSpacing * 2;
-    final stockPile = controller.stock;
-    final wastePile = controller.waste;
-    final settings = Provider.of<SettingsProvider>(context, listen: false);
 
-    return SizedBox(
-      height: layout.cardHeight,
-      child: Row(
-        children: [
-          // Stock (only show if game has stock)
-          if (stockPile != null)
-            SizedBox(
-              width: layout.cardWidth,
-              child: Container(
-                key: controller.getKeyForPile(stockPile),
-                child: StockPileWidget(
-                  pile: stockPile,
-                  cardWidth: layout.cardWidth,
-                  controller: controller,
-                ),
-              ),
-            ),
-          if (stockPile != null) SizedBox(width: layout.pileSpacing),
-          // Waste (only show if game has waste)
-          if (wastePile != null)
-            SizedBox(
-              width: layout.cardWidth,
-              child: Container(
-                key: controller.getKeyForPile(wastePile),
-                child: WastePileWidget(
-                  pile: wastePile,
-                  cardWidth: layout.cardWidth,
-                  spreadCount: settings.difficulty.drawMode.drawCount,
-                  controller: controller,
-                ),
-              ),
-            ),
-          // Spacer to fill remaining space in "first 3 piles" section
-          SizedBox(width: first3Width - (layout.cardWidth * 2 + layout.pileSpacing)),
-          SizedBox(width: layout.pileSpacing),
-          // Foundations aligned with last 4 tableau piles
-          for (int i = 0; i < controller.foundations.length; i++) ...[
-            SizedBox(
-              width: layout.cardWidth,
-              child: Container(
-                key: controller.getKeyForPile(controller.foundations[i]),
-                child: FoundationPileWidget(
-                  pile: controller.foundations[i],
-                  cardWidth: layout.cardWidth,
-                  suit: Suit.values[i],
-                  controller: controller,
-                ),
-              ),
-            ),
-            if (i < controller.foundations.length - 1) SizedBox(width: layout.pileSpacing),
-          ],
-        ],
-      ),
-    );
-  }
+  Widget _buildTableau(BuildContext context, GameController controller, BoardLayoutData layout) {
+    // Only build as many piles as the controller has, up to column count
+    // This allows the layout to adapt if the game state doesn't match the delegate's expectation
+    // (though in a correct implementation they should match)
+    final tableauCount = controller.tableau.length;
 
-  Widget _buildTableau(BuildContext context, GameController controller, _BoardLayout layout) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // All 7 tableau piles evenly spaced
-        for (int i = 0; i < 7; i++) ...[
+        // Tableau piles - each wrapped in Selector for granular rebuilds
+        for (int i = 0; i < tableauCount; i++) ...[
           SizedBox(
             width: layout.cardWidth,
-            child: Container(
-              key: controller.getKeyForPile(controller.tableau[i]),
-              child: TableauPileWidget(
-                pile: controller.tableau[i],
-                cardWidth: layout.cardWidth,
-                stackOffset: layout.stackOffset,
-                controller: controller,
-              ),
+            child: _TableauPileSelector(
+              pileIndex: i,
+              cardWidth: layout.cardWidth,
+              stackOffset: layout.stackOffset,
             ),
           ),
-          if (i < 6) SizedBox(width: layout.pileSpacing),
+          if (i < tableauCount - 1) SizedBox(width: layout.pileSpacing),
         ],
       ],
     );
   }
   
-  _BoardLayout _calculateLayout(BoxConstraints constraints) {
+  BoardLayoutData _calculateLayout(BoxConstraints constraints) {
     // Return cached layout if constraints haven't changed
     if (_lastConstraints == constraints && _cachedLayout != null) {
       return _cachedLayout!;
@@ -196,14 +136,17 @@ class _GameBoardState extends State<GameBoard> {
     // Available width for cards (accounting for extra left/right padding)
     final availableWidth = constraints.maxWidth - ((padding + 24) * 2);
 
-    // Simple tableau layout: 7 cards + 6 gaps
-    // availableWidth = 7 * cardWidth + 6 * spacing
-    // spacing = 0.15 * cardWidth (slightly wider gaps for better appearance)
-    // availableWidth = 7 * cardWidth + 6 * 0.15 * cardWidth
-    // availableWidth = 7 * cardWidth + 0.9 * cardWidth
-    // availableWidth = 7.9 * cardWidth
-
-    final cardWidth = (availableWidth / 7.9).clamp(minCardWidth, maxCardWidth);
+    // Dynamic column count from delegate
+    final int columns = _layoutDelegate.columnCount;
+    final int gaps = columns - 1;
+    
+    // availableWidth = columns * cardWidth + gaps * spacing
+    // spacing = 0.15 * cardWidth
+    // availableWidth = columns * cardWidth + gaps * 0.15 * cardWidth
+    // availableWidth = cardWidth * (columns + gaps * 0.15)
+    
+    final denominator = columns + (gaps * 0.15);
+    final cardWidth = (availableWidth / denominator).clamp(minCardWidth, maxCardWidth);
     final pileSpacing = cardWidth * 0.15;
 
     final cardHeight = cardWidth / CardWidget.aspectRatio;
@@ -221,7 +164,7 @@ class _GameBoardState extends State<GameBoard> {
     final clampedStackOffset = stackOffset.clamp(cardHeight * 0.15, cardHeight * 0.28);
 
     // Cache the computed layout
-    _cachedLayout = _BoardLayout(
+    _cachedLayout = BoardLayoutData(
       cardWidth: cardWidth,
       cardHeight: cardHeight,
       pileSpacing: pileSpacing,
@@ -234,20 +177,49 @@ class _GameBoardState extends State<GameBoard> {
   }
 }
 
-class _BoardLayout {
+/// Selector widget that only rebuilds a TableauPileWidget when its specific data changes.
+/// This prevents the entire board from rebuilding when unrelated state changes.
+class _TableauPileSelector extends StatelessWidget {
+  final int pileIndex;
   final double cardWidth;
-  final double cardHeight;
-  final double pileSpacing;
   final double stackOffset;
-  final double rowSpacing;
-  final double padding;
-  
-  const _BoardLayout({
+
+  const _TableauPileSelector({
+    required this.pileIndex,
     required this.cardWidth,
-    required this.cardHeight,
-    required this.pileSpacing,
     required this.stackOffset,
-    required this.rowSpacing,
-    required this.padding,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<GameController, TableauPileRenderData>(
+      selector: (_, controller) {
+        final pile = controller.tableau[pileIndex];
+        return TableauPileRenderData(
+          pile: pile,
+          pileVersion: pile.version,
+          isValidDestination: controller.isValidDestination(pile),
+          isHintDestination: controller.hintDestinationPile == pile,
+          isHintSource: controller.hintSourcePile == pile,
+          isFocused: controller.focusedPile == pile,
+          selectedCards: controller.selectedCards,
+          selectedPile: controller.selectedPile,
+          hintCards: controller.hintCards,
+          animatingCard: controller.animatingCard,
+        );
+      },
+      builder: (context, data, _) {
+        final controller = Provider.of<GameController>(context, listen: false);
+        return Container(
+          key: controller.getKeyForPile(data.pile),
+          child: TableauPileWidget(
+            pile: data.pile,
+            cardWidth: cardWidth,
+            stackOffset: stackOffset,
+            controller: controller,
+          ),
+        );
+      },
+    );
+  }
 }

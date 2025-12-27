@@ -11,6 +11,7 @@ import 'settings_provider.dart';
 import 'statistics_service.dart';
 import 'audio_service.dart';
 import 'animation_state_notifier.dart';
+import 'hint_state_notifier.dart';
 import 'timer_state_notifier.dart';
 
 enum GameState { playing, won, autoCompleting, autoplaying, lost }
@@ -22,6 +23,7 @@ class GameController extends ChangeNotifier {
 
   // Separate notifiers for performance optimization
   final AnimationStateNotifier animationState;
+  final HintStateNotifier hintState;
   final TimerStateNotifier timerState;
 
   late GameInterface _game;
@@ -30,9 +32,6 @@ class GameController extends ChangeNotifier {
   // Selection state
   Pile? _selectedPile;
   List<PlayingCard>? _selectedCards;
-
-  // Hint state - tracks where the hint suggests moving to
-  Pile? _hintDestination;
 
   // Keyboard focus state - tracks which pile has keyboard focus
   Pile? _focusedPile;
@@ -52,6 +51,7 @@ class GameController extends ChangeNotifier {
     required this.settingsProvider,
     required this.statisticsService,
     required this.animationState,
+    required this.hintState,
     required this.timerState,
     required this.audioService,
   }) {
@@ -67,7 +67,9 @@ class GameController extends ChangeNotifier {
   GameState get state => _state;
   Pile? get selectedPile => _selectedPile;
   List<PlayingCard>? get selectedCards => _selectedCards;
-  Pile? get hintDestination => _hintDestination;
+  Pile? get hintSourcePile => hintState.sourcePile;
+  List<PlayingCard>? get hintCards => hintState.cards;
+  Pile? get hintDestinationPile => hintState.destinationPile;
   Pile? get focusedPile => _focusedPile;
 
   // Delegate to separate notifiers
@@ -176,7 +178,7 @@ class GameController extends ChangeNotifier {
   
   /// Called when player has been inactive - show a hint
   void _onInactivityTimeout() {
-    if (_state == GameState.playing && _hintDestination == null && _selectedCards == null) {
+    if (_state == GameState.playing && !hintState.isActive && _selectedCards == null) {
       showHint();
       // Restart timer so hint shows again if still inactive
       _resetInactivityTimer();
@@ -233,8 +235,12 @@ class GameController extends ChangeNotifier {
   void clearSelection() {
     _selectedPile = null;
     _selectedCards = null;
-    _hintDestination = null;
+    clearHint();
     notifyListeners();
+  }
+
+  void clearHint() {
+    hintState.clear();
   }
 
   /// Cycle focus to the next pile with Tab key
@@ -389,6 +395,7 @@ class GameController extends ChangeNotifier {
   void tapPile(Pile pile) {
     if (_state != GameState.playing) return;
     _resetInactivityTimer();
+    clearHint();
     
     // Handle stock tap
     if (pile.type == PileType.stock) {
@@ -433,6 +440,7 @@ class GameController extends ChangeNotifier {
   void tapCard(Pile pile, PlayingCard card) {
     if (_state != GameState.playing) return;
     _resetInactivityTimer();
+    clearHint();
     
     // If we have a selection, try to move to this pile
     if (_selectedPile != null && _selectedCards != null && pile != _selectedPile) {
@@ -460,6 +468,7 @@ class GameController extends ChangeNotifier {
     if (_state != GameState.playing) return false;
     if (!card.faceUp) return false;
     _resetInactivityTimer();
+    clearHint();
 
     // Only allow double-tap on top card of pile (or waste)
     if (pile.topCard != card && pile.type != PileType.tableau) return false;
@@ -517,6 +526,7 @@ class GameController extends ChangeNotifier {
     if (_state != GameState.playing) return false;
     if (!card.faceUp) return false;
     _resetInactivityTimer();
+    clearHint();
 
     // Only allow double-tap on top card of pile (or waste)
     if (pile.topCard != card && pile.type != PileType.tableau) return false;
@@ -551,6 +561,7 @@ class GameController extends ChangeNotifier {
   bool tryMove(Pile from, Pile to, List<PlayingCard> cards) {
     if (_state != GameState.playing) return false;
     _resetInactivityTimer();
+    clearHint();
 
     if (_game.isValidMove(from, to, cards)) {
       _recordGameStart();
@@ -571,6 +582,7 @@ class GameController extends ChangeNotifier {
   
   void undo() {
     if (_state == GameState.autoCompleting || _state == GameState.autoplaying) return;
+    clearHint();
 
     if (_game.undo()) {
       clearSelection();
@@ -585,6 +597,7 @@ class GameController extends ChangeNotifier {
 
   void redo() {
     if (_state == GameState.autoCompleting || _state == GameState.autoplaying) return;
+    clearHint();
 
     if (_game.redo()) {
       clearSelection();
@@ -830,19 +843,50 @@ class GameController extends ChangeNotifier {
   }
   
   void showHint() {
+    clearHint();
+
+    // Check for stock draw/recycle
+    if (_game.stockPile != null && _game.stockPile!.isEmpty && _game.wastePile != null && !_game.wastePile!.isEmpty) {
+        // Recycle suggestion - hint source and destination are both stock
+        hintState.setHint(
+          sourcePile: _game.stockPile!,
+          cards: null,
+          destinationPile: _game.stockPile!,
+        );
+        return;
+    }
+
     final hint = _game.getHint();
     if (hint != null) {
-      _selectedPile = hint.from;
-      _selectedCards = hint.cards;
-      _hintDestination = hint.to;
-      notifyListeners();
-      
+      hintState.setHint(
+        sourcePile: hint.from,
+        cards: hint.cards,
+        destinationPile: hint.to,
+      );
+
       // Auto-clear hint after delay
       Future.delayed(const Duration(seconds: 2), () {
-        if (_selectedPile == hint.from && _hintDestination == hint.to) {
-          clearSelection();
+        if (hintState.sourcePile == hint.from && hintState.destinationPile == hint.to) {
+          clearHint();
         }
       });
+    } else {
+      // No moves available, try suggesting drawing from stock
+      if (_game.stockPile != null && !_game.stockPile!.isEmpty) {
+        hintState.setHint(
+          sourcePile: _game.stockPile!,
+          cards: null,
+          destinationPile: _game.stockPile!,
+        );
+        Future.delayed(const Duration(seconds: 2), () {
+            if (hintState.sourcePile == _game.stockPile) {
+                clearHint();
+            }
+        });
+      } else {
+          // Absolutely no moves
+          audioService.playInvalidMove();
+      }
     }
   }
   

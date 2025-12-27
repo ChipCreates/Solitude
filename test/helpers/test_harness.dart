@@ -5,6 +5,7 @@ import 'package:solitude/services/game_controller.dart';
 import 'package:solitude/services/settings_provider.dart';
 import 'package:solitude/services/statistics_service.dart';
 import 'package:solitude/services/animation_state_notifier.dart';
+import 'package:solitude/services/hint_state_notifier.dart';
 import 'package:solitude/services/timer_state_notifier.dart';
 import 'package:solitude/theme/app_theme.dart';
 import 'package:solitude/models/theme_preset.dart';
@@ -23,6 +24,7 @@ class TestHarness {
   /// [settings] - Optional SettingsProvider (uses mock if not provided)
   /// [statistics] - Optional StatisticsService (uses mock if not provided)
   /// [animationState] - Optional AnimationStateNotifier
+  /// [hintState] - Optional HintStateNotifier
   /// [timerState] - Optional TimerStateNotifier
   /// [themeMode] - Theme mode for the app (defaults to dark)
   static Widget buildTestWidget(
@@ -31,12 +33,14 @@ class TestHarness {
     SettingsProvider? settings,
     StatisticsService? statistics,
     AnimationStateNotifier? animationState,
+    HintStateNotifier? hintState,
     TimerStateNotifier? timerState,
     ThemeMode themeMode = ThemeMode.dark,
   }) {
     final effectiveSettings = settings ?? MockSettingsProvider();
     final effectiveStats = statistics ?? MockStatisticsService();
     final effectiveAnimationState = animationState ?? AnimationStateNotifier();
+    final effectiveHintState = hintState ?? HintStateNotifier();
     final effectiveTimerState = timerState ?? TimerStateNotifier();
 
     final effectiveController = controller ??
@@ -45,6 +49,7 @@ class TestHarness {
           statisticsService: effectiveStats,
           audioService: MockAudioService(),
           animationState: effectiveAnimationState,
+          hintState: effectiveHintState,
           timerState: effectiveTimerState,
         );
 
@@ -60,6 +65,8 @@ class TestHarness {
               value: effectiveStats),
           ChangeNotifierProvider<AnimationStateNotifier>.value(
               value: effectiveAnimationState),
+          ChangeNotifierProvider<HintStateNotifier>.value(
+              value: effectiveHintState),
           ChangeNotifierProvider<TimerStateNotifier>.value(
               value: effectiveTimerState),
           ChangeNotifierProvider<GameController>.value(
@@ -90,6 +97,7 @@ class TestHarness {
     MockStatisticsService? statistics,
     MockAudioService? audio,
     AnimationStateNotifier? animationState,
+    HintStateNotifier? hintState,
     TimerStateNotifier? timerState,
   }) {
     return GameController(
@@ -97,6 +105,7 @@ class TestHarness {
       statisticsService: statistics ?? MockStatisticsService(),
       audioService: audio ?? MockAudioService(),
       animationState: animationState ?? AnimationStateNotifier(),
+      hintState: hintState ?? HintStateNotifier(),
       timerState: timerState ?? TimerStateNotifier(),
     );
   }

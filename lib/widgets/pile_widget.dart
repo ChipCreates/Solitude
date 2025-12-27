@@ -109,7 +109,8 @@ class TableauPileWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final cardHeight = cardWidth / CardWidget.aspectRatio;
     final isValidDest = controller.isValidDestination(pile);
-    final isHintDest = controller.hintDestination == pile;
+    final isHintDest = controller.hintDestinationPile == pile;
+    final isHintSource = controller.hintSourcePile == pile;
     final isFocused = controller.focusedPile == pile;
 
     if (pile.isEmpty) {
@@ -157,7 +158,13 @@ class TableauPileWidget extends StatelessWidget {
               Positioned(
                 key: ValueKey('tableau_${pile.hashCode}_card_${pile.cards[i].suit}_${pile.cards[i].rank}_$i'),
                 top: i * stackOffset,
-                child: _buildDraggableCard(context, pile.cards[i], i, isHintDest && i == pile.cards.length - 1),
+                child: _buildDraggableCard(
+                    context, 
+                    pile.cards[i], 
+                    i, 
+                    isHintDest && i == pile.cards.length - 1,
+                    isHintSource && controller.hintCards?.contains(pile.cards[i]) == true
+                ),
               ),
           ],
         ),
@@ -165,7 +172,7 @@ class TableauPileWidget extends StatelessWidget {
     );
   }
   
-  Widget _buildDraggableCard(BuildContext context, PlayingCard card, int index, bool isHintDest) {
+  Widget _buildDraggableCard(BuildContext context, PlayingCard card, int index, bool isHintDest, bool isHintSource) {
     final isSelected = controller.isSelected(card);
     final cardsFromHere = pile.cards.sublist(index);
 
@@ -216,6 +223,7 @@ class TableauPileWidget extends StatelessWidget {
                 isSelected: isSelected,
                 isHighlighted: isDropTarget,
                 isHintDestination: isHintDest,
+                isHintSource: isHintSource,
                 // Don't pass tap handlers - handled by outer GestureDetector
               ),
             );
@@ -284,7 +292,7 @@ class FoundationPileWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isValidDest = controller.isValidDestination(pile);
-    final isHintDest = controller.hintDestination == pile;
+    final isHintDest = controller.hintDestinationPile == pile;
     
     return DragTarget<DragData>(
       onWillAcceptWithDetails: (details) {
@@ -339,12 +347,14 @@ class StockPileWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isFocused = controller.focusedPile == pile;
+    final isHintSource = controller.hintSourcePile == pile;
 
     if (pile.isEmpty) {
       return EmptyPileIndicator(
         width: cardWidth,
         type: PileIndicatorType.stock,
         isFocused: isFocused,
+        isHintSource: isHintSource,
         onTap: () => controller.tapPile(pile),
       );
     }
@@ -382,6 +392,7 @@ class StockPileWidget extends StatelessWidget {
               CardWidget(
                 card: pile.topCard!,
                 width: cardWidth,
+                isHintSource: isHintSource,
               ),
             ],
           ),
@@ -408,12 +419,14 @@ class WastePileWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isFocused = controller.focusedPile == pile;
+    final isHintSource = controller.hintSourcePile == pile;
 
     if (pile.isEmpty) {
       return EmptyPileIndicator(
         width: cardWidth,
         type: PileIndicatorType.waste,
         isFocused: isFocused,
+        isHintSource: isHintSource,
       );
     }
 
@@ -439,7 +452,7 @@ class WastePileWidget extends StatelessWidget {
                 key: ValueKey('waste_card_${visibleCards[i].suit}_${visibleCards[i].rank}_$i'),
                 left: i * spreadOffset,
                 child: i == visibleCards.length - 1
-                    ? _buildDraggableTopCard(visibleCards[i])
+                    ? _buildDraggableTopCard(visibleCards[i], isHintSource)
                     : CardWidget(
                         card: visibleCards[i],
                         width: cardWidth,
@@ -451,7 +464,7 @@ class WastePileWidget extends StatelessWidget {
     );
   }
   
-  Widget _buildDraggableTopCard(PlayingCard card) {
+  Widget _buildDraggableTopCard(PlayingCard card, bool isHintSource) {
     final isSelected = controller.isSelected(card);
     final isAnimating = controller.isCardAnimating(card);
 
@@ -484,6 +497,7 @@ class WastePileWidget extends StatelessWidget {
             card: card,
             width: cardWidth,
             isSelected: isSelected,
+            isHintSource: isHintSource,
             // Don't pass tap handlers - handled by outer GestureDetector
           ),
         ),
