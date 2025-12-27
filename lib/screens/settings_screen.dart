@@ -571,15 +571,39 @@ class _CardBackCustomization extends StatelessWidget {
   }
 
   Widget _buildColorPicker(BuildContext context, SettingsProvider settings) {
-    // Build a theme-aware set of default back colors
-    final theme = settings.currentTheme;
-    final accent = theme.accentColor;
-    final muted = theme.accentMuted;
-    final toolbar = theme.getToolbarColor(Theme.of(context).brightness);
-    final defaultColors = [accent, muted, toolbar, const Color(0xFF1A1A1A)];
-    final colors = defaultColors.map((c) {
-      final hex = '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
-      return [hex, ''];
+    // Curated set of card back colors with good variety and visual appeal
+    final cardBackColors = [
+      // Classic casino colors
+      [const Color(0xFF1A1A1A), 'Classic Black'],     // Deep black
+      [const Color(0xFF2D4A3E), 'Forest Green'],      // Rich forest green
+      [const Color(0xFF8B4513), 'Burgundy'],          // Deep burgundy
+      [const Color(0xFF4169E1), 'Royal Blue'],        // Royal blue
+      [const Color(0xFFDAA520), 'Gold'],              // Antique gold
+
+      // Modern vibrant colors
+      [const Color(0xFFDC143C), 'Crimson'],           // Vibrant red
+      [const Color(0xFF32CD32), 'Lime Green'],        // Bright green
+      [const Color(0xFFFF6347), 'Coral'],             // Warm coral
+      [const Color(0xFF9370DB), 'Purple'],            // Medium purple
+      [const Color(0xFFFFA500), 'Orange'],            // Bright orange
+
+      // Elegant muted tones
+      [const Color(0xFF696969), 'Charcoal'],          // Warm charcoal
+      [const Color(0xFF8B7355), 'Taupe'],             // Warm taupe
+      [const Color(0xFF708090), 'Slate'],             // Cool slate
+      [const Color(0xFFCD853F), 'Peru'],              // Warm brown
+      [const Color(0xFF4682B4), 'Steel Blue'],        // Steel blue
+
+      // Theme-aware colors (keep some theme integration)
+      [settings.currentTheme.accentColor, 'Theme Accent'],
+      [settings.currentTheme.accentMuted, 'Theme Muted'],
+    ];
+
+    final colors = cardBackColors.map((colorData) {
+      final color = colorData[0] as Color;
+      final name = colorData[1] as String;
+      final hex = '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+      return [hex, name];
     }).toList();
 
     return Column(
