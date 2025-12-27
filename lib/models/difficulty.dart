@@ -113,7 +113,6 @@ class KlondikeDifficulty {
 }
 
 /// Legacy typedef for backward compatibility
-/// TODO: Remove once all code migrates to DifficultyLevel
 typedef Difficulty = DifficultyLevel;
 
 /// Extension to provide Klondike-specific getters on DifficultyLevel

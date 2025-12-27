@@ -194,7 +194,7 @@ class StatisticsService extends ChangeNotifier {
     final box = await _ensureBox();
     final prefs2 = prefs; // kept for symmetry with previous logic
 
-    Future<int?> _migratedInt(String key) async {
+    Future<int?> migratedInt(String key) async {
       final prefVal = prefs2.getInt(key);
       if (prefVal != null) {
         await box.put(key, prefVal);
@@ -205,16 +205,16 @@ class StatisticsService extends ChangeNotifier {
       return null;
     }
 
-    final bestTimeMs = await _migratedInt(_key(type, _bestTimeKey));
-    final fewestMoves = await _migratedInt(_key(type, _fewestMovesKey));
-    final vegasHighScore = await _migratedInt(_key(type, _vegasHighScoreKey));
+    final bestTimeMs = await migratedInt(_key(type, _bestTimeKey));
+    final fewestMoves = await migratedInt(_key(type, _fewestMovesKey));
+    final vegasHighScore = await migratedInt(_key(type, _vegasHighScoreKey));
 
-    final gamesPlayed = await _migratedInt(_key(type, _gamesPlayedKey)) ?? 0;
-    final gamesWon = await _migratedInt(_key(type, _gamesWonKey)) ?? 0;
-    final gamesLost = await _migratedInt(_key(type, _gamesLostKey)) ?? 0;
-    final currentStreak = await _migratedInt(_key(type, _currentStreakKey)) ?? 0;
-    final bestStreak = await _migratedInt(_key(type, _bestStreakKey)) ?? 0;
-    final vegasCumulative = await _migratedInt(_key(type, _vegasCumulativeScoreKey)) ?? 0;
+    final gamesPlayed = await migratedInt(_key(type, _gamesPlayedKey)) ?? 0;
+    final gamesWon = await migratedInt(_key(type, _gamesWonKey)) ?? 0;
+    final gamesLost = await migratedInt(_key(type, _gamesLostKey)) ?? 0;
+    final currentStreak = await migratedInt(_key(type, _currentStreakKey)) ?? 0;
+    final bestStreak = await migratedInt(_key(type, _bestStreakKey)) ?? 0;
+    final vegasCumulative = await migratedInt(_key(type, _vegasCumulativeScoreKey)) ?? 0;
 
     _statisticsCache[type] = Statistics(
       gamesPlayed: gamesPlayed,

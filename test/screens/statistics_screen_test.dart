@@ -90,13 +90,13 @@ void main() {
       final statsService = StatisticsService();
 
       // Create specific statistics
-      statsService.setTestStatistics(Statistics(
+      statsService.setTestStatistics(const Statistics(
         gamesPlayed: 2,
         gamesWon: 2,
         gamesLost: 0,
         currentStreak: 2,
         bestStreak: 2,
-        bestTime: const Duration(minutes: 3, seconds: 30),
+        bestTime: Duration(minutes: 3, seconds: 30),
         fewestMoves: 85,
         vegasCumulativeScore: 0,
         vegasHighScore: null,
@@ -123,13 +123,13 @@ void main() {
       final statsService = StatisticsService();
 
       // Add some stats
-      statsService.setTestStatistics(Statistics(
+      statsService.setTestStatistics(const Statistics(
         gamesPlayed: 1,
         gamesWon: 1,
         gamesLost: 0,
         currentStreak: 1,
         bestStreak: 1,
-        bestTime: const Duration(minutes: 5),
+        bestTime: Duration(minutes: 5),
         fewestMoves: 100,
         vegasCumulativeScore: 0,
         vegasHighScore: null,

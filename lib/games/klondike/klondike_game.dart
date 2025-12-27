@@ -1,4 +1,5 @@
 import 'dart:math';
+import '../solitaire_game_base.dart';
 import '../game_interface.dart';
 import '../../models/card.dart';
 import '../../models/deck.dart';
@@ -7,7 +8,7 @@ import '../../models/move.dart';
 import '../../models/draw_mode.dart';
 import '../../models/difficulty.dart';
 
-class KlondikeGame implements GameInterface {
+class KlondikeGame extends SolitaireGameBase {
   late Pile stock;
   late Pile waste;
   late List<Pile> foundations;
@@ -463,44 +464,48 @@ class KlondikeGame implements GameInterface {
   }
 
   @override
-  bool hasAnyMove() {
-    // If stock has cards, a draw is possible
-    if (!stock.isEmpty) return true;
+  bool canDrawFromStock() {
+    return !stock.isEmpty;
+  }
 
-    // If waste can move to any foundation or tableau, there's a move
-    if (!waste.isEmpty) {
-      final card = waste.topCard!;
-      for (final foundation in foundations) {
-        if (card.canStackOnFoundation(foundation.topCard)) return true;
-      }
-      for (final pile in tableau) {
-        if (isValidMove(waste, pile, [card])) return true;
-      }
+  @override
+  bool hasValidWasteMoves() {
+    if (waste.isEmpty) return false;
+    final card = waste.topCard!;
+    // Check foundations
+    for (final foundation in foundations) {
+      if (card.canStackOnFoundation(foundation.topCard)) return true;
     }
+    // Check tableau
+    for (final pile in tableau) {
+      if (isValidMove(waste, pile, [card])) return true;
+    }
+    return false;
+  }
 
-    // Check tableau-to-foundation or tableau-to-tableau moves
+  @override
+  bool hasValidTableauMoves() {
     for (final fromPile in tableau) {
       if (fromPile.isEmpty) continue;
 
-      // consider each possible face-up run
+      // Consider each possible face-up run
       for (int i = 0; i < fromPile.cards.length; i++) {
         final c = fromPile.cardAt(i);
         if (c == null || !c.faceUp) continue;
         final cardsToMove = fromPile.cards.sublist(i);
 
-        // try moving to foundations
+        // Try moving to foundations
         for (final foundation in foundations) {
           if (cardsToMove.length == 1 && cardsToMove.first.canStackOnFoundation(foundation.topCard)) return true;
         }
 
-        // try moving to other tableau piles
+        // Try moving to other tableau piles
         for (final toPile in tableau) {
           if (toPile == fromPile) continue;
           if (isValidMove(fromPile, toPile, cardsToMove)) return true;
         }
       }
     }
-
     return false;
   }
 

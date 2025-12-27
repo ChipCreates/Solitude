@@ -916,6 +916,86 @@ void main() {
     });
   });
 
+  group('KlondikeGame Move Checking Components', () {
+    test('canDrawFromStock() returns true when stock has cards', () {
+      final game = KlondikeGame();
+      game.initialize();
+      expect(game.canDrawFromStock(), isTrue);
+    });
+
+    test('canDrawFromStock() returns false when stock is empty', () {
+      final game = KlondikeGame();
+      game.initialize();
+      game.stock.clear();
+      expect(game.canDrawFromStock(), isFalse);
+    });
+
+    test('hasValidWasteMoves() returns true when waste has ace for foundation', () {
+      final game = KlondikeGame();
+      game.initialize();
+      game.waste.clear();
+      game.waste.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true));
+      expect(game.hasValidWasteMoves(), isTrue);
+    });
+
+    test('hasValidWasteMoves() returns true when waste has card for tableau', () {
+      final game = KlondikeGame();
+      game.initialize();
+      game.waste.clear();
+      game.waste.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.jack, faceUp: true));
+      // Set up tableau with queen of clubs to accept jack of hearts (alternating colors, descending)
+      game.tableau[0].clear();
+      game.tableau[0].addCard(PlayingCard(suit: Suit.clubs, rank: Rank.queen, faceUp: true));
+      expect(game.hasValidWasteMoves(), isTrue);
+    });
+
+    test('hasValidWasteMoves() returns false when waste is empty', () {
+      final game = KlondikeGame();
+      game.initialize();
+      game.waste.clear();
+      expect(game.hasValidWasteMoves(), isFalse);
+    });
+
+    test('hasValidWasteMoves() returns false when waste has no valid moves', () {
+      final game = KlondikeGame();
+      game.initialize();
+      game.waste.clear();
+      game.waste.addCard(PlayingCard(suit: Suit.hearts, rank: Rank.two, faceUp: true));
+      // No foundation or tableau accepts a 2
+      expect(game.hasValidWasteMoves(), isFalse);
+    });
+
+    test('hasValidTableauMoves() returns true when tableau has card for foundation', () {
+      final game = KlondikeGame();
+      game.initialize();
+      // Clear tableau and add ace directly to foundation spot
+      game.tableau[0].clear();
+      game.tableau[0].addCard(PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true));
+      expect(game.hasValidTableauMoves(), isTrue);
+    });
+
+    test('hasValidTableauMoves() returns true when tableau has sequence for another tableau', () {
+      final game = KlondikeGame();
+      game.initialize();
+      // Set up two tableaus: one with king, one with queen to accept it
+      game.tableau[0].clear();
+      game.tableau[0].addCard(PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true));
+      game.tableau[1].clear();
+      game.tableau[1].addCard(PlayingCard(suit: Suit.clubs, rank: Rank.queen, faceUp: true));
+      expect(game.hasValidTableauMoves(), isTrue);
+    });
+
+    test('hasValidTableauMoves() returns false when no valid moves from tableau', () {
+      final game = KlondikeGame();
+      game.initialize();
+      // Clear all tableaus
+      for (final pile in game.tableau) {
+        pile.clear();
+      }
+      expect(game.hasValidTableauMoves(), isFalse);
+    });
+  });
+
   group('KlondikeGame Loss Detection', () {
     test('isTrulyLost() returns false on fresh game', () {
       final game = KlondikeGame();
