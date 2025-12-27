@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(xargs cat:*)",
+      "Bash(flutter run)",
+      "Bash(dart analyze:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(flutter clean:*)",
+      "Bash(cat:*)",
+      "Bash(hostnamectl:*)",
+      "Bash(sudo dnf install:*)",
+      "Bash(dnf install:*)",
+      "Bash(flutter run:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Bash(flutter build:*)",
+      "Bash(identify:*)",
+      "Bash(unzip:*)",
+      "Bash(fold:*)",
+      "Bash(flutter test:*)",
+      "Bash(tree test:*)",
+      "Bash(sort:*)",
+      "Bash(rm:*)",
+      "Bash(/home/chip/snap/flutter/common/flutter/bin/flutter test:*)",
+      "Bash(/home/chip/development/flutter/bin/flutter test:*)",
+      "Bash(echo:*)",
+      "Bash(/home/chip/development/flutter/bin/flutter pub get:*)",
+      "Bash(/home/chip/development/flutter/bin/flutter analyze:*)",
+      "Bash(flutter doctor:*)",
+      "Bash(/home/chip/development/flutter/bin/flutter doctor:*)",
+      "Bash(/home/chip/development/flutter/bin/flutter create:*)",
+      "Bash(/home/chip/development/flutter/bin/flutter devices:*)",
+      "Bash(adb devices:*)",
+      "Bash(/home/chip/Android/Sdk/platform-tools/adb devices)",
+      "Bash(python3:*)"
+    ]
+  }
+}

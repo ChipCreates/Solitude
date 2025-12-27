@@ -1,0 +1,392 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - lcov.info - lib/widgets/lib/widgets/svg_card_renderer.dart</title>
+  <link rel="stylesheet" type="text/css" href="../../../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../../../index.html">top level</a> - <a href="index.html">lib/widgets/lib/widgets</a> - svg_card_renderer.dart<span style="font-size: 80%;"> (source / <a href="svg_card_renderer.dart.func-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only">Hit</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">lcov.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
+            <td class="headerCovTableEntry">126</td>
+            <td class="headerCovTableEntry">0</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test Date:</td>
+            <td class="headerValue">2025-12-26 18:44:42</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryHi">-</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">0</td>
+          </tr>
+                  <tr><td><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">            Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>              : import 'package:flutter/material.dart';</span>
+<span id="L2"><span class="lineNum">       2</span>              : import 'package:flutter_svg/flutter_svg.dart';</span>
+<span id="L3"><span class="lineNum">       3</span>              : import 'package:xml/xml.dart' as xml;</span>
+<span id="L4"><span class="lineNum">       4</span>              : import '../models/card.dart';</span>
+<span id="L5"><span class="lineNum">       5</span>              : import 'package:provider/provider.dart';</span>
+<span id="L6"><span class="lineNum">       6</span>              : import '../services/settings_provider.dart';</span>
+<span id="L7"><span class="lineNum">       7</span>              : import '../services/svg_preload_service.dart';</span>
+<span id="L8"><span class="lineNum">       8</span>              : </span>
+<span id="L9"><span class="lineNum">       9</span>              : /// Custom widget that renders individual cards from htdebeer's svg-cards.svg</span>
+<span id="L10"><span class="lineNum">      10</span>              : /// by extracting the specific card element and rendering it standalone.</span>
+<span id="L11"><span class="lineNum">      11</span>              : class SvgCardRenderer extends StatefulWidget {</span>
+<span id="L12"><span class="lineNum">      12</span>              :   final PlayingCard card;</span>
+<span id="L13"><span class="lineNum">      13</span>              :   final double width;</span>
+<span id="L14"><span class="lineNum">      14</span>              :   final String? overrideElementId;</span>
+<span id="L15"><span class="lineNum">      15</span>              :   final String? overrideFillColor;</span>
+<span id="L16"><span class="lineNum">      16</span>              :   </span>
+<span id="L17"><span class="lineNum">      17</span> <span class="tlaUNC tlaBgUNC">           0 :   const SvgCardRenderer({</span></span>
+<span id="L18"><span class="lineNum">      18</span>              :     super.key,</span>
+<span id="L19"><span class="lineNum">      19</span>              :     required this.card,</span>
+<span id="L20"><span class="lineNum">      20</span>              :     required this.width,</span>
+<span id="L21"><span class="lineNum">      21</span>              :     this.overrideElementId,</span>
+<span id="L22"><span class="lineNum">      22</span>              :     this.overrideFillColor,</span>
+<span id="L23"><span class="lineNum">      23</span>              :   });</span>
+<span id="L24"><span class="lineNum">      24</span>              :   </span>
+<span id="L25"><span class="lineNum">      25</span> <span class="tlaUNC">           0 :   @override</span></span>
+<span id="L26"><span class="lineNum">      26</span> <span class="tlaUNC">           0 :   State&lt;SvgCardRenderer&gt; createState() =&gt; _SvgCardRendererState();</span></span>
+<span id="L27"><span class="lineNum">      27</span>              : }</span>
+<span id="L28"><span class="lineNum">      28</span>              : </span>
+<span id="L29"><span class="lineNum">      29</span>              : class _SvgCardRendererState extends State&lt;SvgCardRenderer&gt; {</span>
+<span id="L30"><span class="lineNum">      30</span>              :   String? _cardSvgString;</span>
+<span id="L31"><span class="lineNum">      31</span> <span class="tlaUNC">           0 :   static final Map&lt;String, String&gt; _perCardSvgCache = {};</span></span>
+<span id="L32"><span class="lineNum">      32</span>              : </span>
+<span id="L33"><span class="lineNum">      33</span>              :   // Use static getters to access preloaded cache from SvgPreloadService</span>
+<span id="L34"><span class="lineNum">      34</span> <span class="tlaUNC">           0 :   static String? get _cachedFullSvg =&gt; SvgPreloadService.getCachedSvg();</span></span>
+<span id="L35"><span class="lineNum">      35</span> <span class="tlaUNC">           0 :   static xml.XmlDocument? get _cachedSvgDoc =&gt; SvgPreloadService.getCachedDoc();</span></span>
+<span id="L36"><span class="lineNum">      36</span> <span class="tlaUNC">           0 :   static Map&lt;String, xml.XmlElement&gt;? get _elementCache =&gt; SvgPreloadService.getElementCache();</span></span>
+<span id="L37"><span class="lineNum">      37</span>              :   </span>
+<span id="L38"><span class="lineNum">      38</span> <span class="tlaUNC">           0 :   @override</span></span>
+<span id="L39"><span class="lineNum">      39</span>              :   void initState() {</span>
+<span id="L40"><span class="lineNum">      40</span> <span class="tlaUNC">           0 :     super.initState();</span></span>
+<span id="L41"><span class="lineNum">      41</span> <span class="tlaUNC">           0 :     _loadCardSvg();</span></span>
+<span id="L42"><span class="lineNum">      42</span>              :     // Listen for settings changes so back color/variant update immediately</span>
+<span id="L43"><span class="lineNum">      43</span> <span class="tlaUNC">           0 :     final settings = Provider.of&lt;SettingsProvider&gt;(context, listen: false);</span></span>
+<span id="L44"><span class="lineNum">      44</span> <span class="tlaUNC">           0 :     settings.addListener(_onSettingsChanged);</span></span>
+<span id="L45"><span class="lineNum">      45</span>              :   }</span>
+<span id="L46"><span class="lineNum">      46</span>              : </span>
+<span id="L47"><span class="lineNum">      47</span> <span class="tlaUNC">           0 :   void _onSettingsChanged() {</span></span>
+<span id="L48"><span class="lineNum">      48</span>              :     // Clear per-card cache so back/face changes take effect immediately</span>
+<span id="L49"><span class="lineNum">      49</span> <span class="tlaUNC">           0 :     _perCardSvgCache.clear();</span></span>
+<span id="L50"><span class="lineNum">      50</span> <span class="tlaUNC">           0 :     if (mounted) {</span></span>
+<span id="L51"><span class="lineNum">      51</span> <span class="tlaUNC">           0 :       _loadCardSvg();</span></span>
+<span id="L52"><span class="lineNum">      52</span>              :     }</span>
+<span id="L53"><span class="lineNum">      53</span>              :   }</span>
+<span id="L54"><span class="lineNum">      54</span>              :   </span>
+<span id="L55"><span class="lineNum">      55</span> <span class="tlaUNC">           0 :   @override</span></span>
+<span id="L56"><span class="lineNum">      56</span>              :   void didUpdateWidget(SvgCardRenderer oldWidget) {</span>
+<span id="L57"><span class="lineNum">      57</span> <span class="tlaUNC">           0 :     super.didUpdateWidget(oldWidget);</span></span>
+<span id="L58"><span class="lineNum">      58</span> <span class="tlaUNC">           0 :     if (oldWidget.card != widget.card ||</span></span>
+<span id="L59"><span class="lineNum">      59</span> <span class="tlaUNC">           0 :         oldWidget.overrideElementId != widget.overrideElementId ||</span></span>
+<span id="L60"><span class="lineNum">      60</span> <span class="tlaUNC">           0 :         oldWidget.overrideFillColor != widget.overrideFillColor) {</span></span>
+<span id="L61"><span class="lineNum">      61</span> <span class="tlaUNC">           0 :       _loadCardSvg();</span></span>
+<span id="L62"><span class="lineNum">      62</span>              :     }</span>
+<span id="L63"><span class="lineNum">      63</span>              :   }</span>
+<span id="L64"><span class="lineNum">      64</span>              : </span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaUNC">           0 :   @override</span></span>
+<span id="L66"><span class="lineNum">      66</span>              :   void dispose() {</span>
+<span id="L67"><span class="lineNum">      67</span>              :     // remove settings listener</span>
+<span id="L68"><span class="lineNum">      68</span>              :     try {</span>
+<span id="L69"><span class="lineNum">      69</span> <span class="tlaUNC">           0 :       final settings = Provider.of&lt;SettingsProvider&gt;(context, listen: false);</span></span>
+<span id="L70"><span class="lineNum">      70</span> <span class="tlaUNC">           0 :       settings.removeListener(_onSettingsChanged);</span></span>
+<span id="L71"><span class="lineNum">      71</span>              :     } catch (_) {}</span>
+<span id="L72"><span class="lineNum">      72</span> <span class="tlaUNC">           0 :     super.dispose();</span></span>
+<span id="L73"><span class="lineNum">      73</span>              :   }</span>
+<span id="L74"><span class="lineNum">      74</span>              :   </span>
+<span id="L75"><span class="lineNum">      75</span> <span class="tlaUNC">           0 :   Future&lt;void&gt; _loadCardSvg() async {</span></span>
+<span id="L76"><span class="lineNum">      76</span>              :     try {</span>
+<span id="L77"><span class="lineNum">      77</span>              :       // CRITICAL: Read settings synchronously BEFORE any await to avoid using BuildContext after dispose</span>
+<span id="L78"><span class="lineNum">      78</span> <span class="tlaUNC">           0 :       if (!mounted) return;</span></span>
+<span id="L79"><span class="lineNum">      79</span> <span class="tlaUNC">           0 :       final settings = Provider.of&lt;SettingsProvider&gt;(context, listen: false);</span></span>
+<span id="L80"><span class="lineNum">      80</span>              : </span>
+<span id="L81"><span class="lineNum">      81</span>              :       // Check if SVG has been preloaded</span>
+<span id="L82"><span class="lineNum">      82</span> <span class="tlaUNC">           0 :       if (_cachedFullSvg == null || _cachedSvgDoc == null) {</span></span>
+<span id="L83"><span class="lineNum">      83</span>              :         // SVG should have been preloaded in main(), but fallback to loading if needed</span>
+<span id="L84"><span class="lineNum">      84</span> <span class="tlaUNC">           0 :         debugPrint('⚠️  SVG not preloaded, loading now (this will cause jank)');</span></span>
+<span id="L85"><span class="lineNum">      85</span> <span class="tlaUNC">           0 :         await SvgPreloadService.preloadCardSvg();</span></span>
+<span id="L86"><span class="lineNum">      86</span> <span class="tlaUNC">           0 :         if (!mounted) return;</span></span>
+<span id="L87"><span class="lineNum">      87</span>              :       }</span>
+<span id="L88"><span class="lineNum">      88</span>              : </span>
+<span id="L89"><span class="lineNum">      89</span>              :       // Determine element id: override takes precedence</span>
+<span id="L90"><span class="lineNum">      90</span> <span class="tlaUNC">           0 :       String elementId = widget.overrideElementId ?? _getCardElementId();</span></span>
+<span id="L91"><span class="lineNum">      91</span> <span class="tlaUNC">           0 :       if (!widget.card.faceUp &amp;&amp; widget.overrideElementId == null) {</span></span>
+<span id="L92"><span class="lineNum">      92</span> <span class="tlaUNC">           0 :         if (settings.cardBackVariant == 'alternate') {</span></span>
+<span id="L93"><span class="lineNum">      93</span>              :           elementId = 'alternate-back';</span>
+<span id="L94"><span class="lineNum">      94</span>              :         } else {</span>
+<span id="L95"><span class="lineNum">      95</span>              :           elementId = 'back';</span>
+<span id="L96"><span class="lineNum">      96</span>              :         }</span>
+<span id="L97"><span class="lineNum">      97</span>              :       }</span>
+<span id="L98"><span class="lineNum">      98</span> <span class="tlaUNC">           0 :       var extractedSvg = _extractCardElement(elementId, selectedColor: widget.overrideFillColor ?? ( (!widget.card.faceUp &amp;&amp; settings.cardBackColored) ? settings.cardBackColor : null ));</span></span>
+<span id="L99"><span class="lineNum">      99</span>              : </span>
+<span id="L100"><span class="lineNum">     100</span>              :       // If face-down and user selected colored back, set the SVG root fill</span>
+<span id="L101"><span class="lineNum">     101</span>              :       // so internal elements that use `fill:inherit` pick up the color.</span>
+<span id="L102"><span class="lineNum">     102</span>              :       // Fill color override precedence: explicit widget.overrideFillColor -&gt; settings.cardBackColor</span>
+<span id="L103"><span class="lineNum">     103</span> <span class="tlaUNC">           0 :       final selectedColor = widget.overrideFillColor ?? ( (!widget.card.faceUp &amp;&amp; settings.cardBackColored) ? settings.cardBackColor : null );</span></span>
+<span id="L104"><span class="lineNum">     104</span>              :       if (selectedColor != null) {</span>
+<span id="L105"><span class="lineNum">     105</span>              :         final color = selectedColor;</span>
+<span id="L106"><span class="lineNum">     106</span>              :         // Find opening &lt;svg ...&gt; tag and inject a fill attribute</span>
+<span id="L107"><span class="lineNum">     107</span>              :         // ignore: deprecated_member_use</span>
+<span id="L108"><span class="lineNum">     108</span> <span class="tlaUNC">           0 :         final svgOpenMatch = RegExp(r'&lt;svg[^&gt;]*&gt;').firstMatch(extractedSvg);</span></span>
+<span id="L109"><span class="lineNum">     109</span>              :         if (svgOpenMatch != null) {</span>
+<span id="L110"><span class="lineNum">     110</span> <span class="tlaUNC">           0 :           final svgOpen = svgOpenMatch.group(0)!;</span></span>
+<span id="L111"><span class="lineNum">     111</span> <span class="tlaUNC">           0 :           if (!svgOpen.contains(' fill=')) {</span></span>
+<span id="L112"><span class="lineNum">     112</span>              :             // ignore: deprecated_member_use</span>
+<span id="L113"><span class="lineNum">     113</span> <span class="tlaUNC">           0 :             final replaced = svgOpen.replaceFirst(RegExp(r'&lt;svg'), '&lt;svg fill=&quot;$color&quot;');</span></span>
+<span id="L114"><span class="lineNum">     114</span> <span class="tlaUNC">           0 :             extractedSvg = extractedSvg.replaceFirst(svgOpen, replaced);</span></span>
+<span id="L115"><span class="lineNum">     115</span>              :           }</span>
+<span id="L116"><span class="lineNum">     116</span>              :         }</span>
+<span id="L117"><span class="lineNum">     117</span>              :         // Also replace any `fill:inherit` occurrences so elements using style inherit</span>
+<span id="L118"><span class="lineNum">     118</span>              :         // ignore: deprecated_member_use</span>
+<span id="L119"><span class="lineNum">     119</span> <span class="tlaUNC">           0 :         extractedSvg = extractedSvg.replaceAll(RegExp(r'fill\s*:\s*inherit'), 'fill:$color');</span></span>
+<span id="L120"><span class="lineNum">     120</span>              :       }</span>
+<span id="L121"><span class="lineNum">     121</span>              : </span>
+<span id="L122"><span class="lineNum">     122</span> <span class="tlaUNC">           0 :       if (mounted) {</span></span>
+<span id="L123"><span class="lineNum">     123</span> <span class="tlaUNC">           0 :         setState(() {</span></span>
+<span id="L124"><span class="lineNum">     124</span> <span class="tlaUNC">           0 :           _cardSvgString = extractedSvg;</span></span>
+<span id="L125"><span class="lineNum">     125</span>              :         });</span>
+<span id="L126"><span class="lineNum">     126</span>              :       }</span>
+<span id="L127"><span class="lineNum">     127</span>              :     } catch (e) {</span>
+<span id="L128"><span class="lineNum">     128</span> <span class="tlaUNC">           0 :       debugPrint('Error loading card SVG: $e');</span></span>
+<span id="L129"><span class="lineNum">     129</span>              : </span>
+<span id="L130"><span class="lineNum">     130</span>              :       // Provide a simple fallback SVG showing rank and suit so the UI</span>
+<span id="L131"><span class="lineNum">     131</span>              :       // remains usable even if the full SVG asset isn't available.</span>
+<span id="L132"><span class="lineNum">     132</span>              :       final fallbackSvg = '''</span>
+<span id="L133"><span class="lineNum">     133</span>              : &lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 169 245&quot;&gt;</span>
+<span id="L134"><span class="lineNum">     134</span>              :   &lt;rect width=&quot;100%&quot; height=&quot;100%&quot; rx=&quot;6&quot; ry=&quot;6&quot; fill=&quot;#FFFFFF&quot; stroke=&quot;#333&quot; /&gt;</span>
+<span id="L135"><span class="lineNum">     135</span> <span class="tlaUNC">           0 :   &lt;text x=&quot;8&quot; y=&quot;28&quot; font-family=&quot;Inter, sans-serif&quot; font-size=&quot;28&quot; fill=&quot;#000&quot;&gt;${widget.card.displayRank}&lt;/text&gt;</span></span>
+<span id="L136"><span class="lineNum">     136</span> <span class="tlaUNC">           0 :   &lt;text x=&quot;8&quot; y=&quot;56&quot; font-family=&quot;Inter, sans-serif&quot; font-size=&quot;28&quot; fill=&quot;${widget.card.isRed ? '#C33' : '#000'}&quot;&gt;${widget.card.displaySuit}&lt;/text&gt;</span></span>
+<span id="L137"><span class="lineNum">     137</span>              : &lt;/svg&gt;</span>
+<span id="L138"><span class="lineNum">     138</span> <span class="tlaUNC">           0 : ''';</span></span>
+<span id="L139"><span class="lineNum">     139</span>              : </span>
+<span id="L140"><span class="lineNum">     140</span> <span class="tlaUNC">           0 :       if (mounted) {</span></span>
+<span id="L141"><span class="lineNum">     141</span> <span class="tlaUNC">           0 :         setState(() {</span></span>
+<span id="L142"><span class="lineNum">     142</span> <span class="tlaUNC">           0 :           _cardSvgString = fallbackSvg;</span></span>
+<span id="L143"><span class="lineNum">     143</span>              :         });</span>
+<span id="L144"><span class="lineNum">     144</span>              :       }</span>
+<span id="L145"><span class="lineNum">     145</span>              :     }</span>
+<span id="L146"><span class="lineNum">     146</span>              :   }</span>
+<span id="L147"><span class="lineNum">     147</span>              :   </span>
+<span id="L148"><span class="lineNum">     148</span>              :   /// Converts our card model to htdebeer SVG-cards element ID</span>
+<span id="L149"><span class="lineNum">     149</span> <span class="tlaUNC">           0 :   String _getCardElementId() {</span></span>
+<span id="L150"><span class="lineNum">     150</span> <span class="tlaUNC">           0 :     if (!widget.card.faceUp) {</span></span>
+<span id="L151"><span class="lineNum">     151</span>              :       return 'alternate-back';</span>
+<span id="L152"><span class="lineNum">     152</span>              :     }</span>
+<span id="L153"><span class="lineNum">     153</span>              :     </span>
+<span id="L154"><span class="lineNum">     154</span> <span class="tlaUNC">           0 :     final suitName = widget.card.suit.name.toLowerCase();</span></span>
+<span id="L155"><span class="lineNum">     155</span> <span class="tlaUNC">           0 :     final String suitPrefix = suitName.endsWith('s') </span></span>
+<span id="L156"><span class="lineNum">     156</span> <span class="tlaUNC">           0 :       ? suitName.substring(0, suitName.length - 1)</span></span>
+<span id="L157"><span class="lineNum">     157</span>              :       : suitName;</span>
+<span id="L158"><span class="lineNum">     158</span>              :     </span>
+<span id="L159"><span class="lineNum">     159</span>              :     String rankSuffix;</span>
+<span id="L160"><span class="lineNum">     160</span> <span class="tlaUNC">           0 :     switch (widget.card.rank) {</span></span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaUNC">           0 :       case Rank.ace:</span></span>
+<span id="L162"><span class="lineNum">     162</span>              :         rankSuffix = '1';</span>
+<span id="L163"><span class="lineNum">     163</span>              :         break;</span>
+<span id="L164"><span class="lineNum">     164</span> <span class="tlaUNC">           0 :       case Rank.jack:</span></span>
+<span id="L165"><span class="lineNum">     165</span>              :         rankSuffix = 'jack';</span>
+<span id="L166"><span class="lineNum">     166</span>              :         break;</span>
+<span id="L167"><span class="lineNum">     167</span> <span class="tlaUNC">           0 :       case Rank.queen:</span></span>
+<span id="L168"><span class="lineNum">     168</span>              :         rankSuffix = 'queen';</span>
+<span id="L169"><span class="lineNum">     169</span>              :         break;</span>
+<span id="L170"><span class="lineNum">     170</span> <span class="tlaUNC">           0 :       case Rank.king:</span></span>
+<span id="L171"><span class="lineNum">     171</span>              :         rankSuffix = 'king';</span>
+<span id="L172"><span class="lineNum">     172</span>              :         break;</span>
+<span id="L173"><span class="lineNum">     173</span>              :       default:</span>
+<span id="L174"><span class="lineNum">     174</span> <span class="tlaUNC">           0 :         rankSuffix = widget.card.rankName;</span></span>
+<span id="L175"><span class="lineNum">     175</span>              :     }</span>
+<span id="L176"><span class="lineNum">     176</span>              :     </span>
+<span id="L177"><span class="lineNum">     177</span> <span class="tlaUNC">           0 :     return '${suitPrefix}_$rankSuffix';</span></span>
+<span id="L178"><span class="lineNum">     178</span>              :   }</span>
+<span id="L179"><span class="lineNum">     179</span>              : </span>
+<span id="L180"><span class="lineNum">     180</span>              :   /// Extracts a specific card element from the full SVG and wraps it</span>
+<span id="L181"><span class="lineNum">     181</span>              :   /// in a standalone SVG document</span>
+<span id="L182"><span class="lineNum">     182</span> <span class="tlaUNC">           0 :   String _extractCardElement(String elementId, {String? selectedColor}) {</span></span>
+<span id="L183"><span class="lineNum">     183</span> <span class="tlaUNC">           0 :     if (_cachedSvgDoc == null) {</span></span>
+<span id="L184"><span class="lineNum">     184</span> <span class="tlaUNC">           0 :       throw Exception('SVG document not loaded');</span></span>
+<span id="L185"><span class="lineNum">     185</span>              :     }</span>
+<span id="L186"><span class="lineNum">     186</span>              : </span>
+<span id="L187"><span class="lineNum">     187</span>              :     // Return cached per-card SVG if available</span>
+<span id="L188"><span class="lineNum">     188</span> <span class="tlaUNC">           0 :     final cacheKey = selectedColor == null ? elementId : '$elementId|$selectedColor';</span></span>
+<span id="L189"><span class="lineNum">     189</span> <span class="tlaUNC">           0 :     if (_perCardSvgCache.containsKey(cacheKey)) {</span></span>
+<span id="L190"><span class="lineNum">     190</span> <span class="tlaUNC">           0 :       return _perCardSvgCache[cacheKey]!;</span></span>
+<span id="L191"><span class="lineNum">     191</span>              :     }</span>
+<span id="L192"><span class="lineNum">     192</span>              : </span>
+<span id="L193"><span class="lineNum">     193</span>              :     // Find the element with the specified ID using cache (O(1) lookup)</span>
+<span id="L194"><span class="lineNum">     194</span> <span class="tlaUNC">           0 :     final element = _elementCache?[elementId];</span></span>
+<span id="L195"><span class="lineNum">     195</span>              :     if (element == null) {</span>
+<span id="L196"><span class="lineNum">     196</span> <span class="tlaUNC">           0 :       throw Exception('Card element not found: $elementId');</span></span>
+<span id="L197"><span class="lineNum">     197</span>              :     }</span>
+<span id="L198"><span class="lineNum">     198</span>              : </span>
+<span id="L199"><span class="lineNum">     199</span>              :     // htdebeer cards are 169.075 x 244.64 (poker size in points)</span>
+<span id="L200"><span class="lineNum">     200</span>              :     const cardWidth = 169.075;</span>
+<span id="L201"><span class="lineNum">     201</span>              :     const cardHeight = 244.64;</span>
+<span id="L202"><span class="lineNum">     202</span>              : </span>
+<span id="L203"><span class="lineNum">     203</span>              :     // Deep-copy the element</span>
+<span id="L204"><span class="lineNum">     204</span> <span class="tlaUNC">           0 :     final clonedElement = element.copy();</span></span>
+<span id="L205"><span class="lineNum">     205</span>              : </span>
+<span id="L206"><span class="lineNum">     206</span>              :     // Collect referenced ids (from xlink:href or href attributes) recursively</span>
+<span id="L207"><span class="lineNum">     207</span>              :     final Set&lt;String&gt; referencedIds = {};</span>
+<span id="L208"><span class="lineNum">     208</span>              : </span>
+<span id="L209"><span class="lineNum">     209</span> <span class="tlaUNC">           0 :     void collectRefs(xml.XmlNode node) {</span></span>
+<span id="L210"><span class="lineNum">     210</span> <span class="tlaUNC">           0 :       if (node is xml.XmlElement) {</span></span>
+<span id="L211"><span class="lineNum">     211</span> <span class="tlaUNC">           0 :         for (final attr in node.attributes) {</span></span>
+<span id="L212"><span class="lineNum">     212</span> <span class="tlaUNC">           0 :           final name = attr.name.local.toLowerCase();</span></span>
+<span id="L213"><span class="lineNum">     213</span> <span class="tlaUNC">           0 :           if (name == 'xlink:href' || name == 'href') {</span></span>
+<span id="L214"><span class="lineNum">     214</span> <span class="tlaUNC">           0 :             final val = attr.value;</span></span>
+<span id="L215"><span class="lineNum">     215</span> <span class="tlaUNC">           0 :             if (val.contains('#')) {</span></span>
+<span id="L216"><span class="lineNum">     216</span> <span class="tlaUNC">           0 :               final refId = val.split('#').last;</span></span>
+<span id="L217"><span class="lineNum">     217</span> <span class="tlaUNC">           0 :               if (refId.isNotEmpty) referencedIds.add(refId);</span></span>
+<span id="L218"><span class="lineNum">     218</span>              :             }</span>
+<span id="L219"><span class="lineNum">     219</span>              :           }</span>
+<span id="L220"><span class="lineNum">     220</span>              :         }</span>
+<span id="L221"><span class="lineNum">     221</span> <span class="tlaUNC">           0 :         for (final child in node.children) {</span></span>
+<span id="L222"><span class="lineNum">     222</span> <span class="tlaUNC">           0 :           collectRefs(child);</span></span>
+<span id="L223"><span class="lineNum">     223</span>              :         }</span>
+<span id="L224"><span class="lineNum">     224</span>              :       }</span>
+<span id="L225"><span class="lineNum">     225</span>              :     }</span>
+<span id="L226"><span class="lineNum">     226</span>              : </span>
+<span id="L227"><span class="lineNum">     227</span> <span class="tlaUNC">           0 :     collectRefs(clonedElement);</span></span>
+<span id="L228"><span class="lineNum">     228</span>              : </span>
+<span id="L229"><span class="lineNum">     229</span>              :     // Resolve referenced elements from the full document and copy them</span>
+<span id="L230"><span class="lineNum">     230</span> <span class="tlaUNC">           0 :     final List&lt;xml.XmlElement&gt; defsToInline = [];</span></span>
+<span id="L231"><span class="lineNum">     231</span>              :     final seen = &lt;String&gt;{};</span>
+<span id="L232"><span class="lineNum">     232</span>              : </span>
+<span id="L233"><span class="lineNum">     233</span> <span class="tlaUNC">           0 :     void resolveRef(String id) {</span></span>
+<span id="L234"><span class="lineNum">     234</span> <span class="tlaUNC">           0 :       if (seen.contains(id)) {</span></span>
+<span id="L235"><span class="lineNum">     235</span>              :         return;</span>
+<span id="L236"><span class="lineNum">     236</span>              :       }</span>
+<span id="L237"><span class="lineNum">     237</span> <span class="tlaUNC">           0 :       seen.add(id);</span></span>
+<span id="L238"><span class="lineNum">     238</span>              : </span>
+<span id="L239"><span class="lineNum">     239</span>              :       // Use cache for O(1) lookup instead of O(n) traversal</span>
+<span id="L240"><span class="lineNum">     240</span> <span class="tlaUNC">           0 :       final def = _elementCache?[id];</span></span>
+<span id="L241"><span class="lineNum">     241</span>              :       if (def != null) {</span>
+<span id="L242"><span class="lineNum">     242</span> <span class="tlaUNC">           0 :         final xml.XmlElement defCopy = def.copy();</span></span>
+<span id="L243"><span class="lineNum">     243</span> <span class="tlaUNC">           0 :         defsToInline.add(defCopy);</span></span>
+<span id="L244"><span class="lineNum">     244</span>              : </span>
+<span id="L245"><span class="lineNum">     245</span>              :         // recursively collect refs from this definition</span>
+<span id="L246"><span class="lineNum">     246</span>              :         final Set&lt;String&gt; nested = {};</span>
+<span id="L247"><span class="lineNum">     247</span> <span class="tlaUNC">           0 :         void collectNested(xml.XmlNode node) {</span></span>
+<span id="L248"><span class="lineNum">     248</span> <span class="tlaUNC">           0 :           if (node is xml.XmlElement) {</span></span>
+<span id="L249"><span class="lineNum">     249</span> <span class="tlaUNC">           0 :             for (final attr in node.attributes) {</span></span>
+<span id="L250"><span class="lineNum">     250</span> <span class="tlaUNC">           0 :               final name = attr.name.local.toLowerCase();</span></span>
+<span id="L251"><span class="lineNum">     251</span> <span class="tlaUNC">           0 :               if (name == 'xlink:href' || name == 'href') {</span></span>
+<span id="L252"><span class="lineNum">     252</span> <span class="tlaUNC">           0 :                 final val = attr.value;</span></span>
+<span id="L253"><span class="lineNum">     253</span> <span class="tlaUNC">           0 :                 if (val.contains('#')) {</span></span>
+<span id="L254"><span class="lineNum">     254</span> <span class="tlaUNC">           0 :                   final refId = val.split('#').last;</span></span>
+<span id="L255"><span class="lineNum">     255</span> <span class="tlaUNC">           0 :                   if (refId.isNotEmpty) nested.add(refId);</span></span>
+<span id="L256"><span class="lineNum">     256</span>              :                 }</span>
+<span id="L257"><span class="lineNum">     257</span>              :               }</span>
+<span id="L258"><span class="lineNum">     258</span>              :             }</span>
+<span id="L259"><span class="lineNum">     259</span> <span class="tlaUNC">           0 :             for (final child in node.children) {</span></span>
+<span id="L260"><span class="lineNum">     260</span> <span class="tlaUNC">           0 :               collectNested(child);</span></span>
+<span id="L261"><span class="lineNum">     261</span>              :             }</span>
+<span id="L262"><span class="lineNum">     262</span>              :           }</span>
+<span id="L263"><span class="lineNum">     263</span>              :         }</span>
+<span id="L264"><span class="lineNum">     264</span> <span class="tlaUNC">           0 :         collectNested(defCopy);</span></span>
+<span id="L265"><span class="lineNum">     265</span> <span class="tlaUNC">           0 :         for (final nid in nested) {</span></span>
+<span id="L266"><span class="lineNum">     266</span> <span class="tlaUNC">           0 :           resolveRef(nid);</span></span>
+<span id="L267"><span class="lineNum">     267</span>              :         }</span>
+<span id="L268"><span class="lineNum">     268</span>              :       }</span>
+<span id="L269"><span class="lineNum">     269</span>              :     }</span>
+<span id="L270"><span class="lineNum">     270</span>              : </span>
+<span id="L271"><span class="lineNum">     271</span> <span class="tlaUNC">           0 :     for (final id in referencedIds) {</span></span>
+<span id="L272"><span class="lineNum">     272</span> <span class="tlaUNC">           0 :       resolveRef(id);</span></span>
+<span id="L273"><span class="lineNum">     273</span>              :     }</span>
+<span id="L274"><span class="lineNum">     274</span>              : </span>
+<span id="L275"><span class="lineNum">     275</span>              :     // Build a minimal SVG wrapper with inlined definitions followed by the card</span>
+<span id="L276"><span class="lineNum">     276</span> <span class="tlaUNC">           0 :     final defsBuffer = StringBuffer();</span></span>
+<span id="L277"><span class="lineNum">     277</span> <span class="tlaUNC">           0 :     for (final d in defsToInline) {</span></span>
+<span id="L278"><span class="lineNum">     278</span> <span class="tlaUNC">           0 :       defsBuffer.writeln(d.toXmlString());</span></span>
+<span id="L279"><span class="lineNum">     279</span>              :     }</span>
+<span id="L280"><span class="lineNum">     280</span>              : </span>
+<span id="L281"><span class="lineNum">     281</span>              :     final svgString = '''</span>
+<span id="L282"><span class="lineNum">     282</span>              : &lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; </span>
+<span id="L283"><span class="lineNum">     283</span>              :      xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot;</span>
+<span id="L284"><span class="lineNum">     284</span>              :      viewBox=&quot;0 0 $cardWidth $cardHeight&quot;</span>
+<span id="L285"><span class="lineNum">     285</span>              :      width=&quot;$cardWidth&quot;</span>
+<span id="L286"><span class="lineNum">     286</span>              :      height=&quot;$cardHeight&quot;&gt;</span>
+<span id="L287"><span class="lineNum">     287</span> <span class="tlaUNC">           0 :   ${defsBuffer.toString()}</span></span>
+<span id="L288"><span class="lineNum">     288</span> <span class="tlaUNC">           0 :   ${clonedElement.toXmlString()}</span></span>
+<span id="L289"><span class="lineNum">     289</span>              : &lt;/svg&gt;</span>
+<span id="L290"><span class="lineNum">     290</span> <span class="tlaUNC">           0 : ''';</span></span>
+<span id="L291"><span class="lineNum">     291</span>              : </span>
+<span id="L292"><span class="lineNum">     292</span> <span class="tlaUNC">           0 :     _perCardSvgCache[cacheKey] = svgString;</span></span>
+<span id="L293"><span class="lineNum">     293</span>              :     return svgString;</span>
+<span id="L294"><span class="lineNum">     294</span>              :   }</span>
+<span id="L295"><span class="lineNum">     295</span>              :   </span>
+<span id="L296"><span class="lineNum">     296</span> <span class="tlaUNC">           0 :   @override</span></span>
+<span id="L297"><span class="lineNum">     297</span>              :   Widget build(BuildContext context) {</span>
+<span id="L298"><span class="lineNum">     298</span> <span class="tlaUNC">           0 :     if (_cardSvgString == null) {</span></span>
+<span id="L299"><span class="lineNum">     299</span>              :       // Loading or error state</span>
+<span id="L300"><span class="lineNum">     300</span> <span class="tlaUNC">           0 :       return Container(</span></span>
+<span id="L301"><span class="lineNum">     301</span> <span class="tlaUNC">           0 :         width: widget.width,</span></span>
+<span id="L302"><span class="lineNum">     302</span> <span class="tlaUNC">           0 :         height: widget.width * (244.64 / 169.075),</span></span>
+<span id="L303"><span class="lineNum">     303</span> <span class="tlaUNC">           0 :         color: Colors.grey[300],</span></span>
+<span id="L304"><span class="lineNum">     304</span>              :         child: const Center(</span>
+<span id="L305"><span class="lineNum">     305</span>              :           child: CircularProgressIndicator(strokeWidth: 2),</span>
+<span id="L306"><span class="lineNum">     306</span>              :         ),</span>
+<span id="L307"><span class="lineNum">     307</span>              :       );</span>
+<span id="L308"><span class="lineNum">     308</span>              :     }</span>
+<span id="L309"><span class="lineNum">     309</span>              :     </span>
+<span id="L310"><span class="lineNum">     310</span> <span class="tlaUNC">           0 :     return SvgPicture.string(</span></span>
+<span id="L311"><span class="lineNum">     311</span> <span class="tlaUNC">           0 :       _cardSvgString!,</span></span>
+<span id="L312"><span class="lineNum">     312</span> <span class="tlaUNC">           0 :       width: widget.width,</span></span>
+<span id="L313"><span class="lineNum">     313</span>              :       fit: BoxFit.contain,</span>
+<span id="L314"><span class="lineNum">     314</span>              :     );</span>
+<span id="L315"><span class="lineNum">     315</span>              :   }</span>
+<span id="L316"><span class="lineNum">     316</span>              : }</span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>
