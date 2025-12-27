@@ -1,12 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive/hive.dart';
+import 'dart:io';
 import 'package:solitude/services/statistics_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  Directory? tempDir;
+
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    tempDir = Directory.systemTemp.createTempSync('hive_test_');
+    Hive.init(tempDir!.path);
+  });
+
+  tearDown(() {
+    Hive.close();
   });
 
   group('StatisticsService Initialization', () {
@@ -64,8 +74,8 @@ void main() {
 
       await service.recordGameStarted();
 
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getInt('gamesPlayed'), 1);
+      final box = await Hive.openBox('statistics');
+      expect(box.get('gamesPlayed'), 1);
     });
 
     test('recordGameStarted() notifies listeners', () async {
@@ -152,12 +162,12 @@ void main() {
 
       await service.recordWin(time: const Duration(seconds: 120), moves: 100);
 
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getInt('gamesWon'), 1);
-      expect(prefs.getInt('currentStreak'), 1);
-      expect(prefs.getInt('bestStreak'), 1);
-      expect(prefs.getInt('bestTime'), 120000);
-      expect(prefs.getInt('fewestMoves'), 100);
+      final box = await Hive.openBox('statistics');
+      expect(box.get('gamesWon'), 1);
+      expect(box.get('currentStreak'), 1);
+      expect(box.get('bestStreak'), 1);
+      expect(box.get('bestTime'), 120000);
+      expect(box.get('fewestMoves'), 100);
     });
 
     test('recordWin() notifies listeners', () async {
@@ -218,9 +228,9 @@ void main() {
 
       await service.recordLoss();
 
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getInt('gamesLost'), 1);
-      expect(prefs.getInt('currentStreak'), 0);
+      final box = await Hive.openBox('statistics');
+      expect(box.get('gamesLost'), 1);
+      expect(box.get('currentStreak'), 0);
     });
 
     test('recordLoss() notifies listeners', () async {
@@ -269,9 +279,9 @@ void main() {
 
       await service.recordVegasScore(50);
 
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getInt('vegasCumulativeScore'), 50);
-      expect(prefs.getInt('vegasHighScore'), 50);
+      final box = await Hive.openBox('statistics');
+      expect(box.get('vegasCumulativeScore'), 50);
+      expect(box.get('vegasHighScore'), 50);
     });
 
     test('recordVegasScore() notifies listeners', () async {
@@ -339,10 +349,10 @@ void main() {
 
       await service.resetStatistics();
 
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getInt('gamesPlayed'), isNull);
-      expect(prefs.getInt('gamesWon'), isNull);
-      expect(prefs.getInt('currentStreak'), isNull);
+      final box = await Hive.openBox('statistics');
+      expect(box.get('gamesPlayed'), isNull);
+      expect(box.get('gamesWon'), isNull);
+      expect(box.get('currentStreak'), isNull);
     });
 
     test('resetStatistics() notifies listeners', () async {
@@ -404,6 +414,8 @@ void main() {
       final service1 = StatisticsService();
       await service1.recordGameStarted();
       await service1.recordWin(time: const Duration(seconds: 120), moves: 100);
+
+      await Future.delayed(const Duration(milliseconds: 10));
 
       // Create new service instance and load
       final service2 = StatisticsService();

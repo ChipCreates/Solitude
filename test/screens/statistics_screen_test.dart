@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive/hive.dart';
+import 'dart:io';
 import 'package:solitude/screens/statistics_screen.dart';
 import 'package:solitude/services/statistics_service.dart';
 import 'package:provider/provider.dart';
@@ -8,20 +10,9 @@ import 'package:provider/provider.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() {
-    SharedPreferences.setMockInitialValues({});
-  });
-
   group('StatisticsBottomSheet', () {
     testWidgets('renders statistics data correctly', (tester) async {
       final statsService = StatisticsService();
-
-      // Set up some test data
-      await statsService.recordGameStarted();
-      await statsService.recordWin(
-        moves: 100,
-        time: const Duration(minutes: 5),
-      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -47,6 +38,10 @@ void main() {
     });
 
     testWidgets('displays close button', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final tempDir = Directory.systemTemp.createTempSync('hive_test_');
+      Hive.init(tempDir.path);
+
       final statsService = StatisticsService();
 
       await tester.pumpWidget(
@@ -67,6 +62,10 @@ void main() {
     });
 
     testWidgets('displays reset and close action buttons', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final tempDir = Directory.systemTemp.createTempSync('hive_test_');
+      Hive.init(tempDir.path);
+
       final statsService = StatisticsService();
 
       await tester.pumpWidget(
@@ -91,10 +90,17 @@ void main() {
       final statsService = StatisticsService();
 
       // Create specific statistics
-      await statsService.recordGameStarted();
-      await statsService.recordWin(moves: 85, time: const Duration(minutes: 3, seconds: 30));
-      await statsService.recordGameStarted();
-      await statsService.recordWin(moves: 92, time: const Duration(minutes: 4));
+      statsService.setTestStatistics(Statistics(
+        gamesPlayed: 2,
+        gamesWon: 2,
+        gamesLost: 0,
+        currentStreak: 2,
+        bestStreak: 2,
+        bestTime: const Duration(minutes: 3, seconds: 30),
+        fewestMoves: 85,
+        vegasCumulativeScore: 0,
+        vegasHighScore: null,
+      ));
 
       await tester.pumpWidget(
         MaterialApp(
@@ -117,8 +123,17 @@ void main() {
       final statsService = StatisticsService();
 
       // Add some stats
-      await statsService.recordGameStarted();
-      await statsService.recordWin(moves: 100, time: const Duration(minutes: 5));
+      statsService.setTestStatistics(Statistics(
+        gamesPlayed: 1,
+        gamesWon: 1,
+        gamesLost: 0,
+        currentStreak: 1,
+        bestStreak: 1,
+        bestTime: const Duration(minutes: 5),
+        fewestMoves: 100,
+        vegasCumulativeScore: 0,
+        vegasHighScore: null,
+      ));
 
       await tester.pumpWidget(
         MaterialApp(

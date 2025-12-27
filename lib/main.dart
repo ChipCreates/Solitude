@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'services/settings_provider.dart';
 import 'services/statistics_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'services/game_controller.dart';
 import 'services/animation_state_notifier.dart';
 import 'services/timer_state_notifier.dart';
@@ -42,6 +43,10 @@ Future<void> _initializeApp() async {
   // Preload SVG card assets to eliminate startup jank
   // This prevents the expensive SVG parsing from happening during first render
   await SvgPreloadService.preloadCardSvg();
+
+  // Initialize Hive for local lightweight storage
+  await Hive.initFlutter();
+  await Hive.openBox('statistics');
 
   // Initialize services
   final settingsProvider = SettingsProvider();
