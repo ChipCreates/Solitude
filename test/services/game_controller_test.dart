@@ -13,6 +13,7 @@ import 'package:solitude/models/difficulty.dart';
 import '../helpers/mocks.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('GameController Initialization', () {
     test('creates a new game on initialization', () {
       final controller = GameController(
