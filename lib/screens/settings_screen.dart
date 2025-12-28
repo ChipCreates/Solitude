@@ -790,7 +790,6 @@ class _GameplayTab extends StatelessWidget {
                     value: settings.soundVolume,
                     onChanged: (value) {
                       settings.setSoundVolume(value);
-                      context.read<GameController>().audioService.setVolume(value);
                     },
                   ),
                 ),
@@ -804,7 +803,6 @@ class _GameplayTab extends StatelessWidget {
                   value: settings.musicEnabled,
                   onChanged: (value) {
                     settings.setMusicEnabled(value);
-                    context.read<GameController>().audioService.setMusicEnabled(value);
                   },
                 ),
               ),
@@ -819,7 +817,6 @@ class _GameplayTab extends StatelessWidget {
                     value: settings.musicVolume,
                     onChanged: (value) {
                       settings.setMusicVolume(value);
-                      context.read<GameController>().audioService.setMusicVolume(value);
                     },
                   ),
                 ),

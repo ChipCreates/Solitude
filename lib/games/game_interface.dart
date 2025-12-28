@@ -121,6 +121,9 @@ abstract class GameInterface {
   /// Get the next pile to focus on from the current pile
   Pile? getNextFocus(Pile current);
 
+  /// Get all piles that can be focused (for keyboard navigation)
+  List<Pile> get focusablePiles;
+
   /// Handle tap on a pile (game-specific behavior)
   Move? handlePileTap(Pile pile);
 

@@ -211,7 +211,7 @@ class _TableauPileSelector extends StatelessWidget {
       builder: (context, data, _) {
         final controller = Provider.of<GameController>(context, listen: false);
         return Container(
-          key: controller.getKeyForPile(data.pile),
+          key: controller.boardLayout.getKeyForPileId(data.pile.id),
           child: TableauPileWidget(
             pile: data.pile,
             cardWidth: cardWidth,

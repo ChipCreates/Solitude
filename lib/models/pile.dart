@@ -13,6 +13,9 @@ class Pile {
 
   Pile({required this.type, this.index = 0});
 
+  /// Unique ID for this pile, used for UI mapping
+  String get id => '${type.name}_$index';
+
   /// Current version of this pile - changes on any mutation.
   int get version => _version;
 

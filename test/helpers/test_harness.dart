@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:solitude/services/board_layout_service.dart';
 import 'package:solitude/services/game_controller.dart';
 import 'package:solitude/services/settings_provider.dart';
 import 'package:solitude/services/statistics_service.dart';
@@ -51,11 +52,11 @@ class TestHarness {
         GameController(
           settingsProvider: effectiveSettings,
           statisticsService: effectiveStats,
-          audioService: MockAudioService(),
           animationState: effectiveAnimationState,
           hintState: effectiveHintState,
           selectionState: effectiveSelectionState,
           timerState: effectiveTimerState,
+          boardLayout: BoardLayoutService(),
         );
 
     return MaterialApp(
@@ -102,20 +103,20 @@ class TestHarness {
   static GameController createMockController({
     MockSettingsProvider? settings,
     MockStatisticsService? statistics,
-    MockAudioService? audio,
     AnimationStateNotifier? animationState,
     HintStateNotifier? hintState,
     SelectionStateNotifier? selectionState,
     TimerStateNotifier? timerState,
+    BoardLayoutService? boardLayout,
   }) {
     return GameController(
       settingsProvider: settings ?? MockSettingsProvider(),
       statisticsService: statistics ?? MockStatisticsService(),
-      audioService: audio ?? MockAudioService(),
       animationState: animationState ?? AnimationStateNotifier(),
       hintState: hintState ?? HintStateNotifier(),
       selectionState: selectionState ?? SelectionStateNotifier(),
       timerState: timerState ?? TimerStateNotifier(),
+      boardLayout: boardLayout ?? BoardLayoutService(),
     );
   }
 }

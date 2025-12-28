@@ -701,6 +701,17 @@ class KlondikeGame extends SolitaireGameBase {
   }
 
   @override
+  List<Pile> get focusablePiles {
+    final piles = <Pile>[];
+    piles.add(stock);
+    if (!waste.isEmpty) {
+      piles.add(waste);
+    }
+    piles.addAll(tableau);
+    return piles;
+  }
+
+  @override
   Pile? getNextFocus(Pile current) {
     if (current == stock || current == waste) {
       return tableau.isNotEmpty ? tableau[0] : null;

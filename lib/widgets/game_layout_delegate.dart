@@ -105,7 +105,7 @@ class _StockPileSelector extends StatelessWidget {
       builder: (context, data, _) {
         final controller = Provider.of<GameController>(context, listen: false);
         return Container(
-          key: controller.getKeyForPile(data.pile),
+          key: controller.boardLayout.getKeyForPileId(data.pile.id),
           child: StockPileWidget(
             pile: data.pile,
             cardWidth: cardWidth,
@@ -145,7 +145,7 @@ class _WastePileSelector extends StatelessWidget {
       builder: (context, data, _) {
         final controller = Provider.of<GameController>(context, listen: false);
         return Container(
-          key: controller.getKeyForPile(data.pile),
+          key: controller.boardLayout.getKeyForPileId(data.pile.id),
           child: WastePileWidget(
             pile: data.pile,
             cardWidth: cardWidth,
@@ -183,7 +183,7 @@ class _FoundationPileSelector extends StatelessWidget {
       builder: (context, data, _) {
         final controller = Provider.of<GameController>(context, listen: false);
         return Container(
-          key: controller.getKeyForPile(data.pile),
+          key: controller.boardLayout.getKeyForPileId(data.pile.id),
           child: FoundationPileWidget(
             pile: data.pile,
             cardWidth: cardWidth,

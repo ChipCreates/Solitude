@@ -227,7 +227,7 @@ class MoveHistoryViewerWithJump extends StatelessWidget {
           }
 
           // Adjust index for move history section
-          index = index - redoHistory.length - 2;
+          index = (index - redoHistory.length - 2).toInt();
         }
 
         // Second section: Current move history

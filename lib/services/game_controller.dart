@@ -1,26 +1,29 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import '../games/game_interface.dart';
 import '../games/game_factory.dart';
 import '../models/card.dart';
 import '../models/pile.dart';
 import '../models/move.dart';
 import '../models/difficulty.dart';
+import '../models/game_event.dart';
 import '../widgets/animated_card_overlay.dart';
 import 'settings_provider.dart';
 import 'statistics_service.dart';
-import 'audio_service.dart';
 import 'animation_state_notifier.dart';
 import 'hint_state_notifier.dart';
 import 'selection_state_notifier.dart';
 import 'timer_state_notifier.dart';
+import 'board_layout_service.dart';
+import 'solitaire_bot.dart';
 
 enum GameState { playing, won, autoCompleting, autoplaying, lost }
 
 class GameController extends ChangeNotifier {
   final SettingsProvider settingsProvider;
   final StatisticsService statisticsService;
-  final AudioService audioService;
+  final BoardLayoutService boardLayout;
 
   // Separate notifiers for performance optimization
   final AnimationStateNotifier animationState;
@@ -33,10 +36,6 @@ class GameController extends ChangeNotifier {
 
   // Keyboard focus state - tracks which pile has keyboard focus
   Pile? _focusedPile;
-  int _focusedPileIndex = -1; // -1 = stock, 0-6 = tableau
-
-  // Pile position tracking
-  final Map<Pile, GlobalKey> pileKeys = {};
 
   // Track if game has been started (first move made)
   bool _gameStarted = false;
@@ -45,6 +44,13 @@ class GameController extends ChangeNotifier {
   Timer? _inactivityTimer;
   static const Duration _inactivityThreshold = Duration(seconds: 8);
 
+  // Bot for autoplay and auto-complete
+  late SolitaireBot _bot;
+
+  // Event stream for services
+  final StreamController<GameEvent> _eventController = StreamController<GameEvent>.broadcast();
+  Stream<GameEvent> get gameEvents => _eventController.stream;
+
   GameController({
     required this.settingsProvider,
     required this.statisticsService,
@@ -52,11 +58,18 @@ class GameController extends ChangeNotifier {
     required this.hintState,
     required this.selectionState,
     required this.timerState,
-    required this.audioService,
+    required this.boardLayout,
   }) {
     _game = GameFactory.createGame(GameType.klondike);
     _game.applyDifficulty(settingsProvider.difficulty);
     _game.initialize();
+    _bot = SolitaireBot(
+      _game,
+      () => notifyListeners(),
+      _handleWin,
+      _handleLoss,
+      _eventController.add,
+    );
     // Listen to settings changes to respond to autoplay and audio toggles
     settingsProvider.addListener(_onSettingsChanged);
   }
@@ -70,69 +83,32 @@ class GameController extends ChangeNotifier {
   List<PlayingCard>? get hintCards => hintState.cards;
   Pile? get hintDestinationPile => hintState.destinationPile;
   Pile? get focusedPile => _focusedPile;
+  
+  // Game state shortcuts for UI
+  int get moveCount => _game.moveCount;
+  bool get canUndo => _game.moveHistory.isNotEmpty;
+  bool get canRedo => _game.canRedo;
+  bool get isWon => _state == GameState.won;
+  bool get isLost => _game.isLost || _state == GameState.lost;
+  List<Move> get moveHistory => _game.moveHistory;
+  List<Move> get redoHistory => _game.redoStack;
+  
+  // Game interface shortcuts
+  Pile? get stock => _game.stockPile;
+  Pile? get waste => _game.wastePile;
+  List<Pile> get foundations => _game.foundationPiles;
+  List<Pile> get tableau => _game.tableauPiles;
 
   // Delegate to separate notifiers
   CardAnimationData? get cardAnimationData => animationState.cardAnimationData;
   PlayingCard? get animatingCard => animationState.animatingCard;
   Duration get elapsed => timerState.elapsed;
-
-  int get moveCount => _game.moveCount;
-  bool get canUndo => _game.moveHistory.isNotEmpty;
-  bool get canRedo => _game.canRedo;
-  bool get isWon => _state == GameState.won;
-  bool get isLost => _state == GameState.lost;
-
-  // Move history for UI display
-  List<Move> get moveHistory => _game.moveHistory;
-  List<Move> get redoHistory => _game.redoStack;
-
-  // Game-agnostic pile accessors
-  Pile? get stock => _game.getPile(PileType.stock);
-  Pile? get waste => _game.getPile(PileType.waste);
-  List<Pile> get foundations => _game.foundationPiles;
-  List<Pile> get tableau => _game.tableauPiles;
-
-  /// Initialize pile keys for position tracking
-  void initializePileKeys() {
-    pileKeys.clear();
-    final stockPile = _game.stockPile;
-    final wastePile = _game.wastePile;
-    if (stockPile != null) {
-      pileKeys[stockPile] = GlobalKey();
-    }
-    if (wastePile != null) {
-      pileKeys[wastePile] = GlobalKey();
-    }
-    for (final foundation in _game.foundationPiles) {
-      pileKeys[foundation] = GlobalKey();
-    }
-    for (final tableauPile in _game.tableauPiles) {
-      pileKeys[tableauPile] = GlobalKey();
-    }
-  }
-
-  /// Get the GlobalKey for a specific pile
-  GlobalKey? getKeyForPile(Pile pile) => pileKeys[pile];
-
-  /// Calculate card position from pile position
-  Offset? getCardPosition(Pile pile, {double stackOffset = 0}) {
-    final key = pileKeys[pile];
-    if (key?.currentContext == null) return null;
-
-    final RenderBox? box = key!.currentContext!.findRenderObject() as RenderBox?;
-    if (box == null) return null;
-
-    // Get position relative to screen
-    final position = box.localToGlobal(Offset.zero);
-
-    // For tableau piles, offset by stack position if there are cards
-    if (!pile.isEmpty && stackOffset > 0) {
-      final cardIndex = pile.length - 1;
-      return Offset(position.dx, position.dy + (cardIndex * stackOffset));
-    }
-
-    return position;
-  }
+  
+  // Delegate to board layout service
+  void initializePileKeys() => boardLayout.initializePileKeys(_game.allPiles);
+  String? getPileId(Pile pile) => pile.id;
+  Offset? getCardPosition(Pile pile, {double stackOffset = 0}) => 
+      boardLayout.getCardPosition(pile, stackOffset: stackOffset);
   
   void newGame() {
     _stopTimer();
@@ -195,10 +171,15 @@ class GameController extends ChangeNotifier {
     if (!settingsProvider.autoplay && _state == GameState.autoplaying) {
       stopAutoplay();
     }
+  }
 
-    // Sync audio settings
-    audioService.setEnabled(settingsProvider.soundEnabled);
-    audioService.setVolume(settingsProvider.soundVolume);
+  void _emitMoveEvent(Move? move) {
+    if (move != null) {
+      _eventController.add(GameEvent(GameEventType.moveExecuted, move));
+      if (move.flippedCard == true) {
+        _eventController.add(GameEvent(GameEventType.cardFlipped));
+      }
+    }
   }
   
   void selectCard(Pile pile, PlayingCard card) {
@@ -240,24 +221,19 @@ class GameController extends ChangeNotifier {
   void cycleFocusForward() {
     if (_state != GameState.playing) return;
 
-    if (_focusedPile == null) {
-      // Start with stock or first tableau
-      _focusedPile = _game.getPile(PileType.stock) ?? _game.tableauPiles.firstOrNull;
-    } else {
-      final next = _game.getNextFocus(_focusedPile!);
-      if (next != null) {
-        _focusedPile = next;
-      } else {
-        // Wrap around to start
-        _focusedPile = _game.getPile(PileType.stock) ?? _game.tableauPiles.firstOrNull;
-      }
-    }
+    final focusablePiles = _game.focusablePiles;
+    if (focusablePiles.isEmpty) return;
 
-    // Update index for compatibility (if needed)
-    if (_focusedPile?.type == PileType.tableau) {
-      _focusedPileIndex = _game.tableauPiles.indexOf(_focusedPile!);
+    if (_focusedPile == null) {
+      _focusedPile = focusablePiles.first;
     } else {
-      _focusedPileIndex = -1;
+      final currentIndex = focusablePiles.indexOf(_focusedPile!);
+      if (currentIndex >= 0) {
+        final nextIndex = (currentIndex + 1) % focusablePiles.length;
+        _focusedPile = focusablePiles[nextIndex];
+      } else {
+        _focusedPile = focusablePiles.first;
+      }
     }
 
     notifyListeners();
@@ -267,23 +243,19 @@ class GameController extends ChangeNotifier {
   void cycleFocusBackward() {
     if (_state != GameState.playing) return;
 
-    final tableauPiles = _game.tableauPiles;
-    final tableauCount = tableauPiles.length;
-    final wastePile = _game.wastePile;
-    final stockPile = _game.stockPile;
+    final focusablePiles = _game.focusablePiles;
+    if (focusablePiles.isEmpty) return;
 
-    if (_focusedPileIndex == -1) {
-      // Move from stock to last tableau
-      _focusedPileIndex = tableauCount - 1;
-      _focusedPile = tableauPiles.isNotEmpty ? tableauPiles[_focusedPileIndex] : stockPile;
-    } else if (_focusedPileIndex > 0) {
-      // Move to previous tableau pile
-      _focusedPileIndex--;
-      _focusedPile = tableauPiles[_focusedPileIndex];
+    if (_focusedPile == null) {
+      _focusedPile = focusablePiles.last;
     } else {
-      // Wrap around to stock/waste
-      _focusedPileIndex = -1;
-      _focusedPile = (wastePile != null && !wastePile.isEmpty) ? wastePile : stockPile;
+      final currentIndex = focusablePiles.indexOf(_focusedPile!);
+      if (currentIndex >= 0) {
+        final prevIndex = (currentIndex - 1 + focusablePiles.length) % focusablePiles.length;
+        _focusedPile = focusablePiles[prevIndex];
+      } else {
+        _focusedPile = focusablePiles.last;
+      }
     }
 
     notifyListeners();
@@ -359,10 +331,7 @@ class GameController extends ChangeNotifier {
 
     // Execute the actual move
     final move = _game.executeMove(from, to, [card]);
-    audioService.playCardPlace();
-    if (move?.flippedCard == true) {
-      audioService.playCardFlip();
-    }
+    _emitMoveEvent(move);
     clearSelection();
     clearCardAnimation();
     _checkGameState();
@@ -398,10 +367,7 @@ class GameController extends ChangeNotifier {
     final move = _game.handlePileTap(pile);
     if (move != null) {
       _recordGameStart();
-      // Play card flip sound whenever cards are drawn
-      if (move.cards.isNotEmpty) {
-        audioService.playCardFlip();
-      }
+      _emitMoveEvent(move);
       clearSelection();
       _checkGameState();
       notifyListeners();
@@ -415,16 +381,13 @@ class GameController extends ChangeNotifier {
       if (_game.isValidMove(selectedPile, pile, selectedCards)) {
         _recordGameStart();
         final move = _game.executeMove(selectedPile, pile, selectedCards);
-        audioService.playCardPlace();
-        if (move?.flippedCard == true) {
-          audioService.playCardFlip();
-        }
+        _emitMoveEvent(move);
         clearSelection();
         _checkGameState();
         notifyListeners();
         return;
       } else {
-        audioService.playInvalidMove();
+        _eventController.add(GameEvent(GameEventType.invalidMove));
       }
     }
 
@@ -448,10 +411,7 @@ class GameController extends ChangeNotifier {
       if (_game.isValidMove(selectedPile, pile, selectedCards)) {
         _recordGameStart();
         final move = _game.executeMove(selectedPile, pile, selectedCards);
-        audioService.playCardPlace();
-        if (move?.flippedCard == true) {
-          audioService.playCardFlip();
-        }
+        _emitMoveEvent(move);
         clearSelection();
         _checkGameState();
         notifyListeners();
@@ -488,36 +448,31 @@ class GameController extends ChangeNotifier {
 
     // If we found a destination, animate the move
     if (destinationPile != null) {
-      final startPos = getCardPosition(pile, stackOffset: stackOffset);
-      final endPos = getCardPosition(destinationPile, stackOffset: stackOffset);
+      final startPosition = getCardPosition(pile, stackOffset: stackOffset) ?? Offset.zero;
+      final endPosition = getCardPosition(destinationPile) ?? Offset.zero;
 
-      if (startPos != null && endPos != null) {
-        // Trigger animation
-        startCardAnimation(
-          card: card,
-          startPosition: startPos,
-          endPosition: endPos,
-          cardWidth: cardWidth,
-        );
+      // Trigger animation
+      startCardAnimation(
+        card: card,
+        startPosition: startPosition,
+        endPosition: endPosition,
+        cardWidth: cardWidth,
+      );
 
-        // Wait for animation to complete
-        await Future.delayed(const Duration(milliseconds: 300));
+      // Wait for animation to complete
+      await Future.delayed(const Duration(milliseconds: 300));
 
-        // Execute the move
-        final move = _game.executeMove(pile, destinationPile, cardsToMove);
-        audioService.playCardPlace();
-        if (move?.flippedCard == true) {
-          audioService.playCardFlip();
-        }
-        clearSelection();
-        clearCardAnimation();
-        _checkGameState();
-        notifyListeners();
-        return true;
-      }
+      // Execute the move
+      final move = _game.executeMove(pile, destinationPile, cardsToMove);
+      _emitMoveEvent(move);
+      clearSelection();
+      clearCardAnimation();
+      _checkGameState();
+      notifyListeners();
+      return true;
     }
 
-    // Fall back to non-animated if no destination or positions unavailable
+    // Fall back to non-animated if no destination
     return false;
   }
 
@@ -546,10 +501,7 @@ class GameController extends ChangeNotifier {
 
     if (destinationPile != null) {
       final move = _game.executeMove(pile, destinationPile, cardsToMove);
-      audioService.playCardPlace();
-      if (move?.flippedCard == true) {
-        audioService.playCardFlip();
-      }
+      _emitMoveEvent(move);
       clearSelection();
       _checkGameState();
       notifyListeners();
@@ -567,17 +519,14 @@ class GameController extends ChangeNotifier {
     if (_game.isValidMove(from, to, cards)) {
       _recordGameStart();
       final move = _game.executeMove(from, to, cards);
-      audioService.playCardPlace();
-      if (move?.flippedCard == true) {
-        audioService.playCardFlip();
-      }
+      _emitMoveEvent(move);
       clearSelection();
       _checkGameState();
       notifyListeners();
       return true;
     }
 
-    audioService.playInvalidMove();
+    _eventController.add(GameEvent(GameEventType.invalidMove));
     return false;
   }
   
@@ -623,6 +572,7 @@ class GameController extends ChangeNotifier {
     _stopTimer();
     _state = GameState.lost;
     statisticsService.recordLoss();
+    _eventController.add(GameEvent(GameEventType.gameLost));
 
     // Record Vegas scoring if in Vegas mode
     if (settingsProvider.scoringMode == ScoringMode.vegas) {
@@ -636,15 +586,14 @@ class GameController extends ChangeNotifier {
       statisticsService.recordVegasScore(vegasScore);
     }
 
-    audioService.playInvalidMove();
     notifyListeners();
   }
 
   void _handleWin() {
     _stopTimer();
     _state = GameState.won;
-    audioService.playWin();
     statisticsService.recordWin(time: timerState.elapsed, moves: _game.moveCount);
+    _eventController.add(GameEvent(GameEventType.gameWon));
 
     // Record Vegas scoring if in Vegas mode (winning = all 52 cards in foundations)
     if (settingsProvider.scoringMode == ScoringMode.vegas) {
@@ -660,7 +609,7 @@ class GameController extends ChangeNotifier {
     _state = GameState.autoCompleting;
     notifyListeners();
     
-    _runAutoComplete();
+    _bot.startAutoComplete();
   }
 
   // Autoplay controls
@@ -678,11 +627,12 @@ class GameController extends ChangeNotifier {
     if (_state == GameState.autoplaying) return;
     _state = GameState.autoplaying;
     notifyListeners();
-    _runAutoplay();
+    _bot.startAutoplay();
   }
 
   void stopAutoplay() {
     if (_state != GameState.autoplaying) return;
+    _bot.stopAutoplay();
     _state = GameState.playing;
     _checkGameState(); // Check if lost after stopping
     notifyListeners();
@@ -696,153 +646,6 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  Future<void> _runAutoplay() async {
-    final stockPile = _game.stockPile;
-    final wastePile = _game.wastePile;
-
-    // Track progress through the stock to detect when we've cycled without progress
-    int recyclesSinceLastMove = 0;
-
-    // Track recent moves to detect oscillation
-    final List<String> recentMoveSignatures = [];
-    const int maxRecentMoves = 10;
-
-    while (_state == GameState.autoplaying) {
-      // Check for win
-      if (_game.checkWin()) {
-        _handleWin();
-        return;
-      }
-
-      // Check if truly lost
-      if (_game.isLost) {
-        _handleLoss();
-        return;
-      }
-
-      // Try to get a hint
-      final hint = _game.getHint();
-
-      if (hint != null) {
-        // Create a signature for this move to detect oscillation
-        final sig = _createMoveSignature(hint.from, hint.to, hint.cards);
-
-        // Check for oscillation (same move appearing multiple times recently)
-        final occurrences = recentMoveSignatures.where((s) => s == sig).length;
-        if (occurrences >= 2) {
-          // We're oscillating - check if there's anything left to try
-          final stockEmpty = stockPile == null || stockPile.isEmpty;
-          final wasteEmpty = wastePile == null || wastePile.isEmpty;
-          if (stockEmpty && wasteEmpty) {
-            _handleLoss();
-            return;
-          }
-          // Try drawing instead of repeating the move
-          _recordGameStart();
-          final move = _game.tapStock();
-          // Play appropriate sound based on draw mode
-          if (move != null && move.cards.isNotEmpty) {
-            if (move.cards.length == 1) {
-              audioService.playCardFlip();
-            } else {
-              audioService.playCardDraw();
-            }
-          }
-          notifyListeners();
-          await Future.delayed(const Duration(milliseconds: 300));
-          continue;
-        }
-
-        // Execute the move
-        _recordGameStart();
-        final move = _game.executeMove(hint.from, hint.to, hint.cards);
-        audioService.playCardPlace();
-        if (move?.flippedCard == true) {
-          audioService.playCardFlip();
-        }
-
-        // Track the move
-        recentMoveSignatures.add(sig);
-        if (recentMoveSignatures.length > maxRecentMoves) {
-          recentMoveSignatures.removeAt(0);
-        }
-
-        // Reset counters since we made progress
-        recyclesSinceLastMove = 0;
-
-        notifyListeners();
-        await Future.delayed(const Duration(milliseconds: 400));
-
-      } else {
-        // No hint available - try drawing from stock
-        final stockEmpty = stockPile == null || stockPile.isEmpty;
-        final wasteEmpty = wastePile == null || wastePile.isEmpty;
-        if (stockEmpty && wasteEmpty) {
-          // Nothing to draw at all
-          _handleLoss();
-          return;
-        }
-
-        // Check if we've recycled twice without making any moves
-        // This means we've gone through the entire deck twice with no progress
-        if (recyclesSinceLastMove >= 2) {
-          _handleLoss();
-          return;
-        }
-
-        _recordGameStart();
-        final move = _game.tapStock();
-        // Play appropriate sound based on draw mode
-        if (move != null && move.cards.isNotEmpty) {
-          if (move.cards.length == 1) {
-            audioService.playCardFlip();
-          } else {
-            audioService.playCardDraw();
-          }
-        }
-
-        // If we just recycled (waste -> stock), track it
-        if (move != null && move.toPile.type == PileType.stock) {
-          recyclesSinceLastMove++;
-
-          // After recycling, immediately check if we're truly lost
-          if (_game.isLost) {
-            _handleLoss();
-            return;
-          }
-        }
-
-        notifyListeners();
-        await Future.delayed(const Duration(milliseconds: 300));
-      }
-    }
-  }
-  
-  /// Create a unique signature for a move to detect repetition
-  String _createMoveSignature(Pile from, Pile to, List<PlayingCard> cards) {
-    final cardIds = cards.map((c) => c.svgId).join(',');
-    return '${from.type.name}[${from.index}]->${to.type.name}[${to.index}]:$cardIds';
-  }
-  
-  Future<void> _runAutoComplete() async {
-    while (_state == GameState.autoCompleting && !_game.checkWin()) {
-      if (_game.autoCompleteStep()) {
-        audioService.playCardPlace();
-        notifyListeners();
-        await Future.delayed(const Duration(milliseconds: 100));
-      } else {
-        break;
-      }
-    }
-    
-    if (_game.checkWin()) {
-      _handleWin();
-    } else {
-      _state = GameState.playing;
-      notifyListeners();
-    }
-  }
-  
   void showHint() {
     clearHint();
 
@@ -886,7 +689,7 @@ class GameController extends ChangeNotifier {
         });
       } else {
           // Absolutely no moves
-          audioService.playInvalidMove();
+          _eventController.add(GameEvent(GameEventType.invalidMove));
       }
     }
   }
@@ -895,8 +698,8 @@ class GameController extends ChangeNotifier {
   void dispose() {
     _stopTimer();
     _stopInactivityTimer();
+    _eventController.close();
     settingsProvider.removeListener(_onSettingsChanged);
-    audioService.dispose();
     super.dispose();
   }
 }

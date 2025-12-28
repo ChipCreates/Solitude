@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:solitude/services/board_layout_service.dart';
 import 'package:solitude/services/game_controller.dart';
 import 'package:solitude/services/animation_state_notifier.dart';
 import 'package:solitude/services/hint_state_notifier.dart';
@@ -17,11 +18,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       expect(controller.game, isA<KlondikeGame>());
@@ -34,17 +35,16 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.initializePileKeys();
 
-      expect(controller.pileKeys.length, greaterThan(0));
-      expect(controller.getKeyForPile(controller.stock!), isNotNull);
+      expect(controller.boardLayout.getCardPosition(controller.stock!), isNull);
     });
   });
 
@@ -53,11 +53,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       // Make a move
@@ -76,11 +76,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: stats,
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       expect(stats.gamesStartedCount, 0);
@@ -97,11 +97,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -119,11 +119,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -141,11 +141,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
@@ -159,11 +159,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       // Clear tableau and add a single ace
@@ -182,11 +182,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -204,11 +204,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -227,11 +227,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -251,11 +251,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       expect(controller.canUndo, isFalse);
@@ -271,11 +271,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       final stockBefore = controller.stock!.length;
@@ -290,11 +290,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -311,11 +311,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -331,11 +331,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -353,11 +353,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -374,11 +374,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -396,11 +396,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       // Fill all foundations with 13 cards each
@@ -422,11 +422,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       expect(controller.isWon, isFalse);
@@ -438,11 +438,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.clearLoss();
@@ -454,11 +454,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       expect(controller.isLost, isFalse);
@@ -470,11 +470,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       expect(controller.focusedPile, isNull);
@@ -488,11 +488,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.cycleFocusBackward();
@@ -504,11 +504,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       // Focus on stock
@@ -526,11 +526,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       expect(controller.game, isA<KlondikeGame>());
@@ -540,11 +540,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       expect(controller.stock!.type, PileType.stock);
@@ -557,11 +557,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       final initialCount = controller.moveCount;
@@ -576,11 +576,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -598,11 +598,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -619,11 +619,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       expect(controller.isAutoplaying, isFalse);
@@ -641,11 +641,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.startAutoplay();
@@ -657,11 +657,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.startAutoplay();
@@ -676,11 +676,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       // Start the game by making a move (triggers inactivity timer)
@@ -699,11 +699,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
@@ -723,11 +723,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
@@ -749,11 +749,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
@@ -778,11 +778,11 @@ void main() {
       final controller = GameController(
         settingsProvider: settings,
         statisticsService: stats,
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       // Clear all piles first
@@ -841,11 +841,11 @@ void main() {
       final controller = GameController(
         settingsProvider: settings,
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.startAutoplay();
@@ -864,11 +864,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       // Setup a situation where a hint is available
@@ -887,11 +887,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       // Setup and show hint
@@ -914,11 +914,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -935,11 +935,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       controller.tableau[0].clear();
@@ -955,11 +955,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       // Clear all tableau piles
@@ -991,11 +991,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       // Make a move
@@ -1016,11 +1016,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       // Make a move
@@ -1045,11 +1045,11 @@ void main() {
       final controller = GameController(
         settingsProvider: MockSettingsProvider(autoComplete: false),
         statisticsService: MockStatisticsService(),
-        audioService: MockAudioService(),
         animationState: AnimationStateNotifier(),
         hintState: HintStateNotifier(),
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
+        boardLayout: BoardLayoutService(),
       );
 
       // Make a move
