@@ -87,8 +87,8 @@ class GameController extends ChangeNotifier {
   List<Move> get redoHistory => _game.redoStack;
 
   // Game-agnostic pile accessors
-  Pile? get stock => _game.stockPile;
-  Pile? get waste => _game.wastePile;
+  Pile? get stock => _game.getPile(PileType.stock);
+  Pile? get waste => _game.getPile(PileType.waste);
   List<Pile> get foundations => _game.foundationPiles;
   List<Pile> get tableau => _game.tableauPiles;
 
@@ -240,24 +240,24 @@ class GameController extends ChangeNotifier {
   void cycleFocusForward() {
     if (_state != GameState.playing) return;
 
-    final tableauPiles = _game.tableauPiles;
-    final tableauCount = tableauPiles.length;
-    final wastePile = _game.wastePile;
-    final stockPile = _game.stockPile;
-
-    // Order: stock/waste -> tableau[0] -> tableau[1] -> ... -> tableau[n-1] -> back to stock
-    if (_focusedPileIndex == -1) {
-      // Move from stock to first tableau
-      _focusedPileIndex = 0;
-      _focusedPile = tableauPiles.isNotEmpty ? tableauPiles[0] : stockPile;
-    } else if (_focusedPileIndex < tableauCount - 1) {
-      // Move to next tableau pile
-      _focusedPileIndex++;
-      _focusedPile = tableauPiles[_focusedPileIndex];
+    if (_focusedPile == null) {
+      // Start with stock or first tableau
+      _focusedPile = _game.getPile(PileType.stock) ?? _game.tableauPiles.firstOrNull;
     } else {
-      // Wrap around to stock/waste
+      final next = _game.getNextFocus(_focusedPile!);
+      if (next != null) {
+        _focusedPile = next;
+      } else {
+        // Wrap around to start
+        _focusedPile = _game.getPile(PileType.stock) ?? _game.tableauPiles.firstOrNull;
+      }
+    }
+
+    // Update index for compatibility (if needed)
+    if (_focusedPile?.type == PileType.tableau) {
+      _focusedPileIndex = _game.tableauPiles.indexOf(_focusedPile!);
+    } else {
       _focusedPileIndex = -1;
-      _focusedPile = (wastePile != null && !wastePile.isEmpty) ? wastePile : stockPile;
     }
 
     notifyListeners();
@@ -394,12 +394,12 @@ class GameController extends ChangeNotifier {
     _resetInactivityTimer();
     clearHint();
 
-    // Handle stock tap
-    if (pile.type == PileType.stock) {
+    // Handle game-specific pile tap
+    final move = _game.handlePileTap(pile);
+    if (move != null) {
       _recordGameStart();
-      final move = _game.tapStock();
       // Play card flip sound whenever cards are drawn
-      if (move != null && move.cards.isNotEmpty) {
+      if (move.cards.isNotEmpty) {
         audioService.playCardFlip();
       }
       clearSelection();
@@ -847,12 +847,12 @@ class GameController extends ChangeNotifier {
     clearHint();
 
     // Check for stock draw/recycle
-    if (_game.stockPile != null && _game.stockPile!.isEmpty && _game.wastePile != null && !_game.wastePile!.isEmpty) {
+    if (_game.getPile(PileType.stock) != null && _game.getPile(PileType.stock)!.isEmpty && _game.getPile(PileType.waste) != null && !_game.getPile(PileType.waste)!.isEmpty) {
         // Recycle suggestion - hint source and destination are both stock
         hintState.setHint(
-          sourcePile: _game.stockPile!,
+          sourcePile: _game.getPile(PileType.stock)!,
           cards: null,
-          destinationPile: _game.stockPile!,
+          destinationPile: _game.getPile(PileType.stock)!,
         );
         return;
     }
@@ -873,14 +873,14 @@ class GameController extends ChangeNotifier {
       });
     } else {
       // No moves available, try suggesting drawing from stock
-      if (_game.stockPile != null && !_game.stockPile!.isEmpty) {
+      if (_game.getPile(PileType.stock) != null && !_game.getPile(PileType.stock)!.isEmpty) {
         hintState.setHint(
-          sourcePile: _game.stockPile!,
+          sourcePile: _game.getPile(PileType.stock)!,
           cards: null,
-          destinationPile: _game.stockPile!,
+          destinationPile: _game.getPile(PileType.stock)!,
         );
         Future.delayed(const Duration(seconds: 2), () {
-            if (hintState.sourcePile == _game.stockPile) {
+            if (hintState.sourcePile == _game.getPile(PileType.stock)) {
                 clearHint();
             }
         });

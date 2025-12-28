@@ -687,4 +687,39 @@ class KlondikeGame extends SolitaireGameBase {
   void setDrawMode(DrawMode mode) {
     drawMode = mode;
   }
+
+  @override
+  Pile? getPile(PileType type) {
+    switch (type) {
+      case PileType.stock:
+        return stockPile;
+      case PileType.waste:
+        return wastePile;
+      default:
+        return null;
+    }
+  }
+
+  @override
+  Pile? getNextFocus(Pile current) {
+    if (current == stock || current == waste) {
+      return tableau.isNotEmpty ? tableau[0] : null;
+    } else if (current.type == PileType.tableau) {
+      final index = tableau.indexOf(current);
+      if (index >= 0 && index < tableau.length - 1) {
+        return tableau[index + 1];
+      } else {
+        return !waste.isEmpty ? waste : stock;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Move? handlePileTap(Pile pile) {
+    if (pile.type == PileType.stock) {
+      return tapStock();
+    }
+    return null;
+  }
 }

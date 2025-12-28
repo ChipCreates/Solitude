@@ -115,6 +115,15 @@ abstract class GameInterface {
   /// Default implementation does nothing.
   void applyDifficulty(Difficulty difficulty) {}
 
+  /// Get a specific pile by type (for single piles like stock/waste)
+  Pile? getPile(PileType type);
+
+  /// Get the next pile to focus on from the current pile
+  Pile? getNextFocus(Pile current);
+
+  /// Handle tap on a pile (game-specific behavior)
+  Move? handlePileTap(Pile pile);
+
   /// Game-specific layout configuration
   LayoutConfig get layoutConfig;
 }
