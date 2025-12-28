@@ -25,11 +25,6 @@ class _GameBoardState extends State<GameBoard> {
   @override
   void initState() {
     super.initState();
-    // Initialize pile keys after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final controller = Provider.of<GameController>(context, listen: false);
-      controller.initializePileKeys();
-    });
   }
 
   @override

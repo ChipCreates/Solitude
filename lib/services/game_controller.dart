@@ -63,6 +63,8 @@ class GameController extends ChangeNotifier {
     _game = GameFactory.createGame(GameType.klondike);
     _game.applyDifficulty(settingsProvider.difficulty);
     _game.initialize();
+    // Initialize pile keys after game is set up
+    initializePileKeys();
     _bot = SolitaireBot(
       _game,
       () => notifyListeners(),
@@ -448,8 +450,18 @@ class GameController extends ChangeNotifier {
 
     // If we found a destination, animate the move
     if (destinationPile != null) {
-      final startPosition = getCardPosition(pile, stackOffset: stackOffset) ?? Offset.zero;
+      final startPosition = getCardPosition(pile, stackOffset: stackOffset);
       final endPosition = getCardPosition(destinationPile) ?? Offset.zero;
+
+      // If start position is null, snap to destination without animation
+      if (startPosition == null) {
+        final move = _game.executeMove(pile, destinationPile, cardsToMove);
+        _emitMoveEvent(move);
+        clearSelection();
+        _checkGameState();
+        notifyListeners();
+        return true;
+      }
 
       // Trigger animation
       startCardAnimation(
