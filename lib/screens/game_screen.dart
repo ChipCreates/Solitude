@@ -13,9 +13,12 @@ import '../widgets/win_animation.dart';
 import '../widgets/animated_card_overlay.dart';
 import 'settings_screen.dart';
 import 'statistics_screen.dart';
+import '../games/game_factory.dart';
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  const GameScreen({super.key, required this.gameType});
+
+  final GameType gameType;
 
   @override
   State<GameScreen> createState() => _GameScreenState();

@@ -59,8 +59,9 @@ class GameController extends ChangeNotifier {
     required this.selectionState,
     required this.timerState,
     required this.boardLayout,
+    required GameType gameType,
   }) {
-    _game = GameFactory.createGame(GameType.klondike);
+    _game = GameFactory.createGame(gameType);
     _game.applyDifficulty(settingsProvider.difficulty);
     _game.initialize();
     // Initialize pile keys after game is set up

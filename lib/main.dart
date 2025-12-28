@@ -5,18 +5,16 @@ import 'services/settings_provider.dart';
 import 'services/statistics_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'services/board_layout_service.dart';
-import 'services/game_controller.dart';
 import 'services/animation_state_notifier.dart';
 import 'services/hint_state_notifier.dart';
 import 'services/selection_state_notifier.dart';
 import 'services/timer_state_notifier.dart';
 import 'services/svg_preload_service.dart';
 import 'services/audio_service.dart';
-import 'services/game_audio_observer.dart';
 import 'services/desktop_window_service.dart';
 import 'theme/app_theme.dart';
-import 'screens/game_screen.dart';
 import 'screens/loading_splash_screen.dart';
+import 'widgets/app_startup_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -100,35 +98,7 @@ Future<void> _initializeApp() async {
         ChangeNotifierProvider(create: (_) => SelectionStateNotifier()),
         ChangeNotifierProvider(create: (_) => TimerStateNotifier()),
         Provider.value(value: boardLayoutService),
-        ChangeNotifierProxyProvider<SettingsProvider, GameController>(
-          create: (context) {
-            final controller = GameController(
-              settingsProvider: settingsProvider,
-              statisticsService: statisticsService,
-              animationState: context.read<AnimationStateNotifier>(),
-              hintState: context.read<HintStateNotifier>(),
-              selectionState: context.read<SelectionStateNotifier>(),
-              timerState: context.read<TimerStateNotifier>(),
-              boardLayout: boardLayoutService,
-            );
-
-            // Audio synchronization logic
-            final audioObserver = GameAudioObserver(audioService);
-            audioObserver.attach(controller);
-
-            // Sync initial settings and listen for changes
-            void syncAudio() {
-              audioService.setEnabled(settingsProvider.soundEnabled);
-              audioService.setVolume(settingsProvider.soundVolume);
-            }
-
-            syncAudio();
-            settingsProvider.addListener(syncAudio);
-
-            return controller;
-          },
-          update: (context, settings, controller) => controller!,
-        ),
+        Provider.value(value: audioService),
       ],
       child: const SolitudeApp(),
     ),
@@ -150,7 +120,7 @@ class SolitudeApp extends StatelessWidget {
           theme: AppTheme.light(themePreset),
           darkTheme: AppTheme.dark(themePreset),
           themeMode: settings.themeMode,
-          home: const GameScreen(),
+          home: const AppStartupWrapper(),
         );
       },
     );

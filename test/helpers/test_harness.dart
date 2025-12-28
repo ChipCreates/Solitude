@@ -11,6 +11,7 @@ import 'package:solitude/services/selection_state_notifier.dart';
 import 'package:solitude/services/timer_state_notifier.dart';
 import 'package:solitude/theme/app_theme.dart';
 import 'package:solitude/models/theme_preset.dart';
+import 'package:solitude/games/game_factory.dart';
 
 import 'mocks.dart';
 
@@ -57,6 +58,7 @@ class TestHarness {
           selectionState: effectiveSelectionState,
           timerState: effectiveTimerState,
           boardLayout: BoardLayoutService(),
+          gameType: GameType.klondike,
         );
 
     return MaterialApp(
@@ -117,6 +119,7 @@ class TestHarness {
       selectionState: selectionState ?? SelectionStateNotifier(),
       timerState: timerState ?? TimerStateNotifier(),
       boardLayout: boardLayout ?? BoardLayoutService(),
+      gameType: GameType.klondike,
     );
   }
 }

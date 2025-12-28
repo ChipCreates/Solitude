@@ -3,12 +3,15 @@ import 'klondike/klondike_game.dart';
 
 /// Supported game types
 enum GameType {
-  klondike;
+  klondike,
+  spider;
 
   String get displayName {
     switch (this) {
       case GameType.klondike:
         return 'Klondike';
+      case GameType.spider:
+        return 'Spider';
     }
   }
 
@@ -16,6 +19,8 @@ enum GameType {
     switch (this) {
       case GameType.klondike:
         return 'Classic solitaire with 7 tableau piles';
+      case GameType.spider:
+        return 'Advanced solitaire with 10 tableau piles';
     }
   }
 }
@@ -27,6 +32,8 @@ class GameFactory {
     switch (type) {
       case GameType.klondike:
         return KlondikeGame();
+      case GameType.spider:
+        throw UnsupportedError('Spider game not yet implemented');
     }
   }
 }

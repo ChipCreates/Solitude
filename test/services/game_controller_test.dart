@@ -9,6 +9,7 @@ import 'package:solitude/games/klondike/klondike_game.dart';
 import 'package:solitude/models/card.dart';
 import 'package:solitude/models/pile.dart';
 import 'package:solitude/models/difficulty.dart';
+import 'package:solitude/games/game_factory.dart';
 
 import '../helpers/mocks.dart';
 
@@ -24,6 +25,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       expect(controller.game, isA<KlondikeGame>());
@@ -41,6 +43,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.initializePileKeys();
@@ -59,6 +62,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       // Make a move
@@ -82,6 +86,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       expect(stats.gamesStartedCount, 0);
@@ -103,6 +108,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -125,6 +131,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -147,6 +154,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
@@ -165,6 +173,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       // Clear tableau and add a single ace
@@ -188,6 +197,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -210,6 +220,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -233,6 +244,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -257,6 +269,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       expect(controller.canUndo, isFalse);
@@ -277,6 +290,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       final stockBefore = controller.stock!.length;
@@ -296,6 +310,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -317,6 +332,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -337,6 +353,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -359,6 +376,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -380,6 +398,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -402,6 +421,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       // Fill all foundations with 13 cards each
@@ -428,6 +448,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       expect(controller.isWon, isFalse);
@@ -444,6 +465,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.clearLoss();
@@ -460,6 +482,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       expect(controller.isLost, isFalse);
@@ -476,6 +499,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       expect(controller.focusedPile, isNull);
@@ -494,6 +518,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.cycleFocusBackward();
@@ -510,6 +535,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       // Focus on stock
@@ -532,6 +558,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       expect(controller.game, isA<KlondikeGame>());
@@ -546,6 +573,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       expect(controller.stock!.type, PileType.stock);
@@ -563,6 +591,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       final initialCount = controller.moveCount;
@@ -582,6 +611,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -604,6 +634,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -625,6 +656,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       expect(controller.isAutoplaying, isFalse);
@@ -647,6 +679,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.startAutoplay();
@@ -663,6 +696,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.startAutoplay();
@@ -682,6 +716,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       // Start the game by making a move (triggers inactivity timer)
@@ -705,6 +740,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
@@ -729,6 +765,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
@@ -755,6 +792,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
@@ -784,6 +822,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       // Clear all piles first
@@ -847,6 +886,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.startAutoplay();
@@ -870,6 +910,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       // Setup a situation where a hint is available
@@ -893,6 +934,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       // Setup and show hint
@@ -920,6 +962,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -941,6 +984,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
@@ -961,6 +1005,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       // Clear all tableau piles
@@ -997,6 +1042,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       // Make a move
@@ -1022,6 +1068,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       // Make a move
@@ -1051,6 +1098,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        gameType: GameType.klondike,
       );
 
       // Make a move

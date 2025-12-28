@@ -46,6 +46,8 @@ enum DifficultyLevel {
     switch (gameType) {
       case GameType.klondike:
         return _klondikeDescription;
+      case GameType.spider:
+        return _spiderDescription;
     }
   }
 
@@ -60,11 +62,24 @@ enum DifficultyLevel {
     }
   }
 
+  String get _spiderDescription {
+    switch (this) {
+      case DifficultyLevel.easy:
+        return '1 suit • Easy to learn';
+      case DifficultyLevel.medium:
+        return '2 suits • Moderate challenge';
+      case DifficultyLevel.hard:
+        return '4 suits • Expert level';
+    }
+  }
+
   /// Get full description for a specific game type
   String fullDescriptionFor(GameType gameType) {
     switch (gameType) {
       case GameType.klondike:
         return _klondikeFullDescription;
+      case GameType.spider:
+        return _spiderFullDescription;
     }
   }
 
@@ -76,6 +91,17 @@ enum DifficultyLevel {
         return 'Standard Klondike rules with 1-card draw. A good balance of challenge and flexibility.';
       case DifficultyLevel.hard:
         return 'Challenge mode: 3-card draw and limited to 3 passes through the deck.';
+    }
+  }
+
+  String get _spiderFullDescription {
+    switch (this) {
+      case DifficultyLevel.easy:
+        return 'Single suit Spider solitaire. Build sequences and move them to foundations. Great for beginners.';
+      case DifficultyLevel.medium:
+        return 'Two suit Spider solitaire. Increased challenge with mixed suits requiring careful planning.';
+      case DifficultyLevel.hard:
+        return 'Four suit Spider solitaire. The ultimate challenge requiring strategic mastery of sequence building.';
     }
   }
 }
