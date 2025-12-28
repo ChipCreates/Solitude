@@ -108,7 +108,6 @@ class TableauPileWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardHeight = cardWidth / CardWidget.aspectRatio;
-    final isValidDest = controller.isValidDestination(pile);
     final isHintDest = controller.hintDestinationPile == pile;
     final isHintSource = controller.hintSourcePile == pile;
     final isFocused = controller.focusedPile == pile;
