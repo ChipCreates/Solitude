@@ -1,7 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/card.dart';
 import '../theme/app_theme.dart';
+import '../services/settings_provider.dart';
 
 enum WinPattern { spiral, starburst, circles, wave, fountain, scatter, vortex }
 
@@ -107,7 +109,13 @@ class _WinAnimationState extends State<WinAnimation> with TickerProviderStateMix
               margin: const EdgeInsets.all(32),
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: AppColors.feltDarkest.withValues(alpha:0.95),
+                color: () {
+                  final settings = Provider.of<SettingsProvider>(context, listen: false);
+                  final theme = settings.currentTheme;
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                  final tableColor = isDark ? theme.tableColorDark : theme.tableColorLight;
+                  return tableColor.withValues(alpha: 0.95);
+                }(),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: AppColors.gold.withValues(alpha:0.5),

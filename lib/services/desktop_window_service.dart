@@ -11,11 +11,11 @@ class DesktopWindowService {
 
   // Minimum window dimensions
   static const double minWidth = 900.0;
-  static const double minHeight = 600.0;
+  static const double minHeight = 700.0;
 
   // Default window dimensions (3:2 aspect ratio)
-  static const double defaultWidth = 1200.0;
-  static const double defaultHeight = 800.0;
+  static const double defaultWidth = 1350.0;
+  static const double defaultHeight = 900.0;
 
   /// Check if we're running on a desktop platform
   static bool get isDesktop {
