@@ -177,7 +177,7 @@ class GameController extends ChangeNotifier {
     if (move != null) {
       _eventController.add(GameEvent(GameEventType.moveExecuted, move));
       if (move.flippedCard == true) {
-        _eventController.add(GameEvent(GameEventType.cardFlipped));
+        _eventController.add(const GameEvent(GameEventType.cardFlipped));
       }
     }
   }
@@ -387,7 +387,7 @@ class GameController extends ChangeNotifier {
         notifyListeners();
         return;
       } else {
-        _eventController.add(GameEvent(GameEventType.invalidMove));
+        _eventController.add(const GameEvent(GameEventType.invalidMove));
       }
     }
 
@@ -526,7 +526,7 @@ class GameController extends ChangeNotifier {
       return true;
     }
 
-    _eventController.add(GameEvent(GameEventType.invalidMove));
+    _eventController.add(const GameEvent(GameEventType.invalidMove));
     return false;
   }
   
@@ -572,7 +572,7 @@ class GameController extends ChangeNotifier {
     _stopTimer();
     _state = GameState.lost;
     statisticsService.recordLoss();
-    _eventController.add(GameEvent(GameEventType.gameLost));
+    _eventController.add(const GameEvent(GameEventType.gameLost));
 
     // Record Vegas scoring if in Vegas mode
     if (settingsProvider.scoringMode == ScoringMode.vegas) {
@@ -593,7 +593,7 @@ class GameController extends ChangeNotifier {
     _stopTimer();
     _state = GameState.won;
     statisticsService.recordWin(time: timerState.elapsed, moves: _game.moveCount);
-    _eventController.add(GameEvent(GameEventType.gameWon));
+    _eventController.add(const GameEvent(GameEventType.gameWon));
 
     // Record Vegas scoring if in Vegas mode (winning = all 52 cards in foundations)
     if (settingsProvider.scoringMode == ScoringMode.vegas) {
@@ -689,7 +689,7 @@ class GameController extends ChangeNotifier {
         });
       } else {
           // Absolutely no moves
-          _eventController.add(GameEvent(GameEventType.invalidMove));
+          _eventController.add(const GameEvent(GameEventType.invalidMove));
       }
     }
   }

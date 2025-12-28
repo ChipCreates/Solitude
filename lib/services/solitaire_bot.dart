@@ -3,8 +3,6 @@ import 'package:flutter/foundation.dart';
 import '../games/game_interface.dart';
 import '../models/card.dart';
 import '../models/pile.dart';
-import '../models/move.dart';
-import 'audio_service.dart';
 import '../models/game_event.dart';
 
 /// Service for handling automated gameplay (autoplay and auto-complete)
@@ -94,7 +92,7 @@ class SolitaireBot {
           final move = _game.tapStock();
           _emitEvent(GameEvent(GameEventType.stockDrawn, move));
           if (move != null && move.flippedCard == true) {
-            _emitEvent(GameEvent(GameEventType.cardFlipped));
+            _emitEvent(const GameEvent(GameEventType.cardFlipped));
           }
           _onMoveExecuted();
           await Future.delayed(const Duration(milliseconds: 300));
@@ -105,7 +103,7 @@ class SolitaireBot {
         final move = _game.executeMove(hint.from, hint.to, hint.cards);
         _emitEvent(GameEvent(GameEventType.moveExecuted, move));
         if (move?.flippedCard == true) {
-          _emitEvent(GameEvent(GameEventType.cardFlipped));
+          _emitEvent(const GameEvent(GameEventType.cardFlipped));
         }
 
         // Track the move
@@ -140,7 +138,7 @@ class SolitaireBot {
         final move = _game.tapStock();
         _emitEvent(GameEvent(GameEventType.stockDrawn, move));
         if (move != null && move.flippedCard == true) {
-          _emitEvent(GameEvent(GameEventType.cardFlipped));
+          _emitEvent(const GameEvent(GameEventType.cardFlipped));
         }
 
         // If we just recycled (waste -> stock), track it
@@ -169,7 +167,7 @@ class SolitaireBot {
   Future<void> _runAutoComplete() async {
     while (_isRunning && !_game.checkWin()) {
       if (_game.autoCompleteStep()) {
-        _emitEvent(GameEvent(GameEventType.moveExecuted));
+        _emitEvent(const GameEvent(GameEventType.moveExecuted));
         _onMoveExecuted();
         await Future.delayed(const Duration(milliseconds: 100));
       } else {
