@@ -65,6 +65,7 @@ class _GameBoardState extends State<GameBoard> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final settings = Provider.of<SettingsProvider>(context);
     final theme = settings.currentTheme;
+    debugPrint('Building felt background with theme: ${theme.name}');
 
     // Get theme-specific colors
     final baseColor = theme.getTableColor(Theme.of(context).brightness);
@@ -193,7 +194,6 @@ class _TableauPileSelector extends StatelessWidget {
         return TableauPileRenderData(
           pile: pile,
           pileVersion: pile.version,
-          isValidDestination: controller.isValidDestination(pile),
           isHintDestination: controller.hintDestinationPile == pile,
           isHintSource: controller.hintSourcePile == pile,
           isFocused: controller.focusedPile == pile,

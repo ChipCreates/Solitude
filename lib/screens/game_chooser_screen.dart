@@ -14,9 +14,14 @@ import '../services/audio_service.dart';
 import '../services/game_audio_observer.dart';
 import 'game_screen.dart';
 
-class GameChooserScreen extends StatelessWidget {
+class GameChooserScreen extends StatefulWidget {
   const GameChooserScreen({super.key});
 
+  @override
+  State<GameChooserScreen> createState() => _GameChooserScreenState();
+}
+
+class _GameChooserScreenState extends State<GameChooserScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -27,7 +32,7 @@ class GameChooserScreen extends StatelessWidget {
             end: Alignment.bottomCenter,
             colors: [
               AppTheme.backgroundColor(context),
-              AppTheme.backgroundColor(context).withValues(alpha:0.8),
+              AppTheme.backgroundColor(context).withValues(alpha: 0.8),
             ],
           ),
         ),
@@ -46,7 +51,7 @@ class GameChooserScreen extends StatelessWidget {
                 Text(
                   'Select a solitaire variant to play',
                   style: AppTypography.body(context).copyWith(
-                    color: AppTheme.textColor(context).withValues(alpha:0.7),
+                    color: AppTheme.textColor(context).withValues(alpha: 0.7),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -78,49 +83,50 @@ class GameChooserScreen extends StatelessWidget {
   void _selectGame(BuildContext context, GameType gameType) {
     if (gameType == GameType.spider) return; // Spider is disabled for now
 
-    // Build the game screen with its own provider
+    // Capture required providers BEFORE navigating to avoid "deactivated widget" errors
+    final settings = context.read<SettingsProvider>();
+    final statistics = context.read<StatisticsService>();
+    final boardLayout = context.read<BoardLayoutService>();
+    final audioService = context.read<GameAudioService>();
+    final animationState = context.read<AnimationStateNotifier>();
+    final hintState = context.read<HintStateNotifier>();
+    final selectionState = context.read<SelectionStateNotifier>();
+    final timerState = context.read<TimerStateNotifier>();
+
+    // Navigate to game screen
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => _buildGameScreen(gameType),
+        builder: (_) => ChangeNotifierProvider<GameController>(
+          create: (ctx) {
+            final controller = GameController(
+              settingsProvider: settings,
+              statisticsService: statistics,
+              animationState: animationState,
+              hintState: hintState,
+              selectionState: selectionState,
+              timerState: timerState,
+              boardLayout: boardLayout,
+              gameType: gameType,
+            );
+
+            // Audio synchronization logic
+            final audioObserver = GameAudioObserver(audioService);
+            audioObserver.attach(controller);
+
+            // Sync initial settings
+            audioService.setEnabled(settings.soundEnabled);
+            audioService.setVolume(settings.soundVolume);
+
+            return controller;
+          },
+          child: GameScreen(gameType: gameType),
+        ),
       ),
     );
   }
 
-  Widget _buildGameScreen(GameType gameType) {
-    return Consumer4<SettingsProvider, StatisticsService, BoardLayoutService, GameAudioService>(
-      builder: (context, settings, statistics, boardLayout, audioService, _) {
-        final controller = GameController(
-          settingsProvider: settings,
-          statisticsService: statistics,
-          animationState: context.read<AnimationStateNotifier>(),
-          hintState: context.read<HintStateNotifier>(),
-          selectionState: context.read<SelectionStateNotifier>(),
-          timerState: context.read<TimerStateNotifier>(),
-          boardLayout: boardLayout,
-          gameType: gameType,
-        );
-
-        // Audio synchronization logic
-        final audioObserver = GameAudioObserver(audioService);
-        audioObserver.attach(controller);
-
-        // Sync initial settings and listen for changes
-        void syncAudio() {
-          audioService.setEnabled(settings.soundEnabled);
-          audioService.setVolume(settings.soundVolume);
-        }
-
-        syncAudio();
-        settings.addListener(syncAudio);
-
-        return ChangeNotifierProvider<GameController>.value(
-          value: controller,
-          child: GameScreen(gameType: gameType),
-        );
-      },
-    );
-  }
+  // _buildGameProvider method removed as logic is now inline in _selectGame
 }
 
 class _GameOption extends StatelessWidget {
@@ -140,10 +146,10 @@ class _GameOption extends StatelessWidget {
       opacity: disabled ? 0.5 : 1.0,
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.toolbarColor(context).withValues(alpha:0.95),
+          color: AppTheme.toolbarColor(context).withValues(alpha: 0.95),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppTheme.accentColor(context).withValues(alpha:disabled ? 0.3 : 0.5),
+            color: AppTheme.accentColor(context).withValues(alpha: disabled ? 0.3 : 0.5),
             width: 2,
           ),
         ),
@@ -168,7 +174,7 @@ class _GameOption extends StatelessWidget {
                         Text(
                           gameType.description,
                           style: AppTypography.body(context).copyWith(
-                            color: AppTheme.textColor(context).withValues(alpha:0.7),
+                            color: AppTheme.textColor(context).withValues(alpha: 0.7),
                           ),
                         ),
                         if (disabled) ...[

@@ -162,7 +162,7 @@ class TableauPileWidget extends StatelessWidget {
           children: [
             for (int i = 0; i < pile.cards.length; i++)
               Positioned(
-                key: ValueKey('tableau_${pile.hashCode}_card_${pile.cards[i].suit}_${pile.cards[i].rank}_$i'),
+                key: ValueKey(pile.cards[i]),
                 top: i * stackOffset,
                 child: _buildDraggableCard(
                     context, 
@@ -183,6 +183,7 @@ class TableauPileWidget extends StatelessWidget {
 
     if (!card.faceUp) {
       return CardWidget(
+        key: ValueKey(card),
         card: card,
         width: cardWidth,
         isSelected: false,
@@ -227,6 +228,7 @@ class TableauPileWidget extends StatelessWidget {
                 return Opacity(
                   opacity: isAnimating ? 0.0 : 1.0,
                   child: CardWidget(
+                    key: ValueKey(card),
                     card: card,
                     width: cardWidth,
                     isSelected: isSelected,
@@ -254,6 +256,7 @@ class TableauPileWidget extends StatelessWidget {
             Positioned(
               top: i * stackOffset,
               child: CardWidget(
+                key: ValueKey(cards[i]),
                 card: cards[i],
                 width: cardWidth,
                 isDragging: true,
@@ -272,9 +275,10 @@ class TableauPileWidget extends StatelessWidget {
         children: [
           for (int i = 0; i < cards.length; i++)
             Positioned(
-              key: ValueKey('stack_card_${cards[i].suit}_${cards[i].rank}_$i'),
+              key: ValueKey(cards[i]),
               top: i * stackOffset,
               child: CardWidget(
+                key: ValueKey(cards[i]),
                 card: cards[i],
                 width: cardWidth,
                 isSelected: isSelected,
@@ -336,6 +340,7 @@ class FoundationPileWidget extends StatelessWidget {
             }
             
             return CardWidget(
+              key: ValueKey(pile.topCard!),
               card: pile.topCard!,
               width: cardWidth,
               isHighlighted: isDropTarget,
@@ -393,6 +398,7 @@ class StockPileWidget extends StatelessWidget {
                   left: 2,
                   top: 2,
                   child: CardWidget(
+                    key: ValueKey('${pile.cards[0]}_stock_2'),
                     card: pile.cards[0],
                     width: cardWidth - 4,
                   ),
@@ -402,11 +408,13 @@ class StockPileWidget extends StatelessWidget {
                   left: 1,
                   top: 1,
                   child: CardWidget(
+                    key: ValueKey('${pile.cards[0]}_stock_1'),
                     card: pile.cards[0],
                     width: cardWidth - 2,
                   ),
                 ),
               CardWidget(
+                key: ValueKey(pile.topCard!),
                 card: pile.topCard!,
                 width: cardWidth,
                 isHintSource: isHintSource,
@@ -466,11 +474,12 @@ class WastePileWidget extends StatelessWidget {
           children: [
             for (int i = 0; i < visibleCards.length; i++)
               Positioned(
-                key: ValueKey('waste_card_${visibleCards[i].suit}_${visibleCards[i].rank}_$i'),
+                key: ValueKey(visibleCards[i]),
                 left: i * spreadOffset,
                 child: i == visibleCards.length - 1
                     ? _buildDraggableTopCard(visibleCards[i], isHintSource)
                     : CardWidget(
+                        key: ValueKey(visibleCards[i]),
                         card: visibleCards[i],
                         width: cardWidth,
                       ),
@@ -494,6 +503,7 @@ class WastePileWidget extends StatelessWidget {
         feedback: Material(
           color: Colors.transparent,
           child: CardWidget(
+            key: ValueKey(card),
             card: card,
             width: cardWidth,
             isDragging: true,
@@ -502,6 +512,7 @@ class WastePileWidget extends StatelessWidget {
         childWhenDragging: Opacity(
           opacity: 0.3,
           child: CardWidget(
+            key: ValueKey(card),
             card: card,
             width: cardWidth,
           ),
@@ -514,6 +525,7 @@ class WastePileWidget extends StatelessWidget {
             return Opacity(
               opacity: isAnimating ? 0.0 : 1.0,
               child: CardWidget(
+                key: ValueKey(card),
                 card: card,
                 width: cardWidth,
                 isSelected: isSelected,

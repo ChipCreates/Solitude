@@ -13,7 +13,6 @@ void main() {
       final data1 = TableauPileRenderData(
         pile: pile,
         pileVersion: 1,
-        isValidDestination: true,
         isHintDestination: false,
         isHintSource: false,
         isFocused: false,
@@ -26,7 +25,6 @@ void main() {
       final data2 = TableauPileRenderData(
         pile: pile,
         pileVersion: 1,
-        isValidDestination: true,
         isHintDestination: false,
         isHintSource: false,
         isFocused: false,
@@ -46,7 +44,6 @@ void main() {
       final data1 = TableauPileRenderData(
         pile: pile,
         pileVersion: 1,
-        isValidDestination: true,
         isHintDestination: false,
         isHintSource: false,
         isFocused: false,
@@ -59,7 +56,6 @@ void main() {
       final data2 = TableauPileRenderData(
         pile: pile,
         pileVersion: 2,
-        isValidDestination: true,
         isHintDestination: false,
         isHintSource: false,
         isFocused: false,
@@ -72,37 +68,7 @@ void main() {
       expect(data1, isNot(equals(data2)));
     });
 
-    test('equality returns false when isValidDestination differs', () {
-      final pile = Pile(type: PileType.tableau, index: 0);
 
-      final data1 = TableauPileRenderData(
-        pile: pile,
-        pileVersion: 1,
-        isValidDestination: true,
-        isHintDestination: false,
-        isHintSource: false,
-        isFocused: false,
-        selectedCards: null,
-        selectedPile: null,
-        hintCards: null,
-        animatingCard: null,
-      );
-
-      final data2 = TableauPileRenderData(
-        pile: pile,
-        pileVersion: 1,
-        isValidDestination: false,
-        isHintDestination: false,
-        isHintSource: false,
-        isFocused: false,
-        selectedCards: null,
-        selectedPile: null,
-        hintCards: null,
-        animatingCard: null,
-      );
-
-      expect(data1, isNot(equals(data2)));
-    });
 
     test('equality returns false when selectedCards differ', () {
       final pile = Pile(type: PileType.tableau, index: 0);
@@ -112,7 +78,6 @@ void main() {
       final data1 = TableauPileRenderData(
         pile: pile,
         pileVersion: 1,
-        isValidDestination: false,
         isHintDestination: false,
         isHintSource: false,
         isFocused: false,
@@ -125,7 +90,6 @@ void main() {
       final data2 = TableauPileRenderData(
         pile: pile,
         pileVersion: 1,
-        isValidDestination: false,
         isHintDestination: false,
         isHintSource: false,
         isFocused: false,

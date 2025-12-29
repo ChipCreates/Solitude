@@ -39,9 +39,11 @@ class _AppStartupWrapperState extends State<AppStartupWrapper> {
     // Mock saved game check - in real implementation, check SettingsProvider or saved game state
     _hasSavedGame = false; // Mock: no saved game
 
-    setState(() {
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -53,16 +55,21 @@ class _AppStartupWrapperState extends State<AppStartupWrapper> {
     // Decision logic
     if (_hasSavedGame == true) {
       // Navigate to GameScreen with saved game type (mocking klondike for now)
-      return _buildGameScreen(GameType.klondike);
+      return _buildGameProvider(GameType.klondike);
     } else {
       // Navigate to GameChooserScreen
       return const GameChooserScreen();
     }
   }
 
-  Widget _buildGameScreen(GameType gameType) {
-    return Consumer4<SettingsProvider, StatisticsService, BoardLayoutService, GameAudioService>(
-      builder: (context, settings, statistics, boardLayout, audioService, _) {
+  Widget _buildGameProvider(GameType gameType) {
+    final settings = context.read<SettingsProvider>();
+    final statistics = context.read<StatisticsService>();
+    final boardLayout = context.read<BoardLayoutService>();
+    final audioService = context.read<GameAudioService>();
+
+    return ChangeNotifierProvider<GameController>(
+      create: (ctx) {
         final controller = GameController(
           settingsProvider: settings,
           statisticsService: statistics,
@@ -78,20 +85,13 @@ class _AppStartupWrapperState extends State<AppStartupWrapper> {
         final audioObserver = GameAudioObserver(audioService);
         audioObserver.attach(controller);
 
-        // Sync initial settings and listen for changes
-        void syncAudio() {
-          audioService.setEnabled(settings.soundEnabled);
-          audioService.setVolume(settings.soundVolume);
-        }
+        // Sync initial settings
+        audioService.setEnabled(settings.soundEnabled);
+        audioService.setVolume(settings.soundVolume);
 
-        syncAudio();
-        settings.addListener(syncAudio);
-
-        return ChangeNotifierProvider<GameController>.value(
-          value: controller,
-          child: GameScreen(gameType: gameType),
-        );
+        return controller;
       },
+      child: GameScreen(gameType: gameType),
     );
   }
 }

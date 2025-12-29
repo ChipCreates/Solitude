@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart'; // Added for SVG rendering
 import 'package:provider/provider.dart';
 import '../services/settings_provider.dart';
 import '../services/game_controller.dart';
@@ -9,8 +11,7 @@ import '../widgets/game_toggle.dart';
 import '../widgets/game_button.dart';
 import '../widgets/volume_slider.dart';
 import '../widgets/theme_preview_cards.dart';
-import '../widgets/svg_card_renderer.dart';
-import '../models/card.dart';
+import '../widgets/card_widget.dart';
 import '../utils/overlay_validator.dart';
 import 'about_screen.dart';
 import 'help_screen.dart';
@@ -472,27 +473,75 @@ class _CardBackCustomization extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Large card back previews
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildCardBackOption(
-                  context,
-                  settings,
-                  elementId: 'back',
-                  label: 'Classic',
-                  isSelected: settings.cardBackVariant == 'back',
-                  onTap: () => settings.setCardBackVariant('back'),
-                ),
-                const SizedBox(width: 24),
-                _buildCardBackOption(
-                  context,
-                  settings,
-                  elementId: 'alternate-back',
-                  label: 'Alternate',
-                  isSelected: settings.cardBackVariant == 'alternate',
-                  onTap: () => settings.setCardBackVariant('alternate'),
-                ),
-              ],
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildCardBackOption(
+                    context,
+                    settings,
+                    elementId: 'back',
+                    label: 'Diamonds',
+                    isSelected: settings.cardBackVariant == 'back',
+                    onTap: () => settings.setCardBackVariant('back'),
+                  ),
+                  const SizedBox(width: 16),
+                  _buildCardBackOption(
+                    context,
+                    settings,
+                    elementId: 'alternate-back',
+                    label: 'Crosshatch',
+                    isSelected: settings.cardBackVariant == 'alternate',
+                    onTap: () => settings.setCardBackVariant('alternate'),
+                  ),
+                  const SizedBox(width: 16),
+                  _buildCardBackOption(
+                    context,
+                    settings,
+                    elementId: 'dots',
+                    label: 'Dots',
+                    isSelected: settings.cardBackVariant == 'dots',
+                    onTap: () => settings.setCardBackVariant('dots'),
+                  ),
+                  const SizedBox(width: 16),
+                  _buildCardBackOption(
+                    context,
+                    settings,
+                    elementId: 'waves',
+                    label: 'Waves',
+                    isSelected: settings.cardBackVariant == 'waves',
+                    onTap: () => settings.setCardBackVariant('waves'),
+                  ),
+                  const SizedBox(width: 16),
+                  _buildCardBackOption(
+                    context,
+                    settings,
+                    elementId: 'double',
+                    label: 'Double',
+                    isSelected: settings.cardBackVariant == 'double',
+                    onTap: () => settings.setCardBackVariant('double'),
+                  ),
+                  const SizedBox(width: 16),
+                  _buildCardBackOption(
+                    context,
+                    settings,
+                    elementId: 'spade',
+                    label: 'Spade',
+                    isSelected: settings.cardBackVariant == 'spade',
+                    onTap: () => settings.setCardBackVariant('spade'),
+                  ),
+                  const SizedBox(width: 16),
+                  _buildCardBackOption(
+                    context,
+                    settings,
+                    elementId: 'art_deco',
+                    label: 'Art Deco',
+                    isSelected: settings.cardBackVariant == 'art_deco',
+                    onTap: () => settings.setCardBackVariant('art_deco'),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 32),
             // Colored back toggle
@@ -527,6 +576,24 @@ class _CardBackCustomization extends StatelessWidget {
   }) {
     final String? colorOverride = settings.cardBackColored ? settings.cardBackColor : null;
 
+    final Color primaryColor = colorOverride != null 
+        ? Color(int.parse(colorOverride.replaceFirst('#', ''), radix: 16) | 0xFF000000) 
+        : Colors.blue;
+
+    final CustomPainter painter;
+    if (elementId == 'art_deco') {
+      painter = ArtDecoCardBackPainter(primaryColor: primaryColor);
+    } else {
+      painter = CardBackPainter(
+        primaryColor: primaryColor,
+        pattern: elementId == 'back' ? 'diamond' : (elementId == 'alternate-back' ? 'crosshatch' : elementId),
+      );
+    }
+
+    // Preview dimensions
+    const double width = 80;
+    const double height = 116;
+
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -545,13 +612,64 @@ class _CardBackCustomization extends StatelessWidget {
               ),
             ),
             child: SizedBox(
-              width: 80,
-              height: 116,
-              child: SvgCardRenderer(
-                card: PlayingCard(suit: Suit.spades, rank: Rank.ace, faceUp: false),
-                width: 80,
-                overrideElementId: elementId,
-                overrideFillColor: colorOverride,
+              width: width,
+              height: height,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4), // Match card corner radius approx
+                child: Stack(
+                  children: [
+                    // Layer 1: The Painted Background
+                    CustomPaint(
+                      size: const Size(width, height),
+                      painter: painter,
+                    ),
+
+                    // Layer 2: The SVG Overlays
+                    if (elementId == 'spade')
+                      Center(
+                        child: Transform.translate(
+                          offset: Offset(0, -width * 0.70 * 0.05),
+                          child: SvgPicture.asset(
+                            'assets/cards/spade.svg',
+                            width: width * 0.70,
+                            height: width * 0.70,
+                            colorFilter: ColorFilter.mode(primaryColor.withValues(alpha: 0.5), BlendMode.srcATop),
+                          ),
+                        ),
+                      ),
+
+                    if (elementId == 'double')
+                      Stack(
+                        children: [
+                          // Top Spade
+                          Positioned(
+                            left: (width - (width * 0.45)) / 2,
+                            top: (height * 0.30) - ((width * 0.45) / 2),
+                            child: SvgPicture.asset(
+                              'assets/cards/spade.svg',
+                              width: width * 0.45,
+                              height: width * 0.45,
+                              colorFilter: ColorFilter.mode(primaryColor.withValues(alpha: 0.5), BlendMode.srcATop),
+                            ),
+                          ),
+                          // Bottom Spade
+                          Positioned(
+                            left: (width - (width * 0.45)) / 2,
+                            top: (height * 0.70) - ((width * 0.45) / 2),
+                            child: Transform.rotate(
+                              angle: math.pi,
+                              child: SvgPicture.asset(
+                                'assets/cards/spade.svg',
+                                width: width * 0.45,
+                                height: width * 0.45,
+                                colorFilter: ColorFilter.mode(primaryColor.withValues(alpha: 0.5), BlendMode.srcATop),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -845,11 +963,3 @@ class _GameplayTab extends StatelessWidget {
   }
 
 }
-
-// ============================================================================
-// STATISTICS TAB
-// ============================================================================
-
-// _StatisticsTab removed — statistics moved to toolbar/standalone screen.
-
-// GameSwitch is provided by lib/widgets/game_toggle.dart

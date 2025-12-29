@@ -149,6 +149,7 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   Future<void> setCardBackVariant(String variant) async {
+    debugPrint('Setting card back variant to: $variant');
     _cardBackVariant = variant;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();

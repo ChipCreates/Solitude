@@ -8,7 +8,6 @@ import '../models/pile.dart';
 class TableauPileRenderData {
   final Pile pile;
   final int pileVersion;  // Incremented when pile contents change
-  final bool isValidDestination;
   final bool isHintDestination;
   final bool isHintSource;
   final bool isFocused;
@@ -20,7 +19,6 @@ class TableauPileRenderData {
   const TableauPileRenderData({
     required this.pile,
     required this.pileVersion,
-    required this.isValidDestination,
     required this.isHintDestination,
     required this.isHintSource,
     required this.isFocused,
@@ -37,7 +35,6 @@ class TableauPileRenderData {
 
     return pile == other.pile &&
         pileVersion == other.pileVersion &&
-        isValidDestination == other.isValidDestination &&
         isHintDestination == other.isHintDestination &&
         isHintSource == other.isHintSource &&
         isFocused == other.isFocused &&
@@ -51,7 +48,6 @@ class TableauPileRenderData {
   int get hashCode => Object.hash(
     pile,
     pileVersion,
-    isValidDestination,
     isHintDestination,
     isHintSource,
     isFocused,
