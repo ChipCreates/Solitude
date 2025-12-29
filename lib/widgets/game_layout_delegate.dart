@@ -110,6 +110,7 @@ class _StockPileSelector extends StatelessWidget {
             pile: data.pile,
             cardWidth: cardWidth,
             controller: controller,
+            onTapOverride: () => controller.animateStockDraw(cardWidth),
           ),
         );
       },

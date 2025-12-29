@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/card.dart';
+import '../models/pile.dart';
 import 'card_widget.dart';
 
 /// Data class for card animation
@@ -8,12 +9,14 @@ class CardAnimationData {
   final Offset startPosition;
   final Offset endPosition;
   final double cardWidth;
+  final Pile? fromPile;
 
   CardAnimationData({
     required this.card,
     required this.startPosition,
     required this.endPosition,
     required this.cardWidth,
+    this.fromPile,
   });
 }
 
@@ -38,6 +41,7 @@ class _AnimatedCardOverlayState extends State<AnimatedCardOverlay>
   late Animation<Offset> _positionAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _rotationAnimation;
+  late PlayingCard _animationCard;
 
   @override
   void initState() {
@@ -50,6 +54,12 @@ class _AnimatedCardOverlayState extends State<AnimatedCardOverlay>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+
+    // Create animation card copy
+    if (widget.animationData != null) {
+      final isFromStock = widget.animationData!.fromPile?.type == PileType.stock;
+      _animationCard = widget.animationData!.card.copyWith(faceUp: !isFromStock);
+    }
 
     // Smooth position animation with easeOut for natural deceleration
     _positionAnimation = Tween<Offset>(
@@ -88,6 +98,17 @@ class _AnimatedCardOverlayState extends State<AnimatedCardOverlay>
       ),
     ]).animate(_controller);
 
+    // Add listener to flip card halfway through animation for stock draws
+    _controller.addListener(() {
+      if (widget.animationData != null && widget.animationData!.fromPile?.type == PileType.stock) {
+        if (_controller.value >= 0.5 && !_animationCard.faceUp) {
+          setState(() {
+            _animationCard = _animationCard.copyWith(faceUp: true);
+          });
+        }
+      }
+    });
+
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         widget.onComplete?.call();
@@ -107,6 +128,8 @@ class _AnimatedCardOverlayState extends State<AnimatedCardOverlay>
     if (widget.animationData != oldWidget.animationData &&
         widget.animationData != null) {
       _controller.reset();
+      final isFromStock = widget.animationData!.fromPile?.type == PileType.stock;
+      _animationCard = widget.animationData!.card.copyWith(faceUp: !isFromStock);
       _positionAnimation = Tween<Offset>(
         begin: widget.animationData!.startPosition,
         end: widget.animationData!.endPosition,
@@ -141,7 +164,7 @@ class _AnimatedCardOverlayState extends State<AnimatedCardOverlay>
             child: Transform.rotate(
               angle: _rotationAnimation.value,
               child: CardWidget(
-                card: widget.animationData!.card,
+                card: _animationCard,
                 width: widget.animationData!.cardWidth,
                 isDragging: true, // Use dragging state for elevated shadow
               ),

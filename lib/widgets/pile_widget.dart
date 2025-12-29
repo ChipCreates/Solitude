@@ -358,12 +358,14 @@ class StockPileWidget extends StatelessWidget {
   final Pile pile;
   final double cardWidth;
   final GameController controller;
+  final VoidCallback? onTapOverride;
   
   const StockPileWidget({
     super.key,
     required this.pile,
     required this.cardWidth,
     required this.controller,
+    this.onTapOverride,
   });
 
   @override
@@ -386,7 +388,7 @@ class StockPileWidget extends StatelessWidget {
       isFocused: isFocused,
       width: cardWidth,
       child: GestureDetector(
-        onTap: () => controller.tapPile(pile),
+        onTap: () => (onTapOverride ?? (() => controller.tapPile(pile))).call(),
         child: SizedBox(
           width: cardWidth,
           height: cardWidth / CardWidget.aspectRatio,

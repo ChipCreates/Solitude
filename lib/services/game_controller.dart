@@ -1,6 +1,5 @@
 import 'dart:async';
-import 'dart:ui';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../games/game_interface.dart';
 import '../games/game_factory.dart';
 import '../models/card.dart';
@@ -310,6 +309,8 @@ class GameController extends ChangeNotifier {
     required Offset startPosition,
     required Offset endPosition,
     required double cardWidth,
+    Pile? fromPile,
+    PlayingCard? animationCard,
   }) {
     if (_isDisposed) return;
     animationState.startCardAnimation(
@@ -317,7 +318,72 @@ class GameController extends ChangeNotifier {
       startPosition: startPosition,
       endPosition: endPosition,
       cardWidth: cardWidth,
+      fromPile: fromPile,
+      animationCard: animationCard,
     );
+  }
+
+  /// Animate drawing the top card from stock to waste with a mid-flight flip.
+  /// Animate drawing the top card from stock to waste with a mid-flight flip.
+  Future<void> animateStockDraw(double cardWidth) async {
+    if (_isDisposed || _state != GameState.playing) return;
+    final stockPile = stock;
+    final wastePile = waste;
+    if (stockPile == null || wastePile == null || stockPile.isEmpty) return;
+
+    final startPosition = boardLayout.getCardPosition(stockPile);
+    final endPosition = boardLayout.getCardPosition(wastePile);
+    
+    if (startPosition == null || endPosition == null) {
+      final move = _game.handlePileTap(stockPile);
+      _emitMoveEvent(move);
+      clearSelection();
+      _checkGameState();
+      notifyListeners();
+      return;
+    }
+
+    // 1. SPAWN FACE DOWN
+    // Create a copy of the card forced to Face Down for the start of the flight
+    PlayingCard flyingCard = stockPile.topCard!.copyWith(faceUp: false);
+
+    startCardAnimation(
+      card: stockPile.topCard!,  // original for hiding logic
+      startPosition: startPosition,
+      endPosition: endPosition,
+      cardWidth: cardWidth,
+      fromPile: stockPile,
+      animationCard: flyingCard,  // copy for display
+    );
+
+    // 2. TRIGGER FLIP (50ms Delay)
+    // We wait a tiny bit, then tell the notifier to swap the card to "Face Up".
+    // This change in state triggers the CardWidget's internal 3D flip animation.
+    Future.delayed(const Duration(milliseconds: 50), () {
+      if (!_isDisposed) {
+        animationState.flipAnimatingCard();
+      }
+    });
+
+    // 3. WAIT FOR COMPLETION
+    // Wait for flight (300ms) + buffer for the flip to finish visually
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (_isDisposed) return;
+
+    // 4. UPDATE GAME STATE
+    final move = _game.handlePileTap(stockPile);
+    _emitMoveEvent(move);
+    clearSelection();
+    _checkGameState();
+    
+    // Render the board with the real card now in the Waste pile
+    notifyListeners();
+
+    // 5. CLEANUP (Anti-Flicker)
+    // Wait one frame so the real card is painted before removing the flying card.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      clearCardAnimation();
+    });
   }
 
   void clearCardAnimation() {
@@ -348,6 +414,7 @@ class GameController extends ChangeNotifier {
       startPosition: startPosition,
       endPosition: endPosition,
       cardWidth: cardWidth,
+      fromPile: from,
     );
 
     // Wait for animation to complete
@@ -507,6 +574,7 @@ class GameController extends ChangeNotifier {
         startPosition: startPosition,
         endPosition: endPosition,
         cardWidth: cardWidth,
+        fromPile: pile,
       );
 
       // Wait for animation to complete
