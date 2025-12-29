@@ -35,6 +35,7 @@ flutter:
     - assets/fonts/
     - assets/audio/
     - assets/icon.jpg
+    - assets/splash-bg.svg
   
   fonts:
     - family: Inter
