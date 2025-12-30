@@ -375,15 +375,12 @@ class GameController extends ChangeNotifier {
     _emitMoveEvent(move);
     clearSelection();
     _checkGameState();
-    
+
+    // 5. CLEANUP
+    clearCardAnimation();
+
     // Render the board with the real card now in the Waste pile
     notifyListeners();
-
-    // 5. CLEANUP (Anti-Flicker)
-    // Wait one frame so the real card is painted before removing the flying card.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      clearCardAnimation();
-    });
   }
 
   void clearCardAnimation() {

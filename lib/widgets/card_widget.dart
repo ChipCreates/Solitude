@@ -16,6 +16,7 @@ class CardWidget extends StatefulWidget {
   final bool isHintDestination;
   final bool isHintSource;
   final bool isDragging;
+  final bool? overrideFaceUp;
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
 
@@ -28,6 +29,7 @@ class CardWidget extends StatefulWidget {
     this.isHintDestination = false,
     this.isHintSource = false,
     this.isDragging = false,
+    this.overrideFaceUp,
     this.onTap,
     this.onDoubleTap,
   }) : height = width / aspectRatio;
@@ -63,14 +65,17 @@ class _CardWidgetState extends State<CardWidget> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-    _controller.value = widget.card.faceUp ? 1.0 : 0.0;
+    final effectiveFaceUp = widget.overrideFaceUp ?? widget.card.faceUp;
+    _controller.value = effectiveFaceUp ? 1.0 : 0.0;
   }
 
   @override
   void didUpdateWidget(covariant CardWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.card.faceUp != oldWidget.card.faceUp) {
-      if (widget.card.faceUp) {
+    final oldEffective = oldWidget.overrideFaceUp ?? oldWidget.card.faceUp;
+    final newEffective = widget.overrideFaceUp ?? widget.card.faceUp;
+    if (newEffective != oldEffective) {
+      if (newEffective) {
         _controller.forward();
       } else {
         _controller.reverse();
@@ -115,7 +120,7 @@ class _CardWidgetState extends State<CardWidget> with TickerProviderStateMixin {
               transform: Matrix4.identity()
                 ..setEntry(3, 2, 0.001)
                 ..rotateY(angle)
-                ..translate(0.0, verticalOffset, 0.0),
+                ..multiply(Matrix4.translationValues(0.0, verticalOffset, 0.0)),
               alignment: Alignment.center,
               child: Container(
                 width: widget.width,
@@ -518,27 +523,7 @@ class CardBackPainter extends CustomPainter {
     }
   }
 
-  void _drawSolidSpade(Canvas c, Offset center, double width, Color color) {
-    final paint = Paint()..color = color..style = PaintingStyle.fill;
-    final h = width * 1.0; 
-    
-    final path = Path();
-    final dy = center.dy - h * 0.05; 
-    path.moveTo(center.dx, dy - h * 0.5); 
-    path.cubicTo(center.dx + width * 0.5, dy - h * 0.1, center.dx + width * 0.5, dy + h * 0.4, center.dx, dy + h * 0.25);
-    path.cubicTo(center.dx - width * 0.5, dy + h * 0.4, center.dx - width * 0.5, dy - h * 0.1, center.dx, dy - h * 0.5);
-    path.close();
 
-    final stem = Path();
-    stem.moveTo(center.dx, dy + h * 0.25);
-    stem.quadraticBezierTo(center.dx + width * 0.05, dy + h * 0.45, center.dx + width * 0.3, dy + h * 0.55);
-    stem.lineTo(center.dx - width * 0.3, dy + h * 0.55);
-    stem.quadraticBezierTo(center.dx - width * 0.05, dy + h * 0.45, center.dx, dy + h * 0.25);
-    stem.close();
-    path.addPath(stem, Offset.zero);
-
-    c.drawPath(path, paint);
-  }
 
   @override
   bool shouldRepaint(covariant CardBackPainter oldDelegate) => oldDelegate.primaryColor != primaryColor || oldDelegate.pattern != pattern;

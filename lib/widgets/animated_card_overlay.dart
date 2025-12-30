@@ -41,7 +41,7 @@ class _AnimatedCardOverlayState extends State<AnimatedCardOverlay>
   late Animation<Offset> _positionAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _rotationAnimation;
-  late PlayingCard _animationCard;
+  ValueNotifier<PlayingCard>? _cardNotifier;
 
   @override
   void initState() {
@@ -55,10 +55,10 @@ class _AnimatedCardOverlayState extends State<AnimatedCardOverlay>
       vsync: this,
     );
 
-    // Create animation card copy
+    // Create animation card notifier
     if (widget.animationData != null) {
       final isFromStock = widget.animationData!.fromPile?.type == PileType.stock;
-      _animationCard = widget.animationData!.card.copyWith(faceUp: !isFromStock);
+      _cardNotifier = ValueNotifier(widget.animationData!.card.copyWith(faceUp: !isFromStock));
     }
 
     // Smooth position animation with easeOut for natural deceleration
@@ -100,20 +100,14 @@ class _AnimatedCardOverlayState extends State<AnimatedCardOverlay>
 
     // Add listener to flip card halfway through animation for stock draws
     _controller.addListener(() {
-      if (widget.animationData != null && widget.animationData!.fromPile?.type == PileType.stock) {
-        if (_controller.value >= 0.5 && !_animationCard.faceUp) {
-          setState(() {
-            _animationCard = _animationCard.copyWith(faceUp: true);
-          });
+      if (widget.animationData != null && widget.animationData!.fromPile?.type == PileType.stock && _cardNotifier != null) {
+        if (_controller.value >= 0.5 && !_cardNotifier!.value.faceUp) {
+          _cardNotifier!.value = _cardNotifier!.value.copyWith(faceUp: true);
         }
       }
     });
 
-    _controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        widget.onComplete?.call();
-      }
-    });
+
 
     if (widget.animationData != null) {
       _controller.forward();
@@ -129,7 +123,12 @@ class _AnimatedCardOverlayState extends State<AnimatedCardOverlay>
         widget.animationData != null) {
       _controller.reset();
       final isFromStock = widget.animationData!.fromPile?.type == PileType.stock;
-      _animationCard = widget.animationData!.card.copyWith(faceUp: !isFromStock);
+      if (_cardNotifier == null) {
+        _cardNotifier = ValueNotifier(widget.animationData!.card.copyWith(faceUp: !isFromStock));
+      } else {
+        _cardNotifier!.value = widget.animationData!.card.copyWith(faceUp: !isFromStock);
+      }
+
       _positionAnimation = Tween<Offset>(
         begin: widget.animationData!.startPosition,
         end: widget.animationData!.endPosition,
@@ -144,6 +143,7 @@ class _AnimatedCardOverlayState extends State<AnimatedCardOverlay>
   @override
   void dispose() {
     _controller.dispose();
+    _cardNotifier?.dispose();
     super.dispose();
   }
 
@@ -154,7 +154,7 @@ class _AnimatedCardOverlayState extends State<AnimatedCardOverlay>
     }
 
     return AnimatedBuilder(
-      animation: _controller,
+      animation: Listenable.merge([_controller, _cardNotifier]),
       builder: (context, child) {
         return Positioned(
           left: _positionAnimation.value.dx,
@@ -164,8 +164,9 @@ class _AnimatedCardOverlayState extends State<AnimatedCardOverlay>
             child: Transform.rotate(
               angle: _rotationAnimation.value,
               child: CardWidget(
-                card: _animationCard,
+                card: widget.animationData!.card,
                 width: widget.animationData!.cardWidth,
+                overrideFaceUp: _cardNotifier!.value.faceUp,
                 isDragging: true, // Use dragging state for elevated shadow
               ),
             ),
