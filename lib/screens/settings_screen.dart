@@ -41,12 +41,21 @@ class _CardsTab extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Container(width: 40, height: 1, color: AppTheme.accentColor(context).withValues(alpha: 0.3)),
+                  Container(
+                      width: 40,
+                      height: 1,
+                      color:
+                          AppTheme.accentColor(context).withValues(alpha: 0.3)),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('CARD CUSTOMIZATION', style: AppTypography.subheading(context)),
+                    child: Text('CARD CUSTOMIZATION',
+                        style: AppTypography.subheading(context)),
                   ),
-                  Expanded(child: Container(height: 1, color: AppTheme.accentColor(context).withValues(alpha: 0.3))),
+                  Expanded(
+                      child: Container(
+                          height: 1,
+                          color: AppTheme.accentColor(context)
+                              .withValues(alpha: 0.3))),
                 ],
               ),
               const SizedBox(height: 20),
@@ -54,7 +63,9 @@ class _CardsTab extends StatelessWidget {
               const SizedBox(height: 28),
               _CardBackCustomization(),
               const SizedBox(height: 24),
-              Center(child: ThemePreviewCards(theme: settings.currentTheme, cardWidth: 70)),
+              Center(
+                  child: ThemePreviewCards(
+                      theme: settings.currentTheme, cardWidth: 70)),
             ],
           ),
         );
@@ -81,7 +92,9 @@ class _SoundTab extends StatelessWidget {
                 context,
                 label: 'Sound Effects',
                 subtitle: 'Play audio feedback',
-                child: GameSwitch(value: settings.soundEnabled, onChanged: settings.setSoundEnabled),
+                child: GameSwitch(
+                    value: settings.soundEnabled,
+                    onChanged: settings.setSoundEnabled),
               ),
               const SizedBox(height: 20),
               _buildSettingRow(
@@ -90,7 +103,9 @@ class _SoundTab extends StatelessWidget {
                 subtitle: '${(settings.soundVolume * 100).round()}%',
                 child: SizedBox(
                   width: 180,
-                  child: VolumeSlider(value: settings.soundVolume, onChanged: (v) => settings.setSoundVolume(v)),
+                  child: VolumeSlider(
+                      value: settings.soundVolume,
+                      onChanged: (v) => settings.setSoundVolume(v)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -98,7 +113,9 @@ class _SoundTab extends StatelessWidget {
                 context,
                 label: 'Background Music',
                 subtitle: 'Play music during the game',
-                child: GameSwitch(value: settings.musicEnabled, onChanged: settings.setMusicEnabled),
+                child: GameSwitch(
+                    value: settings.musicEnabled,
+                    onChanged: settings.setMusicEnabled),
               ),
               const SizedBox(height: 20),
               _buildSettingRow(
@@ -107,7 +124,9 @@ class _SoundTab extends StatelessWidget {
                 subtitle: '${(settings.musicVolume * 100).round()}%',
                 child: SizedBox(
                   width: 180,
-                  child: VolumeSlider(value: settings.musicVolume, onChanged: (v) => settings.setMusicVolume(v)),
+                  child: VolumeSlider(
+                      value: settings.musicVolume,
+                      onChanged: (v) => settings.setMusicVolume(v)),
                 ),
               ),
             ],
@@ -118,7 +137,8 @@ class _SoundTab extends StatelessWidget {
   }
 }
 
-class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProviderStateMixin {
+class _SettingsScreenState extends State<SettingsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -149,7 +169,8 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         ),
         title: Text(
           'Settings',
-          style: AppTypography.heading(context).copyWith(color: theme.textLight),
+          style:
+              AppTypography.heading(context).copyWith(color: theme.textLight),
         ),
         bottom: TabBar(
           controller: _tabController,
@@ -159,7 +180,8 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                   ? Colors.white.withValues(alpha: 0.12)
                   : Colors.black.withValues(alpha: 0.06);
             }
-            if (states.contains(WidgetState.pressed)) return theme.accentColor.withValues(alpha: 0.14);
+            if (states.contains(WidgetState.pressed))
+              return theme.accentColor.withValues(alpha: 0.14);
             return Colors.transparent;
           }),
           labelColor: theme.accentColor,
@@ -170,7 +192,8 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 : Colors.black.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(8),
           ),
-          indicatorPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          indicatorPadding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           indicatorSize: TabBarIndicatorSize.tab,
           labelStyle: const TextStyle(
             fontFamily: 'Inter',
@@ -180,8 +203,12 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           ),
           tabs: const [
             Tab(icon: Icon(Icons.palette_outlined, size: 20), text: 'THEME'),
-            Tab(icon: Icon(Icons.credit_card_outlined, size: 20), text: 'CARDS'),
-            Tab(icon: Icon(Icons.sports_esports_outlined, size: 20), text: 'GAMEPLAY'),
+            Tab(
+                icon: Icon(Icons.credit_card_outlined, size: 20),
+                text: 'CARDS'),
+            Tab(
+                icon: Icon(Icons.sports_esports_outlined, size: 20),
+                text: 'GAMEPLAY'),
             Tab(icon: Icon(Icons.volume_up_outlined, size: 20), text: 'SOUND'),
           ],
         ),
@@ -207,7 +234,8 @@ Widget _buildSettingRow(
 }) {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    crossAxisAlignment: subtitle != null ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+    crossAxisAlignment:
+        subtitle != null ? CrossAxisAlignment.start : CrossAxisAlignment.center,
     children: [
       Expanded(
         child: Column(
@@ -283,7 +311,9 @@ class _ThemeSelector extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
-                  color: theme.getTableColor(Brightness.dark).withValues(alpha: 0.3),
+                  color: theme
+                      .getTableColor(Brightness.dark)
+                      .withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isSelected
@@ -312,8 +342,12 @@ class _ThemeSelector extends StatelessWidget {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              theme.getTableColor(Brightness.light).withValues(alpha: 0.5),
-                              theme.getTableColor(Brightness.dark).withValues(alpha: 0.7),
+                              theme
+                                  .getTableColor(Brightness.light)
+                                  .withValues(alpha: 0.5),
+                              theme
+                                  .getTableColor(Brightness.dark)
+                                  .withValues(alpha: 0.7),
                             ],
                           ),
                         ),
@@ -325,7 +359,8 @@ class _ThemeSelector extends StatelessWidget {
                       left: 0,
                       right: 0,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.3),
                           borderRadius: const BorderRadius.only(
@@ -383,7 +418,8 @@ class _OverlayControls extends StatelessWidget {
       builder: (context, settings, _) {
         final theme = settings.currentTheme;
         final intensity = settings.getOverlayIntensity(theme.id);
-        final warning = OverlayValidator.getWarningMessage(theme.cardFaceOverlay, intensity);
+        final warning = OverlayValidator.getWarningMessage(
+            theme.cardFaceOverlay, intensity);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -574,10 +610,12 @@ class _CardBackCustomization extends StatelessWidget {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final String? colorOverride = settings.cardBackColored ? settings.cardBackColor : null;
+    final String? colorOverride =
+        settings.cardBackColored ? settings.cardBackColor : null;
 
-    final Color primaryColor = colorOverride != null 
-        ? Color(int.parse(colorOverride.replaceFirst('#', ''), radix: 16) | 0xFF000000) 
+    final Color primaryColor = colorOverride != null
+        ? Color(int.parse(colorOverride.replaceFirst('#', ''), radix: 16) |
+            0xFF000000)
         : Colors.blue;
 
     final CustomPainter painter;
@@ -586,7 +624,9 @@ class _CardBackCustomization extends StatelessWidget {
     } else {
       painter = CardBackPainter(
         primaryColor: primaryColor,
-        pattern: elementId == 'back' ? 'diamond' : (elementId == 'alternate-back' ? 'crosshatch' : elementId),
+        pattern: elementId == 'back'
+            ? 'diamond'
+            : (elementId == 'alternate-back' ? 'crosshatch' : elementId),
       );
     }
 
@@ -602,7 +642,9 @@ class _CardBackCustomization extends StatelessWidget {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.feltMedium.withValues(alpha: 0.4) : Colors.transparent,
+              color: isSelected
+                  ? AppColors.feltMedium.withValues(alpha: 0.4)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isSelected
@@ -615,7 +657,8 @@ class _CardBackCustomization extends StatelessWidget {
               width: width,
               height: height,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(4), // Match card corner radius approx
+                borderRadius:
+                    BorderRadius.circular(4), // Match card corner radius approx
                 child: Stack(
                   children: [
                     // Layer 1: The Painted Background
@@ -627,13 +670,16 @@ class _CardBackCustomization extends StatelessWidget {
                     // Layer 2: The SVG Overlays
                     if (elementId == 'spade')
                       Center(
-                        child: Transform.translate( // ignore: prefer_const_constructors
-                          offset: Offset(0, -width * 0.70 * 0.05),
+                        child: Transform.translate(
+                          // ignore: prefer_const_constructors
+                          offset: const Offset(0, -width * 0.70 * 0.05),
                           child: SvgPicture.asset(
                             'assets/cards/spade.svg',
                             width: width * 0.70,
                             height: width * 0.70,
-                            colorFilter: ColorFilter.mode(primaryColor.withValues(alpha: 0.5), BlendMode.srcATop),
+                            colorFilter: ColorFilter.mode(
+                                primaryColor.withValues(alpha: 0.5),
+                                BlendMode.srcATop),
                           ),
                         ),
                       ),
@@ -649,7 +695,9 @@ class _CardBackCustomization extends StatelessWidget {
                               'assets/cards/spade.svg',
                               width: width * 0.45,
                               height: width * 0.45,
-                              colorFilter: ColorFilter.mode(primaryColor.withValues(alpha: 0.5), BlendMode.srcATop),
+                              colorFilter: ColorFilter.mode(
+                                  primaryColor.withValues(alpha: 0.5),
+                                  BlendMode.srcATop),
                             ),
                           ),
                           // Bottom Spade
@@ -662,7 +710,9 @@ class _CardBackCustomization extends StatelessWidget {
                                 'assets/cards/spade.svg',
                                 width: width * 0.45,
                                 height: width * 0.45,
-                                colorFilter: ColorFilter.mode(primaryColor.withValues(alpha: 0.5), BlendMode.srcATop),
+                                colorFilter: ColorFilter.mode(
+                                    primaryColor.withValues(alpha: 0.5),
+                                    BlendMode.srcATop),
                               ),
                             ),
                           ),
@@ -680,7 +730,9 @@ class _CardBackCustomization extends StatelessWidget {
               fontFamily: 'Inter',
               fontSize: 13,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              color: isSelected ? AppColors.cream : AppColors.cream.withValues(alpha: 0.6),
+              color: isSelected
+                  ? AppColors.cream
+                  : AppColors.cream.withValues(alpha: 0.6),
             ),
           ),
         ],
@@ -692,25 +744,25 @@ class _CardBackCustomization extends StatelessWidget {
     // Curated set of card back colors with good variety and visual appeal
     final cardBackColors = [
       // Classic casino colors
-      [const Color(0xFF1A1A1A), 'Classic Black'],     // Deep black
-      [const Color(0xFF2D4A3E), 'Forest Green'],      // Rich forest green
-      [const Color(0xFF8B4513), 'Burgundy'],          // Deep burgundy
-      [const Color(0xFF4169E1), 'Royal Blue'],        // Royal blue
-      [const Color(0xFFDAA520), 'Gold'],              // Antique gold
+      [const Color(0xFF1A1A1A), 'Classic Black'], // Deep black
+      [const Color(0xFF2D4A3E), 'Forest Green'], // Rich forest green
+      [const Color(0xFF8B4513), 'Burgundy'], // Deep burgundy
+      [const Color(0xFF4169E1), 'Royal Blue'], // Royal blue
+      [const Color(0xFFDAA520), 'Gold'], // Antique gold
 
       // Modern vibrant colors
-      [const Color(0xFFDC143C), 'Crimson'],           // Vibrant red
-      [const Color(0xFF32CD32), 'Lime Green'],        // Bright green
-      [const Color(0xFFFF6347), 'Coral'],             // Warm coral
-      [const Color(0xFF9370DB), 'Purple'],            // Medium purple
-      [const Color(0xFFFFA500), 'Orange'],            // Bright orange
+      [const Color(0xFFDC143C), 'Crimson'], // Vibrant red
+      [const Color(0xFF32CD32), 'Lime Green'], // Bright green
+      [const Color(0xFFFF6347), 'Coral'], // Warm coral
+      [const Color(0xFF9370DB), 'Purple'], // Medium purple
+      [const Color(0xFFFFA500), 'Orange'], // Bright orange
 
       // Elegant muted tones
-      [const Color(0xFF696969), 'Charcoal'],          // Warm charcoal
-      [const Color(0xFF8B7355), 'Taupe'],             // Warm taupe
-      [const Color(0xFF708090), 'Slate'],             // Cool slate
-      [const Color(0xFFCD853F), 'Peru'],              // Warm brown
-      [const Color(0xFF4682B4), 'Steel Blue'],        // Steel blue
+      [const Color(0xFF696969), 'Charcoal'], // Warm charcoal
+      [const Color(0xFF8B7355), 'Taupe'], // Warm taupe
+      [const Color(0xFF708090), 'Slate'], // Cool slate
+      [const Color(0xFFCD853F), 'Peru'], // Warm brown
+      [const Color(0xFF4682B4), 'Steel Blue'], // Steel blue
 
       // Theme-aware colors (keep some theme integration)
       [settings.currentTheme.accentColor, 'Theme Accent'],
@@ -720,7 +772,8 @@ class _CardBackCustomization extends StatelessWidget {
     final colors = cardBackColors.map((colorData) {
       final color = colorData[0] as Color;
       final name = colorData[1] as String;
-      final hex = '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+      final hex =
+          '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
       return [hex, name];
     }).toList();
 
@@ -758,7 +811,9 @@ class _CardBackCustomization extends StatelessWidget {
                       color: color,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isSelected ? AppColors.gold : AppColors.cream.withValues(alpha: 0.2),
+                        color: isSelected
+                            ? AppColors.gold
+                            : AppColors.cream.withValues(alpha: 0.2),
                         width: isSelected ? 3 : 1,
                       ),
                       boxShadow: isSelected
@@ -774,7 +829,9 @@ class _CardBackCustomization extends StatelessWidget {
                     child: isSelected
                         ? Icon(
                             Icons.check,
-                            color: _isLightColor(color) ? Colors.black : Colors.white,
+                            color: _isLightColor(color)
+                                ? Colors.black
+                                : Colors.white,
                             size: 20,
                           )
                         : null,
@@ -826,13 +883,21 @@ class _GameplayTab extends StatelessWidget {
                   return GameToggle<Difficulty>(
                     value: settings.difficulty,
                     options: [
-                      GameToggleOption(value: Difficulty.easy, label: 'EASY', color: accent),
-                      GameToggleOption(value: Difficulty.medium, label: 'MED', color: accent),
-                      GameToggleOption(value: Difficulty.hard, label: 'HARD', color: accent),
+                      GameToggleOption(
+                          value: Difficulty.easy, label: 'EASY', color: accent),
+                      GameToggleOption(
+                          value: Difficulty.medium,
+                          label: 'MED',
+                          color: accent),
+                      GameToggleOption(
+                          value: Difficulty.hard, label: 'HARD', color: accent),
                     ],
                     onChanged: (difficulty) {
                       settings.setDifficulty(difficulty);
-                      context.read<GameController>().game.applyDifficulty(difficulty);
+                      context
+                          .read<GameController>()
+                          .game
+                          .applyDifficulty(difficulty);
                     },
                   );
                 }),
@@ -847,8 +912,14 @@ class _GameplayTab extends StatelessWidget {
                   return GameToggle<ScoringMode>(
                     value: settings.scoringMode,
                     options: [
-                      GameToggleOption(value: ScoringMode.standard, label: 'STD', color: accent),
-                      GameToggleOption(value: ScoringMode.vegas, label: 'VEGAS', color: accent),
+                      GameToggleOption(
+                          value: ScoringMode.standard,
+                          label: 'STD',
+                          color: accent),
+                      GameToggleOption(
+                          value: ScoringMode.vegas,
+                          label: 'VEGAS',
+                          color: accent),
                     ],
                     onChanged: settings.setScoringMode,
                   );
@@ -944,7 +1015,8 @@ class _GameplayTab extends StatelessWidget {
                 label: 'How to Play',
                 width: double.infinity,
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen()));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const HelpScreen()));
                 },
               ),
               const SizedBox(height: 12),
@@ -952,7 +1024,8 @@ class _GameplayTab extends StatelessWidget {
                 label: 'About Solitude',
                 width: double.infinity,
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen()));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const AboutScreen()));
                 },
               ),
             ],
@@ -961,5 +1034,4 @@ class _GameplayTab extends StatelessWidget {
       },
     );
   }
-
 }
