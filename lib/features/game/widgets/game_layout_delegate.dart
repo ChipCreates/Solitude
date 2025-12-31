@@ -55,8 +55,9 @@ class KlondikeLayoutDelegate implements GameLayoutDelegate {
         child: _StockPileSelector(cardWidth: layout.cardWidth),
       ));
     }
-    if (stockPile != null)
+    if (stockPile != null) {
       stockWasteSection.add(SizedBox(width: layout.pileSpacing));
+    }
     if (wastePile != null) {
       stockWasteSection.add(SizedBox(
         width: layout.cardWidth,

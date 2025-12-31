@@ -143,9 +143,7 @@ class KlondikeGame extends SolitaireGameBase {
     if (settings.scoringMode == ScoringMode.vegas) {
       // Vegas mode typically allows only one pass through the stock
       // unless difficulty overrides this
-      if (maxStockRecycles == null) {
-        maxStockRecycles = 1;
-      }
+      maxStockRecycles ??= 1;
     }
   }
 
@@ -570,8 +568,9 @@ class KlondikeGame extends SolitaireGameBase {
         // Try moving to foundations
         for (final foundation in foundations) {
           if (cardsToMove.length == 1 &&
-              cardsToMove.first.canStackOnFoundation(foundation.topCard))
+              cardsToMove.first.canStackOnFoundation(foundation.topCard)) {
             return true;
+          }
         }
 
         // Try moving to other tableau piles

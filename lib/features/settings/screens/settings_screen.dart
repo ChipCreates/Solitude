@@ -7,8 +7,6 @@ import 'package:solitude/features/game/services/game_controller.dart';
 import 'package:solitude/core/theme/app_theme.dart';
 import '../models/difficulty.dart';
 import '../models/theme_preset.dart';
-import '../models/hint_mode.dart';
-import '../../game/models/victory_pattern.dart';
 import '../../game/models/draw_mode.dart';
 
 import '../widgets/game_toggle.dart';
