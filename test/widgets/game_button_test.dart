@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solitude/widgets/game_button.dart';
+import 'package:solitude/core/widgets/game_button.dart';
 
 import '../helpers/test_harness.dart';
 

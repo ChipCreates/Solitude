@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solitude/services/animation_state_notifier.dart';
-import 'package:solitude/models/card.dart';
+import 'package:solitude/features/game/services/animation_state_notifier.dart';
+import 'package:solitude/features/game/models/card.dart';
 
 void main() {
   group('AnimationStateNotifier', () {

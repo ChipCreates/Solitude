@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive/hive.dart';
 import 'dart:io';
-import 'package:solitude/services/statistics_service.dart';
+import 'package:solitude/features/statistics/services/statistics_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

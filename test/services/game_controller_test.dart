@@ -1,15 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solitude/services/board_layout_service.dart';
-import 'package:solitude/services/game_controller.dart';
-import 'package:solitude/services/animation_state_notifier.dart';
-import 'package:solitude/services/hint_state_notifier.dart';
-import 'package:solitude/services/selection_state_notifier.dart';
-import 'package:solitude/services/timer_state_notifier.dart';
-import 'package:solitude/games/klondike/klondike_game.dart';
-import 'package:solitude/models/card.dart';
-import 'package:solitude/models/pile.dart';
-import 'package:solitude/models/difficulty.dart';
-import 'package:solitude/games/game_factory.dart';
+import 'package:solitude/features/game/services/board_layout_service.dart';
+import 'package:solitude/features/game/services/game_controller.dart';
+import 'package:solitude/features/game/services/animation_state_notifier.dart';
+import 'package:solitude/features/game/services/hint_state_notifier.dart';
+import 'package:solitude/features/game/services/selection_state_notifier.dart';
+import 'package:solitude/features/game/services/timer_state_notifier.dart';
+import 'package:solitude/features/game/games/klondike/klondike_game.dart';
+import 'package:solitude/features/game/models/card.dart';
+import 'package:solitude/features/game/models/pile.dart';
+import 'package:solitude/features/settings/models/difficulty.dart';
+import 'package:solitude/features/game/games/game_factory.dart';
 
 import '../helpers/mocks.dart';
 

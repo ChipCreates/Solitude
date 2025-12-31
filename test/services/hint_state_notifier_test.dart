@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solitude/services/hint_state_notifier.dart';
-import 'package:solitude/models/card.dart';
-import 'package:solitude/models/pile.dart';
+import 'package:solitude/features/game/services/hint_state_notifier.dart';
+import 'package:solitude/features/game/models/card.dart';
+import 'package:solitude/features/game/models/pile.dart';
 
 void main() {
   group('HintStateNotifier', () {

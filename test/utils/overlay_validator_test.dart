@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solitude/utils/overlay_validator.dart';
+import 'package:solitude/core/utils/overlay_validator.dart';
 
 void main() {
   group('OverlayValidator.isLegible()', () {

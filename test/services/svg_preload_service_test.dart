@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solitude/services/svg_preload_service.dart';
+import 'package:solitude/core/services/svg_preload_service.dart';
 
 void main() {
   group('SvgPreloadService', () {

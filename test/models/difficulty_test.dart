@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solitude/models/difficulty.dart';
-import 'package:solitude/models/draw_mode.dart';
+import 'package:solitude/features/settings/models/difficulty.dart';
+import 'package:solitude/features/game/models/draw_mode.dart';
 
 void main() {
   group('Difficulty Enum', () {

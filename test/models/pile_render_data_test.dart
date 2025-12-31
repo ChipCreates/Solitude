@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solitude/models/card.dart';
-import 'package:solitude/models/pile.dart';
-import 'package:solitude/models/pile_render_data.dart';
+import 'package:solitude/features/game/models/card.dart';
+import 'package:solitude/features/game/models/pile.dart';
+import 'package:solitude/features/game/models/pile_render_data.dart';
 
 void main() {
   group('TableauPileRenderData', () {

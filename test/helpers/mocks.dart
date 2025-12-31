@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:solitude/services/settings_provider.dart';
-import 'package:solitude/services/statistics_service.dart';
-import 'package:solitude/services/audio_service.dart';
-import 'package:solitude/models/draw_mode.dart';
-import 'package:solitude/models/difficulty.dart';
-import 'package:solitude/models/theme_preset.dart';
+import 'package:solitude/features/settings/services/settings_provider.dart';
+import 'package:solitude/features/statistics/services/statistics_service.dart';
+import 'package:solitude/core/services/audio_service.dart';
+import 'package:solitude/features/game/models/draw_mode.dart';
+import 'package:solitude/features/settings/models/difficulty.dart';
+import 'package:solitude/features/settings/models/theme_preset.dart';
 
 /// Mock SettingsProvider for testing
 ///

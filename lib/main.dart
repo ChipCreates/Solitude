@@ -1,23 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'services/settings_provider.dart';
-import 'services/statistics_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'services/board_layout_service.dart';
-import 'services/animation_state_notifier.dart';
-import 'services/hint_state_notifier.dart';
-import 'services/selection_state_notifier.dart';
-import 'services/timer_state_notifier.dart';
-import 'services/svg_preload_service.dart';
-import 'services/audio_service.dart';
-import 'services/desktop_window_service.dart';
-import 'achievements/services/achievement_service.dart';
-import 'achievements/models/achievement.dart';
-import 'achievements/models/achievement_category_adapter.dart';
-import 'theme/app_theme.dart';
-import 'screens/loading_splash_screen.dart';
-import 'widgets/app_startup_wrapper.dart';
+
+// Core imports
+import 'core/theme/app_theme.dart';
+import 'core/services/svg_preload_service.dart';
+import 'core/services/audio_service.dart';
+import 'core/services/desktop_window_service.dart';
+
+// Feature imports - Settings
+import 'features/settings/services/settings_provider.dart';
+
+// Feature imports - Statistics
+import 'features/statistics/services/statistics_service.dart';
+
+// Feature imports - Game
+import 'features/game/services/board_layout_service.dart';
+import 'features/game/services/animation_state_notifier.dart';
+import 'features/game/services/hint_state_notifier.dart';
+import 'features/game/services/selection_state_notifier.dart';
+import 'features/game/services/timer_state_notifier.dart';
+
+// Feature imports - Achievements
+import 'features/achievements/services/achievement_service.dart';
+import 'features/achievements/models/achievement.dart';
+import 'features/achievements/models/achievement_category_adapter.dart';
+
+// Feature imports - Home
+import 'features/home/screens/loading_splash_screen.dart';
+import 'features/home/widgets/app_startup_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

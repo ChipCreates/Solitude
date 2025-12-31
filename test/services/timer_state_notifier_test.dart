@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solitude/services/timer_state_notifier.dart';
+import 'package:solitude/features/game/services/timer_state_notifier.dart';
 
 void main() {
   group('TimerStateNotifier', () {

@@ -1,9 +1,9 @@
 import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solitude/games/klondike/klondike_game.dart';
-import 'package:solitude/models/card.dart';
-import 'package:solitude/models/pile.dart';
-import 'package:solitude/models/draw_mode.dart';
+import 'package:solitude/features/game/games/klondike/klondike_game.dart';
+import 'package:solitude/features/game/models/card.dart';
+import 'package:solitude/features/game/models/pile.dart';
+import 'package:solitude/features/game/models/draw_mode.dart';
 
 void main() {
   group('KlondikeGame Initialization', () {

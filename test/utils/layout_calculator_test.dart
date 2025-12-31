@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solitude/utils/layout_calculator.dart';
-import 'package:solitude/widgets/card_widget.dart';
+import 'package:solitude/core/utils/layout_calculator.dart';
+import 'package:solitude/features/game/widgets/card_widget.dart';
 
 void main() {
   group('LayoutConfig', () {

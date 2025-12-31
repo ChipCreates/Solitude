@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solitude/theme/app_theme.dart';
-import 'package:solitude/models/theme_preset.dart';
+import 'package:solitude/core/theme/app_theme.dart';
+import 'package:solitude/features/settings/models/theme_preset.dart';
 
 void main() {
   group('AppColors', () {
