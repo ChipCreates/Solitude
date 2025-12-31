@@ -63,7 +63,8 @@ class _VictoryCardAnimationState extends State<VictoryCardAnimation>
     with TickerProviderStateMixin {
   late Ticker _ticker;
   final List<FallingCard> _fallingCards = [];
-  final List<PlayingCard> _remainingCards = [];
+  final List<List<PlayingCard>> _remainingCardsByPile =
+      []; // Cards still in each foundation pile
   final Random _random = Random();
   late VictoryPattern _currentPattern;
 
@@ -92,14 +93,12 @@ class _VictoryCardAnimationState extends State<VictoryCardAnimation>
     _currentPattern = widget.forcePattern ??
         VictoryPattern.values[_random.nextInt(VictoryPattern.values.length)];
 
-    // Collect all cards from foundation piles
+    // Collect all cards from foundation piles, organized by pile
     for (int pileIndex = 0;
         pileIndex < widget.foundationPiles.length;
         pileIndex++) {
       final pile = widget.foundationPiles[pileIndex];
-      for (final card in pile.cards) {
-        _remainingCards.add(card);
-      }
+      _remainingCardsByPile.add(List.from(pile.cards));
     }
 
     // Start the physics ticker
@@ -135,29 +134,44 @@ class _VictoryCardAnimationState extends State<VictoryCardAnimation>
   }
 
   void _spawnCard() {
-    if (_spawnIndex >= _remainingCards.length) {
+    // Find the next card to spawn across all piles
+    PlayingCard? cardToSpawn;
+    int pileIndex = -1;
+    int cardIndexInPile = -1;
+
+    for (int p = 0; p < _remainingCardsByPile.length; p++) {
+      if (_remainingCardsByPile[p].isNotEmpty) {
+        cardToSpawn = _remainingCardsByPile[p].first;
+        pileIndex = p;
+        cardIndexInPile = 0;
+        break;
+      }
+    }
+
+    if (cardToSpawn == null) {
       _spawnTimer?.cancel();
       return;
     }
 
-    final card = _remainingCards[_spawnIndex++];
+    // Remove the card from the remaining pile
+    _remainingCardsByPile[pileIndex].removeAt(cardIndexInPile);
+
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    final pileIndex = (_spawnIndex - 1) ~/ 13; // 13 cards per foundation pile
 
     switch (_currentPattern) {
       case VictoryPattern.cascade:
-        _spawnCascadeCard(card, screenWidth, screenHeight, pileIndex);
+        _spawnCascadeCard(cardToSpawn, screenWidth, screenHeight, pileIndex);
         break;
       case VictoryPattern.fountain:
-        _spawnFountainCard(card, screenWidth, screenHeight, pileIndex);
+        _spawnFountainCard(cardToSpawn, screenWidth, screenHeight, pileIndex);
         break;
       case VictoryPattern.scatter:
         // Handled in _spawnAllCardsAtOnce
         break;
       case VictoryPattern.vortex:
         _spawnVortexCard(
-            card, screenWidth, screenHeight, pileIndex, _spawnIndex - 1);
+            cardToSpawn, screenWidth, screenHeight, pileIndex, _spawnIndex++);
         break;
     }
   }
@@ -211,24 +225,30 @@ class _VictoryCardAnimationState extends State<VictoryCardAnimation>
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
-    for (int i = 0; i < _remainingCards.length; i++) {
-      final card = _remainingCards[i];
-      final pileIndex = i ~/ 13;
+    for (int pileIndex = 0;
+        pileIndex < _remainingCardsByPile.length;
+        pileIndex++) {
+      for (final card in _remainingCardsByPile[pileIndex]) {
+        // Explosion from center
+        final angle = _random.nextDouble() * 2 * pi;
+        final speed = _random.nextDouble() * 8 + 4;
 
-      // Explosion from center
-      final angle = _random.nextDouble() * 2 * pi;
-      final speed = _random.nextDouble() * 8 + 4;
+        _fallingCards.add(FallingCard(
+          card: card,
+          x: screenWidth / 2,
+          y: screenHeight / 2,
+          vx: cos(angle) * speed,
+          vy: sin(angle) * speed,
+          rotation: _random.nextDouble() * 2 * pi,
+          rotationalVelocity: (_random.nextDouble() - 0.5) * 0.2,
+          pileIndex: pileIndex,
+        ));
+      }
+    }
 
-      _fallingCards.add(FallingCard(
-        card: card,
-        x: screenWidth / 2,
-        y: screenHeight / 2,
-        vx: cos(angle) * speed,
-        vy: sin(angle) * speed,
-        rotation: _random.nextDouble() * 2 * pi,
-        rotationalVelocity: (_random.nextDouble() - 0.5) * 0.2,
-        pileIndex: pileIndex,
-      ));
+    // Clear all remaining cards since they all spawned at once
+    for (final pile in _remainingCardsByPile) {
+      pile.clear();
     }
   }
 
@@ -300,7 +320,8 @@ class _VictoryCardAnimationState extends State<VictoryCardAnimation>
       }
 
       // Check if animation is complete
-      final isSpawningComplete = _spawnIndex >= _remainingCards.length;
+      final isSpawningComplete =
+          _remainingCardsByPile.every((pile) => pile.isEmpty);
       final isAnimationComplete = _fallingCards.isEmpty ||
           (_currentPattern == VictoryPattern.vortex &&
               _fallingCards.every((card) => card.t > 10.0));
@@ -386,23 +407,55 @@ class _VictoryCardAnimationState extends State<VictoryCardAnimation>
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: _fallingCards.map((fallingCard) {
-        return Positioned(
-          left:
-              fallingCard.x - cardWidth / 2, // Center the card on its position
-          top: fallingCard.y - cardHeight / 2,
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    final List<Widget> children = [];
+
+    // Add remaining cards (still in foundation piles)
+    for (int pileIndex = 0;
+        pileIndex < _remainingCardsByPile.length;
+        pileIndex++) {
+      final pileCards = _remainingCardsByPile[pileIndex];
+      for (int cardIndex = 0; cardIndex < pileCards.length; cardIndex++) {
+        final card = pileCards[cardIndex];
+
+        // Calculate foundation pile position (same logic as spawning)
+        final pileX = (pileIndex + 1) * (screenWidth / 5);
+        final cardX = pileX;
+        final cardY =
+            screenHeight * 0.65 - (cardIndex * 2); // Slight stacking offset
+
+        children.add(Positioned(
+          left: cardX - cardWidth / 2,
+          top: cardY - cardHeight / 2,
           child: RepaintBoundary(
-            child: Transform.rotate(
-              angle: fallingCard.rotation,
-              child: CardWidget(
-                card: fallingCard.card,
-                width: cardWidth,
-              ),
+            child: CardWidget(
+              card: card,
+              width: cardWidth,
             ),
           ),
-        );
-      }).toList(),
-    );
+        ));
+      }
+    }
+
+    // Add falling/animated cards
+    for (final fallingCard in _fallingCards) {
+      children.add(Positioned(
+        left: fallingCard.x - cardWidth / 2,
+        top: fallingCard.y - cardHeight / 2,
+        child: RepaintBoundary(
+          child: Transform.rotate(
+            angle: fallingCard.rotation,
+            child: CardWidget(
+              card: fallingCard.card,
+              width: cardWidth,
+            ),
+          ),
+        ),
+      ));
+    }
+
+    return Stack(children: children);
   }
 }
