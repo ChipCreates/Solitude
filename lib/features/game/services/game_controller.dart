@@ -16,6 +16,7 @@ import 'selection_state_notifier.dart';
 import 'timer_state_notifier.dart';
 import 'board_layout_service.dart';
 import 'solitaire_bot.dart';
+import 'autocomplete_detector.dart';
 
 enum GameState { playing, won, autoCompleting, autoplaying, lost }
 
@@ -50,7 +51,8 @@ class GameController extends ChangeNotifier {
   bool _isDisposed = false;
 
   // Event stream for services
-  final StreamController<GameEvent> _eventController = StreamController<GameEvent>.broadcast();
+  final StreamController<GameEvent> _eventController =
+      StreamController<GameEvent>.broadcast();
   Stream<GameEvent> get gameEvents => _eventController.stream;
 
   GameController({
@@ -94,16 +96,17 @@ class GameController extends ChangeNotifier {
   List<PlayingCard>? get hintCards => hintState.cards;
   Pile? get hintDestinationPile => hintState.destinationPile;
   Pile? get focusedPile => _focusedPile;
-  
+
   // Game state shortcuts for UI
   int get moveCount => _game.moveCount;
   bool get canUndo => _game.moveHistory.isNotEmpty;
   bool get canRedo => _game.canRedo;
   bool get isWon => _state == GameState.won;
   bool get isLost => _game.isLost || _state == GameState.lost;
+  bool get canAutoFinish => AutoCompleteDetector.canAutoComplete(_game);
   List<Move> get moveHistory => _game.moveHistory;
   List<Move> get redoHistory => _game.redoStack;
-  
+
   // Game interface shortcuts
   Pile? get stock => _game.stockPile;
   Pile? get waste => _game.wastePile;
@@ -114,13 +117,13 @@ class GameController extends ChangeNotifier {
   CardAnimationData? get cardAnimationData => animationState.cardAnimationData;
   PlayingCard? get animatingCard => animationState.animatingCard;
   Duration get elapsed => timerState.elapsed;
-  
+
   // Delegate to board layout service
   void initializePileKeys() => boardLayout.initializePileKeys(_game.allPiles);
   String? getPileId(Pile pile) => pile.id;
-  Offset? getCardPosition(Pile pile, {double stackOffset = 0}) => 
+  Offset? getCardPosition(Pile pile, {double stackOffset = 0}) =>
       boardLayout.getCardPosition(pile, stackOffset: stackOffset);
-  
+
   void newGame() {
     if (_isDisposed) return;
     _stopTimer();
@@ -136,7 +139,7 @@ class GameController extends ChangeNotifier {
     clearSelection();
     notifyListeners();
   }
-  
+
   void _startTimer() {
     if (_isDisposed) return;
     timerState.start();
@@ -145,7 +148,7 @@ class GameController extends ChangeNotifier {
   void _stopTimer() {
     timerState.stop();
   }
-  
+
   void _recordGameStart() {
     if (_isDisposed) return;
     if (!_gameStarted) {
@@ -158,7 +161,7 @@ class GameController extends ChangeNotifier {
       }
     }
   }
-  
+
   /// Reset the inactivity timer - call this on any user interaction
   void _resetInactivityTimer() {
     if (_isDisposed) return;
@@ -168,17 +171,19 @@ class GameController extends ChangeNotifier {
       _inactivityTimer = Timer(_inactivityThreshold, _onInactivityTimeout);
     }
   }
-  
+
   /// Called when player has been inactive - show a hint
   void _onInactivityTimeout() {
     if (_isDisposed) return;
-    if (_state == GameState.playing && !hintState.isActive && !selectionState.hasSelection) {
+    if (_state == GameState.playing &&
+        !hintState.isActive &&
+        !selectionState.hasSelection) {
       showHint();
       // Restart timer so hint shows again if still inactive
       _resetInactivityTimer();
     }
   }
-  
+
   /// Stop the inactivity timer
   void _stopInactivityTimer() {
     _inactivityTimer?.cancel();
@@ -202,12 +207,13 @@ class GameController extends ChangeNotifier {
       }
     }
   }
-  
+
   void selectCard(Pile pile, PlayingCard card) {
     if (_isDisposed || _state != GameState.playing) return;
 
     // If same card selected, deselect
-    if (selectionState.selectedPile == pile && selectionState.selectedCards?.first == card) {
+    if (selectionState.selectedPile == pile &&
+        selectionState.selectedCards?.first == card) {
       clearSelection();
       return;
     }
@@ -274,7 +280,8 @@ class GameController extends ChangeNotifier {
     } else {
       final currentIndex = focusablePiles.indexOf(_focusedPile!);
       if (currentIndex >= 0) {
-        final prevIndex = (currentIndex - 1 + focusablePiles.length) % focusablePiles.length;
+        final prevIndex =
+            (currentIndex - 1 + focusablePiles.length) % focusablePiles.length;
         _focusedPile = focusablePiles[prevIndex];
       } else {
         _focusedPile = focusablePiles.last;
@@ -286,7 +293,8 @@ class GameController extends ChangeNotifier {
 
   /// Handle action on the currently focused pile (Enter/Space key)
   void activateFocusedPile() {
-    if (_isDisposed || _state != GameState.playing || _focusedPile == null) return;
+    if (_isDisposed || _state != GameState.playing || _focusedPile == null)
+      return;
 
     final stockPile = _game.stockPile;
     final wastePile = _game.wastePile;
@@ -336,7 +344,7 @@ class GameController extends ChangeNotifier {
 
     final startPosition = boardLayout.getCardPosition(stockPile);
     final endPosition = boardLayout.getCardPosition(wastePile);
-    
+
     if (startPosition == null || endPosition == null) {
       final move = _game.handlePileTap(stockPile);
       _emitMoveEvent(move);
@@ -351,12 +359,12 @@ class GameController extends ChangeNotifier {
     final PlayingCard flyingCard = stockPile.topCard!.copyWith(faceUp: false);
 
     startCardAnimation(
-      card: stockPile.topCard!,  // original for hiding logic
+      card: stockPile.topCard!, // original for hiding logic
       startPosition: startPosition,
       endPosition: endPosition,
       cardWidth: cardWidth,
       fromPile: stockPile,
-      animationCard: flyingCard,  // copy for display
+      animationCard: flyingCard, // copy for display
     );
 
     // 2. TRIGGER FLIP (50ms Delay)
@@ -431,7 +439,7 @@ class GameController extends ChangeNotifier {
 
     return true;
   }
-  
+
   bool isSelected(PlayingCard card) {
     if (_isDisposed) return false;
     return selectionState.isCardSelected(card);
@@ -452,7 +460,7 @@ class GameController extends ChangeNotifier {
     if (selectedPile == null || selectedCards == null) return [];
     return _game.getValidDestinations(selectedPile, selectedCards);
   }
-  
+
   void tapPile(Pile pile) {
     if (_isDisposed || _state != GameState.playing) return;
     _resetInactivityTimer();
@@ -495,7 +503,7 @@ class GameController extends ChangeNotifier {
       clearSelection();
     }
   }
-  
+
   void tapCard(Pile pile, PlayingCard card) {
     if (_isDisposed || _state != GameState.playing) return;
     _resetInactivityTimer();
@@ -519,10 +527,11 @@ class GameController extends ChangeNotifier {
     // Select this card
     selectCard(pile, card);
   }
-  
+
   /// Handle double-tap on a card with animation - auto-move to best destination
   /// Returns true if a move was made
-  Future<bool> doubleTapCardAnimated(Pile pile, PlayingCard card, double cardWidth, double stackOffset) async {
+  Future<bool> doubleTapCardAnimated(
+      Pile pile, PlayingCard card, double cardWidth, double stackOffset) async {
     if (_isDisposed || _state != GameState.playing) return false;
     if (!card.faceUp) return false;
     _resetInactivityTimer();
@@ -541,18 +550,21 @@ class GameController extends ChangeNotifier {
     final cardsToMove = cardIndex >= 0 ? pile.cards.sublist(cardIndex) : [card];
 
     // Ask the game for the best destination
-    final destinationPile = _game.findBestAutoMoveDestination(pile, cardsToMove);
+    final destinationPile =
+        _game.findBestAutoMoveDestination(pile, cardsToMove);
 
     // If we found a destination, animate the move
     if (destinationPile != null) {
       final startPosition = getCardPosition(pile, stackOffset: stackOffset);
       // Calculate the final position where the card will rest after the move
-      final baseEndPosition = getCardPosition(destinationPile, stackOffset: 0) ?? Offset.zero;
+      final baseEndPosition =
+          getCardPosition(destinationPile, stackOffset: 0) ?? Offset.zero;
       Offset endPosition;
       if (destinationPile.type == PileType.tableau) {
         // For tableau piles, the card will be positioned at the end of the stack
         final finalStackIndex = destinationPile.length + cardsToMove.length - 1;
-        endPosition = Offset(baseEndPosition.dx, baseEndPosition.dy + finalStackIndex * stackOffset);
+        endPosition = Offset(baseEndPosition.dx,
+            baseEndPosition.dy + finalStackIndex * stackOffset);
       } else {
         // For foundation and other piles, cards are not stacked vertically
         endPosition = baseEndPosition;
@@ -616,7 +628,8 @@ class GameController extends ChangeNotifier {
     final cardsToMove = cardIndex >= 0 ? pile.cards.sublist(cardIndex) : [card];
 
     // Ask the game for the best destination
-    final destinationPile = _game.findBestAutoMoveDestination(pile, cardsToMove);
+    final destinationPile =
+        _game.findBestAutoMoveDestination(pile, cardsToMove);
 
     if (destinationPile != null) {
       final move = _game.executeMove(pile, destinationPile, cardsToMove);
@@ -629,7 +642,7 @@ class GameController extends ChangeNotifier {
 
     return false;
   }
-  
+
   bool tryMove(Pile from, Pile to, List<PlayingCard> cards) {
     if (_isDisposed || _state != GameState.playing) return false;
     _resetInactivityTimer();
@@ -650,9 +663,11 @@ class GameController extends ChangeNotifier {
     }
     return false;
   }
-  
+
   void undo() {
-    if (_isDisposed || _state == GameState.autoCompleting || _state == GameState.autoplaying) return;
+    if (_isDisposed ||
+        _state == GameState.autoCompleting ||
+        _state == GameState.autoplaying) return;
     clearHint();
 
     if (_game.undo()) {
@@ -670,7 +685,9 @@ class GameController extends ChangeNotifier {
   }
 
   void redo() {
-    if (_isDisposed || _state == GameState.autoCompleting || _state == GameState.autoplaying) return;
+    if (_isDisposed ||
+        _state == GameState.autoCompleting ||
+        _state == GameState.autoplaying) return;
     clearHint();
 
     if (_game.redo()) {
@@ -691,6 +708,9 @@ class GameController extends ChangeNotifier {
     } else if (_game.isLost) {
       _handleLoss();
     }
+
+    // Notify listeners if auto-finish state has changed
+    notifyListeners();
   }
 
   void _handleLoss() {
@@ -710,7 +730,8 @@ class GameController extends ChangeNotifier {
         cardsInFoundations += foundation.length;
       }
       // Calculate Vegas score: -52 to start + $5 per card
-      final vegasScore = ScoringMode.vegas.vegasGameCost + (cardsInFoundations * ScoringMode.vegas.vegasCardValue);
+      final vegasScore = ScoringMode.vegas.vegasGameCost +
+          (cardsInFoundations * ScoringMode.vegas.vegasCardValue);
       statisticsService.recordVegasScore(vegasScore);
     }
 
@@ -721,7 +742,8 @@ class GameController extends ChangeNotifier {
     if (_isDisposed) return;
     _stopTimer();
     _state = GameState.won;
-    statisticsService.recordWin(time: timerState.elapsed, moves: _game.moveCount);
+    statisticsService.recordWin(
+        time: timerState.elapsed, moves: _game.moveCount);
     if (!_eventController.isClosed) {
       _eventController.add(const GameEvent(GameEventType.gameWon));
     }
@@ -729,18 +751,20 @@ class GameController extends ChangeNotifier {
     // Record Vegas scoring if in Vegas mode (winning = all 52 cards in foundations)
     if (settingsProvider.scoringMode == ScoringMode.vegas) {
       // Vegas win score: -52 + (52 * 5) = 208
-      final vegasScore = ScoringMode.vegas.vegasGameCost + (52 * ScoringMode.vegas.vegasCardValue);
+      final vegasScore = ScoringMode.vegas.vegasGameCost +
+          (52 * ScoringMode.vegas.vegasCardValue);
       statisticsService.recordVegasScore(vegasScore);
     }
 
     notifyListeners();
   }
-  
+
   void _startAutoComplete() {
     if (_isDisposed) return;
     _state = GameState.autoCompleting;
     if (!_eventController.isClosed) {
-      _eventController.add(const GameEvent(GameEventType.autoCompleteTriggered));
+      _eventController
+          .add(const GameEvent(GameEventType.autoCompleteTriggered));
     }
     notifyListeners();
 
@@ -787,17 +811,20 @@ class GameController extends ChangeNotifier {
     clearHint();
 
     // Check for stock draw/recycle
-    if (_game.getPile(PileType.stock) != null && _game.getPile(PileType.stock)!.isEmpty && _game.getPile(PileType.waste) != null && !_game.getPile(PileType.waste)!.isEmpty) {
-        // Recycle suggestion - hint source and destination are both stock
-        hintState.setHint(
-          sourcePile: _game.getPile(PileType.stock)!,
-          cards: null,
-          destinationPile: _game.getPile(PileType.stock)!,
-        );
-        if (!_eventController.isClosed) {
-          _eventController.add(const GameEvent(GameEventType.hintUsed));
-        }
-        return;
+    if (_game.getPile(PileType.stock) != null &&
+        _game.getPile(PileType.stock)!.isEmpty &&
+        _game.getPile(PileType.waste) != null &&
+        !_game.getPile(PileType.waste)!.isEmpty) {
+      // Recycle suggestion - hint source and destination are both stock
+      hintState.setHint(
+        sourcePile: _game.getPile(PileType.stock)!,
+        cards: null,
+        destinationPile: _game.getPile(PileType.stock)!,
+      );
+      if (!_eventController.isClosed) {
+        _eventController.add(const GameEvent(GameEventType.hintUsed));
+      }
+      return;
     }
 
     final hint = _game.getHint();
@@ -813,32 +840,50 @@ class GameController extends ChangeNotifier {
 
       // Auto-clear hint after delay
       Future.delayed(const Duration(seconds: 2), () {
-        if (!_isDisposed && hintState.sourcePile == hint.from && hintState.destinationPile == hint.to) {
+        if (!_isDisposed &&
+            hintState.sourcePile == hint.from &&
+            hintState.destinationPile == hint.to) {
           clearHint();
         }
       });
     } else {
       // No moves available, try suggesting drawing from stock
-      if (_game.getPile(PileType.stock) != null && !_game.getPile(PileType.stock)!.isEmpty) {
+      if (_game.getPile(PileType.stock) != null &&
+          !_game.getPile(PileType.stock)!.isEmpty) {
         hintState.setHint(
           sourcePile: _game.getPile(PileType.stock)!,
           cards: null,
           destinationPile: _game.getPile(PileType.stock)!,
         );
         Future.delayed(const Duration(seconds: 2), () {
-            if (!_isDisposed && hintState.sourcePile == _game.getPile(PileType.stock)) {
-                clearHint();
-            }
+          if (!_isDisposed &&
+              hintState.sourcePile == _game.getPile(PileType.stock)) {
+            clearHint();
+          }
         });
       } else {
-          // Absolutely no moves
-          if (!_eventController.isClosed) {
-            _eventController.add(const GameEvent(GameEventType.invalidMove));
-          }
+        // Absolutely no moves
+        if (!_eventController.isClosed) {
+          _eventController.add(const GameEvent(GameEventType.invalidMove));
+        }
       }
     }
   }
-  
+
+  /// Triggers the auto-finish mode for the game.
+  /// This should be called when the player presses the "Auto Finish" button.
+  void autoFinishGame() {
+    if (_isDisposed || !canAutoFinish) return;
+
+    print('Auto Finish Triggered');
+
+    // Emit the event for achievements and other listeners
+    if (!_eventController.isClosed) {
+      _eventController
+          .add(const GameEvent(GameEventType.autoCompleteTriggered));
+    }
+  }
+
   @override
   void notifyListeners() {
     if (!_isDisposed) {

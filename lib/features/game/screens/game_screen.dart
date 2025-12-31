@@ -11,6 +11,7 @@ import 'package:solitude/core/widgets/game_toolbar.dart';
 import '../widgets/game_board.dart';
 import '../widgets/win_animation.dart';
 import '../widgets/animated_card_overlay.dart';
+import '../widgets/auto_finish_fab.dart';
 import 'package:solitude/features/settings/screens/settings_screen.dart';
 import 'package:solitude/features/statistics/screens/statistics_screen.dart';
 import '../games/game_factory.dart';
@@ -69,7 +70,7 @@ class _GameScreenState extends State<GameScreen> {
     // Handle keyboard shortcuts
     if (event.logicalKey == LogicalKeyboardKey.keyU ||
         (event.logicalKey == LogicalKeyboardKey.keyZ &&
-         HardwareKeyboard.instance.isControlPressed)) {
+            HardwareKeyboard.instance.isControlPressed)) {
       // Undo
       if (controller.canUndo) {
         controller.undo();
@@ -105,101 +106,121 @@ class _GameScreenState extends State<GameScreen> {
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
         body: Stack(
-        children: [
-          // Main game - toolbar rebuilds only on move count changes, board uses granular selectors
-          Column(
-            children: [
-              Selector<GameController, int>(
-                selector: (_, controller) => controller.moveCount,
-                builder: (context, moveCount, _) {
-                  final controller = context.read<GameController>();
-                  return GameToolbar(
-                    controller: controller,
-                    onMenuPressed: () => _showSettings(context),
-                    onNewGame: () => _confirmNewGame(context, controller),
-                    onStatsPressed: () => _showStatistics(context),
-                  );
-                },
-              ),
-              const Expanded(
-                child: GameBoard(),
-              ),
-            ],
-          ),
+          children: [
+            // Main game - toolbar rebuilds only on move count changes, board uses granular selectors
+            Column(
+              children: [
+                Selector<GameController, int>(
+                  selector: (_, controller) => controller.moveCount,
+                  builder: (context, moveCount, _) {
+                    final controller = context.read<GameController>();
+                    return GameToolbar(
+                      controller: controller,
+                      onMenuPressed: () => _showSettings(context),
+                      onNewGame: () => _confirmNewGame(context, controller),
+                      onStatsPressed: () => _showStatistics(context),
+                    );
+                  },
+                ),
+                const Expanded(
+                  child: GameBoard(),
+                ),
+              ],
+            ),
 
-          // Card animation overlay - only rebuilds when animation state changes
-          Consumer<AnimationStateNotifier>(
-            builder: (context, animationState, _) {
-              return AnimatedCardOverlay(
-                animationData: animationState.cardAnimationData,
-                onComplete: () {
-                  final controller = context.read<GameController>();
-                  controller.clearCardAnimation();
-                },
-              );
-            },
-          ),
+            // Card animation overlay - only rebuilds when animation state changes
+            Consumer<AnimationStateNotifier>(
+              builder: (context, animationState, _) {
+                return AnimatedCardOverlay(
+                  animationData: animationState.cardAnimationData,
+                  onComplete: () {
+                    final controller = context.read<GameController>();
+                    controller.clearCardAnimation();
+                  },
+                );
+              },
+            ),
 
-          // Win overlay - only rebuilds when game state changes
-          Consumer<GameController>(
-            builder: (context, controller, _) {
-              if (!controller.isWon) return const SizedBox.shrink();
+            // Win overlay - only rebuilds when game state changes
+            Consumer<GameController>(
+              builder: (context, controller, _) {
+                if (!controller.isWon) return const SizedBox.shrink();
 
-              return Consumer<TimerStateNotifier>(
-                builder: (context, timerState, _) {
-                  return WinAnimation(
-                    elapsed: timerState.elapsed,
-                    moves: controller.moveCount,
-                    onComplete: () {},
-                    onNewGame: () => controller.newGame(),
-                  );
-                },
-              );
-            },
-          ),
+                return Consumer<TimerStateNotifier>(
+                  builder: (context, timerState, _) {
+                    return WinAnimation(
+                      elapsed: timerState.elapsed,
+                      moves: controller.moveCount,
+                      onComplete: () {},
+                      onNewGame: () => controller.newGame(),
+                    );
+                  },
+                );
+              },
+            ),
 
-          // Lost overlay - only rebuilds when game state changes
-          Consumer<GameController>(
-            builder: (context, controller, _) {
-                  if (controller.state != GameState.lost) return const SizedBox.shrink();
+            // Lost overlay - only rebuilds when game state changes
+            Consumer<GameController>(
+              builder: (context, controller, _) {
+                if (controller.state != GameState.lost)
+                  return const SizedBox.shrink();
 
-              return Center(
-                child: Dialog(
-                  backgroundColor: Colors.transparent,
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: AppTheme.toolbarColor(context).withValues(alpha:0.98),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.accentColor(context).withValues(alpha:0.3)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('No more moves — You lost', style: AppTypography.subheading(context)),
-                        const SizedBox(height: 12),
-                        Text('There are no legal moves left.', style: AppTypography.body(context).copyWith(color: AppTheme.textColor(context).withValues(alpha:0.7))),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            GameButton(label: 'Dismiss', onPressed: () => controller.clearLoss()),
-                            GameButton(label: 'New Game', isPrimary: true, onPressed: () => controller.newGame()),
-                          ],
-                        ),
-                      ],
+                return Center(
+                  child: Dialog(
+                    backgroundColor: Colors.transparent,
+                    child: Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppTheme.toolbarColor(context)
+                            .withValues(alpha: 0.98),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: AppTheme.accentColor(context)
+                                .withValues(alpha: 0.3)),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('No more moves — You lost',
+                              style: AppTypography.subheading(context)),
+                          const SizedBox(height: 12),
+                          Text('There are no legal moves left.',
+                              style: AppTypography.body(context).copyWith(
+                                  color: AppTheme.textColor(context)
+                                      .withValues(alpha: 0.7))),
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              GameButton(
+                                  label: 'Dismiss',
+                                  onPressed: () => controller.clearLoss()),
+                              GameButton(
+                                  label: 'New Game',
+                                  isPrimary: true,
+                                  onPressed: () => controller.newGame()),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
-        ],
+                );
+              },
+            ),
+
+            // Auto Finish FAB - positioned bottom-right
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: const AutoFinishFab(),
+            ),
+          ],
         ),
       ),
     );
   }
-  
+
   void _showSettings(BuildContext context) {
     Navigator.push(
       context,
@@ -220,13 +241,13 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
-  
+
   void _confirmNewGame(BuildContext context, GameController controller) {
     if (controller.moveCount == 0 || controller.isWon) {
       controller.newGame();
       return;
     }
-    
+
     showDialog(
       context: context,
       builder: (context) => _NewGameDialog(
@@ -256,10 +277,10 @@ class _NewGameDialog extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: AppTheme.toolbarColor(context).withValues(alpha:0.98),
+          color: AppTheme.toolbarColor(context).withValues(alpha: 0.98),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppTheme.accentColor(context).withValues(alpha:0.3),
+            color: AppTheme.accentColor(context).withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -274,7 +295,7 @@ class _NewGameDialog extends StatelessWidget {
             Text(
               'Your current game will be lost.',
               style: AppTypography.body(context).copyWith(
-                color: AppTheme.textColor(context).withValues(alpha:0.7),
+                color: AppTheme.textColor(context).withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 24),
@@ -298,4 +319,3 @@ class _NewGameDialog extends StatelessWidget {
     );
   }
 }
-
