@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'package:flutter/material.dart';
 import '../games/game_interface.dart';
 import '../games/game_factory.dart';
@@ -17,6 +18,8 @@ import 'timer_state_notifier.dart';
 import 'board_layout_service.dart';
 import 'solitaire_bot.dart';
 import 'autocomplete_detector.dart';
+import '../ai/solver_engine.dart';
+import '../ai/games/klondike_solver_state.dart';
 
 enum GameState { playing, won, autoCompleting, autoplaying, lost }
 
@@ -46,6 +49,12 @@ class GameController extends ChangeNotifier {
 
   // Bot for autoplay and auto-complete
   late SolitaireBot _bot;
+
+  // Cached winning path for smart hints
+  List<KlondikeMove>? _cachedWinningPath;
+
+  // Debounce timer for background solving
+  Timer? _solveDebounceTimer;
 
   // Track if disposed
   bool _isDisposed = false;
@@ -475,6 +484,7 @@ class GameController extends ChangeNotifier {
       clearSelection();
       _checkGameState();
       notifyListeners();
+      _invalidateCacheAndDebounceSolve();
       return;
     }
 
@@ -656,6 +666,7 @@ class GameController extends ChangeNotifier {
       clearSelection();
       _checkGameState();
       notifyListeners();
+      _invalidateCacheAndDebounceSolve();
       return true;
     }
 
@@ -684,6 +695,7 @@ class GameController extends ChangeNotifier {
         _startTimer(); // Resume timer
       }
       notifyListeners();
+      _invalidateCacheAndDebounceSolve();
     }
   }
 
@@ -700,6 +712,7 @@ class GameController extends ChangeNotifier {
       // Check game state after redo
       _checkGameState();
       notifyListeners();
+      _invalidateCacheAndDebounceSolve();
     }
   }
 
@@ -815,6 +828,70 @@ class GameController extends ChangeNotifier {
     if (_isDisposed) return;
     clearHint();
 
+    // Check smart hint from solver cache
+    if (_cachedWinningPath != null && _cachedWinningPath!.isNotEmpty) {
+      var firstMove = _cachedWinningPath!.first;
+      Pile? sourcePile, destinationPile;
+      List<PlayingCard>? cards;
+
+      switch (firstMove.type) {
+        case KlondikeMoveType.tableauToTableau:
+          sourcePile = _game.tableauPiles[firstMove.fromPile];
+          destinationPile = _game.tableauPiles[firstMove.toPile];
+          cards = !sourcePile.isEmpty ? [sourcePile.topCard!] : null;
+          break;
+        case KlondikeMoveType.tableauToFoundation:
+          sourcePile = _game.tableauPiles[firstMove.fromPile];
+          destinationPile = _game.foundationPiles[firstMove.toPile];
+          cards = !sourcePile.isEmpty ? [sourcePile.topCard!] : null;
+          break;
+        case KlondikeMoveType.wasteToTableau:
+          sourcePile = _game.wastePile;
+          destinationPile = _game.tableauPiles[firstMove.toPile];
+          cards = sourcePile != null && !sourcePile.isEmpty
+              ? [sourcePile.topCard!]
+              : null;
+          break;
+        case KlondikeMoveType.wasteToFoundation:
+          sourcePile = _game.wastePile;
+          destinationPile = _game.foundationPiles[firstMove.toPile];
+          cards = sourcePile != null && !sourcePile.isEmpty
+              ? [sourcePile.topCard!]
+              : null;
+          break;
+        case KlondikeMoveType.drawCard:
+          sourcePile = _game.stockPile;
+          destinationPile = _game.stockPile;
+          cards = null;
+          break;
+        case KlondikeMoveType.flipTableauCard:
+          // Skip flip hints
+          break;
+      }
+
+      if (sourcePile != null && destinationPile != null) {
+        hintState.setHint(
+          sourcePile: sourcePile,
+          cards: cards,
+          destinationPile: destinationPile,
+        );
+        if (!_eventController.isClosed) {
+          _eventController.add(const GameEvent(GameEventType.hintUsed));
+        }
+
+        // Auto-clear hint after delay
+        Future.delayed(const Duration(seconds: 2), () {
+          if (!_isDisposed &&
+              hintState.sourcePile == sourcePile &&
+              hintState.destinationPile == destinationPile) {
+            clearHint();
+          }
+        });
+        return;
+      }
+    }
+
+    // Fallback to traditional hints if cache is empty or invalid
     // Check for stock draw/recycle
     if (_game.getPile(PileType.stock) != null &&
         _game.getPile(PileType.stock)!.isEmpty &&
@@ -875,6 +952,156 @@ class GameController extends ChangeNotifier {
     }
   }
 
+  /// Solves the current Klondike game using the AI solver in a background isolate.
+  Future<List<KlondikeMove>?> solveKlondike() async {
+    if (_isDisposed) return null;
+
+    // Convert current game state to KlondikeSolverState
+    var tableau = <List<String>>[];
+    for (var pile in _game.tableauPiles) {
+      var cards = <String>[];
+      for (var card in pile.cards) {
+        var suitChar = card.suit.name[0]; // 'H', 'D', 'C', 'S'
+        cards.add('${card.rank}$suitChar');
+      }
+      tableau.add(cards);
+    }
+
+    var waste = <String>[];
+    if (_game.wastePile != null) {
+      for (var card in _game.wastePile!.cards) {
+        var suitChar = card.suit.name[0];
+        waste.add('${card.rank}$suitChar');
+      }
+    }
+
+    var stock = <String>[];
+    if (_game.stockPile != null) {
+      for (var card in _game.stockPile!.cards) {
+        var suitChar = card.suit.name[0];
+        stock.add('${card.rank}$suitChar');
+      }
+    }
+
+    var foundation = <String?>[null, null, null, null]; // H, D, C, S
+    var suitOrder = ['H', 'D', 'C', 'S'];
+    for (int i = 0; i < _game.foundationPiles.length; i++) {
+      var pile = _game.foundationPiles[i];
+      if (!pile.isEmpty) {
+        var card = pile.topCard!;
+        var suitChar = card.suit.name[0];
+        int index = suitOrder.indexOf(suitChar);
+        if (index >= 0) {
+          foundation[index] = '${card.rank}$suitChar';
+        }
+      }
+    }
+
+    var initialState = KlondikeSolverState(
+      tableau: tableau,
+      waste: waste,
+      stock: stock,
+      foundation: foundation,
+    );
+
+    // Run the solver in a background isolate
+    return await Isolate.run(() async {
+      var engine = SolverEngine();
+      return await engine.solve(initialState);
+    });
+  }
+
+  /// Executes a single solver move using existing game logic.
+  Future<void> executeSolverMove(KlondikeMove move) async {
+    if (_isDisposed || _state != GameState.playing) return;
+
+    try {
+      switch (move.type) {
+        case KlondikeMoveType.tableauToTableau:
+          var fromPile = _game.tableauPiles[move.fromPile];
+          var toPile = _game.tableauPiles[move.toPile];
+          if (fromPile.isEmpty) throw Exception('Source tableau pile is empty');
+          var card = fromPile.topCard!;
+          tryMove(fromPile, toPile, [card]);
+          break;
+
+        case KlondikeMoveType.tableauToFoundation:
+          var fromPile = _game.tableauPiles[move.fromPile];
+          var toPile = _game.foundationPiles[move.toPile];
+          if (fromPile.isEmpty) throw Exception('Source tableau pile is empty');
+          var card = fromPile.topCard!;
+          tryMove(fromPile, toPile, [card]);
+          break;
+
+        case KlondikeMoveType.wasteToTableau:
+          var fromPile = _game.wastePile!;
+          var toPile = _game.tableauPiles[move.toPile];
+          if (fromPile.isEmpty) throw Exception('Waste pile is empty');
+          var card = fromPile.topCard!;
+          tryMove(fromPile, toPile, [card]);
+          break;
+
+        case KlondikeMoveType.wasteToFoundation:
+          var fromPile = _game.wastePile!;
+          var toPile = _game.foundationPiles[move.toPile];
+          if (fromPile.isEmpty) throw Exception('Waste pile is empty');
+          var card = fromPile.topCard!;
+          tryMove(fromPile, toPile, [card]);
+          break;
+
+        case KlondikeMoveType.drawCard:
+          if (_game.stockPile != null && !_game.stockPile!.isEmpty) {
+            tapPile(_game.stockPile!);
+          }
+          break;
+
+        case KlondikeMoveType.flipTableauCard:
+          // Face-down tracking not implemented, skip
+          break;
+      }
+    } catch (e) {
+      // Gracefully handle execution errors (sync issues)
+      debugPrint('Solver move execution failed: $e');
+    }
+  }
+
+  /// Auto-plays a sequence of solver moves with visual pacing.
+  Future<void> autoPlaySolution(List<KlondikeMove> moves) async {
+    if (_isDisposed) return;
+
+    for (var move in moves) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (_isDisposed || _state != GameState.playing) break;
+      await executeSolverMove(move);
+    }
+  }
+
+  /// Solves and auto-plays the current game (debug/power user tool).
+  Future<void> solveAndAutoPlay() async {
+    if (_isDisposed) return;
+    var path = await solveKlondike();
+    if (path != null && !_isDisposed) {
+      await autoPlaySolution(path);
+    }
+  }
+
+  /// Invalidates cache and starts debounce timer for background solving.
+  void _invalidateCacheAndDebounceSolve() {
+    _cachedWinningPath = null;
+    _solveDebounceTimer?.cancel();
+    _solveDebounceTimer =
+        Timer(const Duration(milliseconds: 500), _backgroundSolve);
+  }
+
+  /// Background solver execution.
+  void _backgroundSolve() async {
+    if (_isDisposed) return;
+    var path = await solveKlondike();
+    if (!_isDisposed) {
+      _cachedWinningPath = path;
+    }
+  }
+
   /// Triggers the auto-finish mode for the game.
   /// This should be called when the player presses the "Auto Finish" button.
   void autoFinishGame() {
@@ -901,6 +1128,7 @@ class GameController extends ChangeNotifier {
     _stopInactivityTimer();
     _bot.stopAutoplay();
     _bot.stopAutoComplete();
+    _solveDebounceTimer?.cancel();
     _eventController.close();
     settingsProvider.removeListener(_onSettingsChanged);
     super.dispose();
