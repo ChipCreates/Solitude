@@ -964,58 +964,6 @@ class _GameplayTab extends StatelessWidget {
                   onChanged: settings.setAutoplay,
                 ),
               ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Sound Effects',
-                subtitle: 'Play audio feedback',
-                child: GameSwitch(
-                  value: settings.soundEnabled,
-                  onChanged: settings.setSoundEnabled,
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Volume',
-                subtitle: '${(settings.soundVolume * 100).round()}%',
-                child: SizedBox(
-                  width: 180,
-                  child: VolumeSlider(
-                    value: settings.soundVolume,
-                    onChanged: (value) {
-                      settings.setSoundVolume(value);
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Background Music',
-                subtitle: 'Play music during the game',
-                child: GameSwitch(
-                  value: settings.musicEnabled,
-                  onChanged: (value) {
-                    settings.setMusicEnabled(value);
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Music Volume',
-                subtitle: '${(settings.musicVolume * 100).round()}%',
-                child: SizedBox(
-                  width: 180,
-                  child: VolumeSlider(
-                    value: settings.musicVolume,
-                    onChanged: (value) {
-                      settings.setMusicVolume(value);
-                    },
-                  ),
-                ),
-              ),
               const SizedBox(height: 40),
               GameButton(
                 label: 'How to Play',

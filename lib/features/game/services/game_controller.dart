@@ -22,6 +22,7 @@ import 'autocomplete_detector.dart';
 import '../ai/solver_engine.dart';
 import '../ai/games/klondike_solver_state.dart';
 import 'package:solitude/features/settings/models/hint_mode.dart';
+import 'audio_service.dart';
 
 enum GameState { playing, won, autoCompleting, autoplaying, lost }
 
@@ -35,6 +36,9 @@ class GameController extends ChangeNotifier {
   final HintStateNotifier hintState;
   final SelectionStateNotifier selectionState;
   final TimerStateNotifier timerState;
+
+  // Audio service
+  late final AudioService _audioService;
 
   late GameInterface _game;
   GameState _state = GameState.playing;
@@ -94,6 +98,7 @@ class GameController extends ChangeNotifier {
         }
       },
     );
+    _audioService = AudioService(settingsProvider);
     // Listen to settings changes to respond to autoplay and audio toggles
     settingsProvider.addListener(_onSettingsChanged);
   }
@@ -203,6 +208,8 @@ class GameController extends ChangeNotifier {
 
   void _onSettingsChanged() {
     if (_isDisposed) return;
+    // Update audio settings
+    _audioService.updateSettings(settingsProvider);
     // If autoplay feature is disabled in settings, ensure we stop any running autoplay
     if (!settingsProvider.autoplay && _state == GameState.autoplaying) {
       stopAutoplay();
@@ -484,6 +491,9 @@ class GameController extends ChangeNotifier {
       _recordGameStart();
       _emitMoveEvent(move);
       _triggerHaptic(); // Haptic feedback for drawing cards
+      if (pile.type == PileType.stock) {
+        _audioService.playSfx(SoundEffect.deal);
+      }
       clearSelection();
       _checkGameState();
       notifyListeners();
@@ -668,6 +678,7 @@ class GameController extends ChangeNotifier {
       _recordGameStart();
       final move = _game.executeMove(from, to, cards);
       _emitMoveEvent(move);
+      _audioService.playSfx(SoundEffect.cardFlip);
       clearSelection();
       _checkGameState();
       notifyListeners();
@@ -675,6 +686,7 @@ class GameController extends ChangeNotifier {
       return true;
     }
 
+    _audioService.playSfx(SoundEffect.error);
     if (!_eventController.isClosed) {
       _eventController.add(const GameEvent(GameEventType.invalidMove));
     }
@@ -765,6 +777,7 @@ class GameController extends ChangeNotifier {
     if (_isDisposed) return;
     _stopTimer();
     _state = GameState.won;
+    _audioService.playSfx(SoundEffect.win);
     statisticsService.recordWin(
         time: timerState.elapsed, moves: _game.moveCount);
     if (!_eventController.isClosed) {
@@ -1165,6 +1178,7 @@ class GameController extends ChangeNotifier {
     _bot.stopAutoComplete();
     _solveDebounceTimer?.cancel();
     _eventController.close();
+    _audioService.dispose();
     settingsProvider.removeListener(_onSettingsChanged);
     super.dispose();
   }
