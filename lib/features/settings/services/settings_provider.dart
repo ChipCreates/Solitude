@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:solitude/features/game/models/draw_mode.dart';
 import '../models/difficulty.dart';
 import '../models/theme_preset.dart';
+import '../models/hint_mode.dart';
+import 'package:solitude/features/game/models/victory_pattern.dart';
 
 class SettingsProvider extends ChangeNotifier {
   static const String _drawModeKey = 'drawMode';
@@ -21,6 +23,9 @@ class SettingsProvider extends ChangeNotifier {
   static const String _musicVolumeKey = 'musicVolume';
   static const String _currentThemeIdKey = 'currentThemeId';
   static const String _themeOverlayIntensitiesKey = 'themeOverlayIntensities';
+  static const String _hintModeKey = 'hintMode';
+  static const String _victoryPatternKey = 'victoryPattern';
+  static const String _vibrationEnabledKey = 'vibrationEnabled';
 
   DrawMode _drawMode = DrawMode.one;
   bool _autoComplete = true;
@@ -43,6 +48,11 @@ class SettingsProvider extends ChangeNotifier {
   String _currentThemeId = 'classic_green';
   Map<String, double> _themeOverlayIntensities = {};
 
+  // Gameplay settings
+  HintMode _hintMode = HintMode.smart;
+  VictoryPattern _victoryPattern = VictoryPattern.random;
+  bool _vibrationEnabled = true;
+
   DrawMode get drawMode => _drawMode;
   bool get autoComplete => _autoComplete;
   ThemeMode get themeMode => _themeMode;
@@ -57,6 +67,9 @@ class SettingsProvider extends ChangeNotifier {
   bool get musicEnabled => _musicEnabled;
   double get musicVolume => _musicVolume;
   String get currentThemeId => _currentThemeId;
+  HintMode get hintMode => _hintMode;
+  VictoryPattern get victoryPattern => _victoryPattern;
+  bool get vibrationEnabled => _vibrationEnabled;
 
   ThemePreset get currentTheme {
     return ThemePreset.findById(_currentThemeId) ?? ThemePreset.defaultTheme;
@@ -64,30 +77,36 @@ class SettingsProvider extends ChangeNotifier {
 
   double getOverlayIntensity(String themeId) {
     return _themeOverlayIntensities[themeId] ??
-           ThemePreset.findById(themeId)?.defaultOverlayIntensity ??
-           0.5;
+        ThemePreset.findById(themeId)?.defaultOverlayIntensity ??
+        0.5;
   }
 
   double get currentOverlayIntensity => getOverlayIntensity(_currentThemeId);
-  
+
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     final drawModeIndex = prefs.getInt(_drawModeKey) ?? 0;
-    _drawMode = DrawMode.values[drawModeIndex.clamp(0, DrawMode.values.length - 1)];
-    
+    _drawMode =
+        DrawMode.values[drawModeIndex.clamp(0, DrawMode.values.length - 1)];
+
     _autoComplete = prefs.getBool(_autoCompleteKey) ?? true;
 
     _autoplay = prefs.getBool(_autoplayKey) ?? false;
-    
+
     final themeModeIndex = prefs.getInt(_themeModeKey) ?? 2; // Default to dark
-    _themeMode = ThemeMode.values[themeModeIndex.clamp(0, ThemeMode.values.length - 1)];
+    _themeMode =
+        ThemeMode.values[themeModeIndex.clamp(0, ThemeMode.values.length - 1)];
 
-    final difficultyIndex = prefs.getInt(_difficultyKey) ?? 1; // Default to medium
-    _difficulty = Difficulty.values[difficultyIndex.clamp(0, Difficulty.values.length - 1)];
+    final difficultyIndex =
+        prefs.getInt(_difficultyKey) ?? 1; // Default to medium
+    _difficulty = Difficulty
+        .values[difficultyIndex.clamp(0, Difficulty.values.length - 1)];
 
-    final scoringModeIndex = prefs.getInt(_scoringModeKey) ?? 0; // Default to standard
-    _scoringMode = ScoringMode.values[scoringModeIndex.clamp(0, ScoringMode.values.length - 1)];
+    final scoringModeIndex =
+        prefs.getInt(_scoringModeKey) ?? 0; // Default to standard
+    _scoringMode = ScoringMode
+        .values[scoringModeIndex.clamp(0, ScoringMode.values.length - 1)];
 
     _cardBackVariant = prefs.getString(_cardBackVariantKey) ?? 'back';
     _cardBackColor = prefs.getString(_cardBackColorKey) ?? '#0062ff';
@@ -102,27 +121,39 @@ class SettingsProvider extends ChangeNotifier {
     if (intensitiesJson != null) {
       try {
         final decoded = jsonDecode(intensitiesJson) as Map<String, dynamic>;
-        _themeOverlayIntensities = decoded.map((key, value) => MapEntry(key, (value as num).toDouble()));
+        _themeOverlayIntensities = decoded
+            .map((key, value) => MapEntry(key, (value as num).toDouble()));
       } catch (_) {
         _themeOverlayIntensities = {};
       }
     }
 
+    final hintModeIndex = prefs.getInt(_hintModeKey) ?? 0; // Default to smart
+    _hintMode =
+        HintMode.values[hintModeIndex.clamp(0, HintMode.values.length - 1)];
+
+    final victoryPatternIndex =
+        prefs.getInt(_victoryPatternKey) ?? 0; // Default to random
+    _victoryPattern = VictoryPattern
+        .values[victoryPatternIndex.clamp(0, VictoryPattern.values.length - 1)];
+
+    _vibrationEnabled = prefs.getBool(_vibrationEnabledKey) ?? true;
+
     notifyListeners();
   }
-  
+
   Future<void> setDrawMode(DrawMode mode) async {
     _drawMode = mode;
     notifyListeners();
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_drawModeKey, mode.index);
   }
-  
+
   Future<void> setAutoComplete(bool value) async {
     _autoComplete = value;
     notifyListeners();
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_autoCompleteKey, value);
   }
@@ -207,7 +238,8 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   Future<void> toggleTheme() async {
-    final newMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    final newMode =
+        _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     await setThemeMode(newMode);
   }
 
@@ -215,9 +247,11 @@ class SettingsProvider extends ChangeNotifier {
     _currentThemeId = themeId;
     // Tune default card back color to the first suggested color for the selected theme
     final theme = ThemePreset.findById(themeId) ?? ThemePreset.defaultTheme;
-    final suggested = theme.suggestedBackColors(_themeMode == ThemeMode.dark ? Brightness.dark : Brightness.light);
+    final suggested = theme.suggestedBackColors(
+        _themeMode == ThemeMode.dark ? Brightness.dark : Brightness.light);
     if (suggested.isNotEmpty) {
-      _cardBackColor = '#${(suggested.first.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+      _cardBackColor =
+          '#${(suggested.first.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
     }
 
     notifyListeners();
@@ -230,6 +264,28 @@ class SettingsProvider extends ChangeNotifier {
     _themeOverlayIntensities[themeId] = intensity.clamp(0.0, 1.0);
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_themeOverlayIntensitiesKey, jsonEncode(_themeOverlayIntensities));
+    await prefs.setString(
+        _themeOverlayIntensitiesKey, jsonEncode(_themeOverlayIntensities));
+  }
+
+  Future<void> setHintMode(HintMode mode) async {
+    _hintMode = mode;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_hintModeKey, mode.index);
+  }
+
+  Future<void> setVictoryPattern(VictoryPattern pattern) async {
+    _victoryPattern = pattern;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_victoryPatternKey, pattern.index);
+  }
+
+  Future<void> setVibrationEnabled(bool value) async {
+    _vibrationEnabled = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_vibrationEnabledKey, value);
   }
 }

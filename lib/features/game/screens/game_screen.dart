@@ -11,6 +11,8 @@ import 'package:solitude/core/widgets/game_toolbar.dart';
 import '../widgets/game_board.dart';
 import '../widgets/victory_overlay.dart';
 import '../widgets/animated_card_overlay.dart';
+import '../widgets/victory_card_animation.dart';
+import '../models/victory_pattern.dart' as settings_victory;
 import '../widgets/auto_finish_fab.dart';
 import 'package:solitude/features/settings/screens/settings_screen.dart';
 import 'package:solitude/features/statistics/screens/statistics_screen.dart';
@@ -153,6 +155,24 @@ class _GameScreenState extends State<GameScreen> {
                       elapsed: timerState.elapsed,
                       moves: controller.moveCount,
                       foundationPiles: controller.foundations,
+                      forcePattern: (() {
+                        final settingsVictoryPattern =
+                            Provider.of<SettingsProvider>(context,
+                                    listen: false)
+                                .victoryPattern;
+                        if (settingsVictoryPattern ==
+                            settings_victory.VictoryPattern.random) {
+                          return null;
+                        }
+                        // Map to widget VictoryPattern (skip random, so index -1)
+                        const widgetPatterns = VictoryPattern
+                            .values; // from victory_card_animation.dart
+                        final mappedIndex = settingsVictoryPattern.index - 1;
+                        return mappedIndex >= 0 &&
+                                mappedIndex < widgetPatterns.length
+                            ? widgetPatterns[mappedIndex]
+                            : null;
+                      })(),
                     );
                   },
                 );

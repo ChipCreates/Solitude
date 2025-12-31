@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../games/game_interface.dart';
 import '../games/game_factory.dart';
 import '../models/card.dart';
@@ -20,6 +21,7 @@ import 'solitaire_bot.dart';
 import 'autocomplete_detector.dart';
 import '../ai/solver_engine.dart';
 import '../ai/games/klondike_solver_state.dart';
+import 'package:solitude/features/settings/models/hint_mode.dart';
 
 enum GameState { playing, won, autoCompleting, autoplaying, lost }
 
@@ -481,6 +483,7 @@ class GameController extends ChangeNotifier {
     if (move != null) {
       _recordGameStart();
       _emitMoveEvent(move);
+      _triggerHaptic(); // Haptic feedback for drawing cards
       clearSelection();
       _checkGameState();
       notifyListeners();
@@ -496,6 +499,7 @@ class GameController extends ChangeNotifier {
         _recordGameStart();
         final move = _game.executeMove(selectedPile, pile, selectedCards);
         _emitMoveEvent(move);
+        _triggerHaptic(); // Haptic feedback for card drops
         clearSelection();
         _checkGameState();
         notifyListeners();
@@ -528,6 +532,7 @@ class GameController extends ChangeNotifier {
         _recordGameStart();
         final move = _game.executeMove(selectedPile, pile, selectedCards);
         _emitMoveEvent(move);
+        _triggerHaptic(); // Haptic feedback for card drops
         clearSelection();
         _checkGameState();
         notifyListeners();
@@ -828,6 +833,20 @@ class GameController extends ChangeNotifier {
     if (_isDisposed) return;
     clearHint();
 
+    // Check hint mode setting
+    switch (settingsProvider.hintMode) {
+      case HintMode.off:
+        // Do nothing
+        return;
+      case HintMode.fast:
+        // Use greedy heuristic
+        _showFastHint();
+        return;
+      case HintMode.smart:
+        // Use AI solver (existing logic)
+        break;
+    }
+
     // Check smart hint from solver cache
     if (_cachedWinningPath != null && _cachedWinningPath!.isNotEmpty) {
       final firstMove = _cachedWinningPath!.first;
@@ -891,7 +910,20 @@ class GameController extends ChangeNotifier {
       }
     }
 
-    // Fallback to traditional hints if cache is empty or invalid
+    // If smart hint cache is empty, fallback to fast hints
+    _showFastHint();
+  }
+
+  /// Triggers haptic feedback if enabled
+  void _triggerHaptic() {
+    if (settingsProvider.vibrationEnabled) {
+      HapticFeedback.selectionClick();
+    }
+  }
+
+  /// Shows fast hint using greedy heuristic
+  void _showFastHint() {
+    // Fallback to traditional hints (greedy heuristic)
     // Check for stock draw/recycle
     if (_game.getPile(PileType.stock) != null &&
         _game.getPile(PileType.stock)!.isEmpty &&
@@ -1089,8 +1121,11 @@ class GameController extends ChangeNotifier {
   void _invalidateCacheAndDebounceSolve() {
     _cachedWinningPath = null;
     _solveDebounceTimer?.cancel();
-    _solveDebounceTimer =
-        Timer(const Duration(milliseconds: 500), _backgroundSolve);
+    // Check settings.hintMode: if smart, proceed with debounce; if fast or off, do not run solver
+    if (settingsProvider.hintMode == HintMode.smart) {
+      _solveDebounceTimer =
+          Timer(const Duration(milliseconds: 500), _backgroundSolve);
+    }
   }
 
   /// Background solver execution.
