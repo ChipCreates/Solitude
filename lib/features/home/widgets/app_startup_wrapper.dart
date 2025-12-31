@@ -35,10 +35,7 @@ class _AppStartupWrapperState extends State<AppStartupWrapper> {
   }
 
   Future<void> _initializeApp() async {
-    // Simulate loading assets/settings (in real app this would be actual loading)
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Mock saved game check - in real implementation, check SettingsProvider or saved game state
+    // Check for saved game state (no artificial delay - main.dart handles splash timing)
     _hasSavedGame = false; // Mock: no saved game
 
     if (mounted) {
