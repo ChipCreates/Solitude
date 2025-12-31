@@ -10,6 +10,8 @@ import '../services/selection_state_notifier.dart';
 import '../services/timer_state_notifier.dart';
 import '../services/audio_service.dart';
 import '../services/game_audio_observer.dart';
+import '../achievements/services/achievement_service.dart';
+import '../achievements/services/achievement_observer.dart';
 import '../screens/game_chooser_screen.dart';
 import '../screens/game_screen.dart';
 import '../screens/loading_splash_screen.dart';
@@ -67,6 +69,7 @@ class _AppStartupWrapperState extends State<AppStartupWrapper> {
     final statistics = context.read<StatisticsService>();
     final boardLayout = context.read<BoardLayoutService>();
     final audioService = context.read<GameAudioService>();
+    final achievementService = context.read<AchievementService>();
 
     return ChangeNotifierProvider<GameController>(
       create: (ctx) {
@@ -84,6 +87,10 @@ class _AppStartupWrapperState extends State<AppStartupWrapper> {
         // Audio synchronization logic
         final audioObserver = GameAudioObserver(audioService);
         audioObserver.attach(controller);
+
+        // Achievement observer
+        final achievementObserver = AchievementObserver(achievementService);
+        achievementObserver.startObserving(controller.gameEvents);
 
         // Sync initial settings
         audioService.setEnabled(settings.soundEnabled);

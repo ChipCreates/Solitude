@@ -35,6 +35,9 @@ class GameAudioObserver {
       case GameEventType.gameLost:
         // No specific sound for losing yet
         break;
+      default:
+        // New achievement events don't trigger audio
+        break;
     }
   }
 

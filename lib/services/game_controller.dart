@@ -153,6 +153,9 @@ class GameController extends ChangeNotifier {
       _startTimer();
       statisticsService.recordGameStarted();
       _resetInactivityTimer(); // Start inactivity timer when game begins
+      if (!_eventController.isClosed) {
+        _eventController.add(const GameEvent(GameEventType.gameStarted));
+      }
     }
   }
   
@@ -345,7 +348,7 @@ class GameController extends ChangeNotifier {
 
     // 1. SPAWN FACE DOWN
     // Create a copy of the card forced to Face Down for the start of the flight
-    PlayingCard flyingCard = stockPile.topCard!.copyWith(faceUp: false);
+    final PlayingCard flyingCard = stockPile.topCard!.copyWith(faceUp: false);
 
     startCardAnimation(
       card: stockPile.topCard!,  // original for hiding logic
@@ -653,6 +656,9 @@ class GameController extends ChangeNotifier {
     clearHint();
 
     if (_game.undo()) {
+      if (!_eventController.isClosed) {
+        _eventController.add(const GameEvent(GameEventType.undoUsed));
+      }
       clearSelection();
       // If the game was marked lost, undoing may make it playable again
       if (_state == GameState.lost) {
@@ -733,8 +739,11 @@ class GameController extends ChangeNotifier {
   void _startAutoComplete() {
     if (_isDisposed) return;
     _state = GameState.autoCompleting;
+    if (!_eventController.isClosed) {
+      _eventController.add(const GameEvent(GameEventType.autoCompleteTriggered));
+    }
     notifyListeners();
-    
+
     _bot.startAutoComplete();
   }
 
@@ -785,6 +794,9 @@ class GameController extends ChangeNotifier {
           cards: null,
           destinationPile: _game.getPile(PileType.stock)!,
         );
+        if (!_eventController.isClosed) {
+          _eventController.add(const GameEvent(GameEventType.hintUsed));
+        }
         return;
     }
 
@@ -795,6 +807,9 @@ class GameController extends ChangeNotifier {
         cards: hint.cards,
         destinationPile: hint.to,
       );
+      if (!_eventController.isClosed) {
+        _eventController.add(const GameEvent(GameEventType.hintUsed));
+      }
 
       // Auto-clear hint after delay
       Future.delayed(const Duration(seconds: 2), () {

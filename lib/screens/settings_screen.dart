@@ -627,7 +627,7 @@ class _CardBackCustomization extends StatelessWidget {
                     // Layer 2: The SVG Overlays
                     if (elementId == 'spade')
                       Center(
-                        child: Transform.translate(
+                        child: Transform.translate( // ignore: prefer_const_constructors
                           offset: Offset(0, -width * 0.70 * 0.05),
                           child: SvgPicture.asset(
                             'assets/cards/spade.svg',

@@ -34,6 +34,7 @@ flutter:
     - assets/cards/
     - assets/fonts/
     - assets/audio/
+    - assets/data/
     - assets/icon.jpg
     - assets/splash-bg.svg
     - assets/solitude-bg.webp

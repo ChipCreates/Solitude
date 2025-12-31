@@ -12,6 +12,9 @@ import 'services/timer_state_notifier.dart';
 import 'services/svg_preload_service.dart';
 import 'services/audio_service.dart';
 import 'services/desktop_window_service.dart';
+import 'achievements/services/achievement_service.dart';
+import 'achievements/models/achievement.dart';
+import 'achievements/models/achievement_category_adapter.dart';
 import 'theme/app_theme.dart';
 import 'screens/loading_splash_screen.dart';
 import 'widgets/app_startup_wrapper.dart';
@@ -48,7 +51,13 @@ Future<void> _initializeApp() async {
 
   // Initialize Hive for local lightweight storage
   await Hive.initFlutter();
+  Hive.registerAdapter(AchievementAdapter());
+  Hive.registerAdapter(AchievementCategoryAdapter());
   await Hive.openBox('statistics');
+
+  // Initialize achievement service
+  final achievementService = AchievementService();
+  await achievementService.initialize();
 
   // Initialize services
   final settingsProvider = SettingsProvider();
@@ -99,6 +108,7 @@ Future<void> _initializeApp() async {
         ChangeNotifierProvider(create: (_) => TimerStateNotifier()),
         Provider.value(value: boardLayoutService),
         Provider.value(value: audioService),
+        Provider.value(value: achievementService),
       ],
       child: const SolitudeApp(),
     ),

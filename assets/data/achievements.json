@@ -1,0 +1,44 @@
+{
+  "achievements": [
+    {
+      "id": "first_win",
+      "title": "First Victory",
+      "description": "Win your first game",
+      "icon": "assets/solitude-logo.svg",
+      "category": "milestone",
+      "targetValue": 1,
+      "criteria": {"wins": 1}
+    },
+    {
+      "id": "speed_demon",
+      "title": "Speed Demon",
+      "description": "Win a game in under 2 minutes",
+      "icon": "assets/solitude-logo.svg",
+      "category": "speed",
+      "criteria": {"maxTime": 120}
+    },
+    {
+      "id": "efficiency_expert",
+      "title": "Efficiency Expert",
+      "description": "Win with fewer than 100 moves",
+      "icon": "assets/solitude-logo.svg",
+      "category": "efficiency",
+      "criteria": {"maxMoves": 100}
+    },
+    {
+      "id": "streak_5",
+      "title": "On Fire",
+      "description": "Win 5 games in a row",
+      "icon": "assets/solitude-logo.svg",
+      "category": "streak",
+      "targetValue": 5
+    },
+    {
+      "id": "perfect_game",
+      "title": "Perfectionist",
+      "description": "Win without using undo or hints",
+      "icon": "assets/solitude-logo.svg",
+      "category": "special"
+    }
+  ]
+}
