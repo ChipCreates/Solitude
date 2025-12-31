@@ -880,8 +880,6 @@ class GameController extends ChangeNotifier {
   void autoFinishGame() {
     if (_isDisposed || !canAutoFinish) return;
 
-    // TODO: Implement auto-finish animation in Phase 3
-
     // Emit the event for achievements and other listeners
     if (!_eventController.isClosed) {
       _eventController

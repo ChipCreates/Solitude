@@ -9,7 +9,7 @@ import 'package:solitude/core/theme/app_theme.dart';
 import 'package:solitude/core/widgets/game_button.dart';
 import 'package:solitude/core/widgets/game_toolbar.dart';
 import '../widgets/game_board.dart';
-import '../widgets/win_animation.dart';
+import '../widgets/victory_overlay.dart';
 import '../widgets/animated_card_overlay.dart';
 import '../widgets/auto_finish_fab.dart';
 import 'package:solitude/features/settings/screens/settings_screen.dart';
@@ -148,11 +148,11 @@ class _GameScreenState extends State<GameScreen> {
 
                 return Consumer<TimerStateNotifier>(
                   builder: (context, timerState, _) {
-                    return WinAnimation(
+                    return VictoryOverlay(
+                      onNewGame: () => controller.newGame(),
                       elapsed: timerState.elapsed,
                       moves: controller.moveCount,
-                      onComplete: () {},
-                      onNewGame: () => controller.newGame(),
+                      foundationPiles: controller.foundations,
                     );
                   },
                 );
