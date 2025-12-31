@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:async';
 
 import 'abstract_solver.dart';
@@ -23,27 +22,25 @@ class SolverEngine {
 
   /// Synchronous computation of the solution path.
   List<T>? _compute<T extends SolverMove>(SolverState<T> initialState) {
-    // Priority queue for states, max-heap based on heuristic score
-    var openSet = PriorityQueue<SolverState<T>>(
-      (a, b) => b.heuristicScore.compareTo(a.heuristicScore),
-    );
+    // Priority list for states, sorted by heuristic score (highest first)
+    final openSet = <SolverState<T>>[];
 
     // Maps for reconstructing the path
-    var cameFrom = <String, SolverState<T>>{};
-    var moveToHere = <String, T>{};
+    final cameFrom = <String, SolverState<T>>{};
+    final moveToHere = <String, T>{};
 
     // Set of visited state signatures to avoid cycles
-    var visited = <String>{};
+    final visited = <String>{};
 
     openSet.add(initialState);
     visited.add(initialState.signature);
 
     while (openSet.isNotEmpty) {
-      var current = openSet.removeFirst();
+      final current = openSet.removeAt(0);
 
       if (current.isWon) {
         // Reconstruct the path by backtracking
-        List<T> path = [];
+        final path = <T>[];
         var state = current;
         while (moveToHere.containsKey(state.signature)) {
           path.add(moveToHere[state.signature]!);
@@ -53,14 +50,16 @@ class SolverEngine {
       }
 
       // Generate and enqueue neighboring states
-      for (var move in current.getAvailableMoves()) {
-        var neighbor = current.applyMove(move);
-        var sig = neighbor.signature;
+      for (final move in current.getAvailableMoves()) {
+        final neighbor = current.applyMove(move);
+        final sig = neighbor.signature;
         if (visited.contains(sig)) continue;
         visited.add(sig);
         cameFrom[sig] = current;
         moveToHere[sig] = move;
         openSet.add(neighbor);
+        // Keep sorted for priority (descending heuristic)
+        openSet.sort((a, b) => b.heuristicScore.compareTo(a.heuristicScore));
       }
     }
 

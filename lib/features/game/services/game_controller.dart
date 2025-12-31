@@ -830,7 +830,7 @@ class GameController extends ChangeNotifier {
 
     // Check smart hint from solver cache
     if (_cachedWinningPath != null && _cachedWinningPath!.isNotEmpty) {
-      var firstMove = _cachedWinningPath!.first;
+      final firstMove = _cachedWinningPath!.first;
       Pile? sourcePile, destinationPile;
       List<PlayingCard>? cards;
 
@@ -957,47 +957,47 @@ class GameController extends ChangeNotifier {
     if (_isDisposed) return null;
 
     // Convert current game state to KlondikeSolverState
-    var tableau = <List<String>>[];
-    for (var pile in _game.tableauPiles) {
-      var cards = <String>[];
-      for (var card in pile.cards) {
-        var suitChar = card.suit.name[0]; // 'H', 'D', 'C', 'S'
+    final tableau = <List<String>>[];
+    for (final pile in _game.tableauPiles) {
+      final cards = <String>[];
+      for (final card in pile.cards) {
+        final suitChar = card.suit.name[0]; // 'H', 'D', 'C', 'S'
         cards.add('${card.rank}$suitChar');
       }
       tableau.add(cards);
     }
 
-    var waste = <String>[];
+    final waste = <String>[];
     if (_game.wastePile != null) {
-      for (var card in _game.wastePile!.cards) {
-        var suitChar = card.suit.name[0];
+      for (final card in _game.wastePile!.cards) {
+        final suitChar = card.suit.name[0];
         waste.add('${card.rank}$suitChar');
       }
     }
 
-    var stock = <String>[];
+    final stock = <String>[];
     if (_game.stockPile != null) {
-      for (var card in _game.stockPile!.cards) {
-        var suitChar = card.suit.name[0];
+      for (final card in _game.stockPile!.cards) {
+        final suitChar = card.suit.name[0];
         stock.add('${card.rank}$suitChar');
       }
     }
 
-    var foundation = <String?>[null, null, null, null]; // H, D, C, S
-    var suitOrder = ['H', 'D', 'C', 'S'];
+    final foundation = <String?>[null, null, null, null]; // H, D, C, S
+    final suitOrder = ['H', 'D', 'C', 'S'];
     for (int i = 0; i < _game.foundationPiles.length; i++) {
-      var pile = _game.foundationPiles[i];
+      final pile = _game.foundationPiles[i];
       if (!pile.isEmpty) {
-        var card = pile.topCard!;
-        var suitChar = card.suit.name[0];
-        int index = suitOrder.indexOf(suitChar);
+        final card = pile.topCard!;
+        final suitChar = card.suit.name[0];
+        final index = suitOrder.indexOf(suitChar);
         if (index >= 0) {
           foundation[index] = '${card.rank}$suitChar';
         }
       }
     }
 
-    var initialState = KlondikeSolverState(
+    final initialState = KlondikeSolverState(
       tableau: tableau,
       waste: waste,
       stock: stock,
@@ -1006,7 +1006,7 @@ class GameController extends ChangeNotifier {
 
     // Run the solver in a background isolate
     return await Isolate.run(() async {
-      var engine = SolverEngine();
+      final engine = SolverEngine();
       return await engine.solve(initialState);
     });
   }
@@ -1018,34 +1018,34 @@ class GameController extends ChangeNotifier {
     try {
       switch (move.type) {
         case KlondikeMoveType.tableauToTableau:
-          var fromPile = _game.tableauPiles[move.fromPile];
-          var toPile = _game.tableauPiles[move.toPile];
+          final fromPile = _game.tableauPiles[move.fromPile];
+          final toPile = _game.tableauPiles[move.toPile];
           if (fromPile.isEmpty) throw Exception('Source tableau pile is empty');
-          var card = fromPile.topCard!;
+          final card = fromPile.topCard!;
           tryMove(fromPile, toPile, [card]);
           break;
 
         case KlondikeMoveType.tableauToFoundation:
-          var fromPile = _game.tableauPiles[move.fromPile];
-          var toPile = _game.foundationPiles[move.toPile];
+          final fromPile = _game.tableauPiles[move.fromPile];
+          final toPile = _game.foundationPiles[move.toPile];
           if (fromPile.isEmpty) throw Exception('Source tableau pile is empty');
-          var card = fromPile.topCard!;
+          final card = fromPile.topCard!;
           tryMove(fromPile, toPile, [card]);
           break;
 
         case KlondikeMoveType.wasteToTableau:
-          var fromPile = _game.wastePile!;
-          var toPile = _game.tableauPiles[move.toPile];
+          final fromPile = _game.wastePile!;
+          final toPile = _game.tableauPiles[move.toPile];
           if (fromPile.isEmpty) throw Exception('Waste pile is empty');
-          var card = fromPile.topCard!;
+          final card = fromPile.topCard!;
           tryMove(fromPile, toPile, [card]);
           break;
 
         case KlondikeMoveType.wasteToFoundation:
-          var fromPile = _game.wastePile!;
-          var toPile = _game.foundationPiles[move.toPile];
+          final fromPile = _game.wastePile!;
+          final toPile = _game.foundationPiles[move.toPile];
           if (fromPile.isEmpty) throw Exception('Waste pile is empty');
-          var card = fromPile.topCard!;
+          final card = fromPile.topCard!;
           tryMove(fromPile, toPile, [card]);
           break;
 
@@ -1079,7 +1079,7 @@ class GameController extends ChangeNotifier {
   /// Solves and auto-plays the current game (debug/power user tool).
   Future<void> solveAndAutoPlay() async {
     if (_isDisposed) return;
-    var path = await solveKlondike();
+    final path = await solveKlondike();
     if (path != null && !_isDisposed) {
       await autoPlaySolution(path);
     }
@@ -1096,7 +1096,7 @@ class GameController extends ChangeNotifier {
   /// Background solver execution.
   void _backgroundSolve() async {
     if (_isDisposed) return;
-    var path = await solveKlondike();
+    final path = await solveKlondike();
     if (!_isDisposed) {
       _cachedWinningPath = path;
     }

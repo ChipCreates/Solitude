@@ -2,6 +2,7 @@
 ///
 /// This file defines the contracts that concrete game solvers must implement
 /// to work with the generic SolverEngine.
+library;
 
 /// Abstract base class for moves in the solver.
 ///

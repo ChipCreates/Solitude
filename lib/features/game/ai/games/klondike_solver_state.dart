@@ -109,7 +109,7 @@ class KlondikeSolverState implements SolverState<KlondikeMove> {
 
   @override
   List<KlondikeMove> getAvailableMoves() {
-    List<KlondikeMove> moves = [];
+    final moves = <KlondikeMove>[];
 
     // Draw from stock if available
     if (stock.isNotEmpty) {
@@ -118,9 +118,9 @@ class KlondikeSolverState implements SolverState<KlondikeMove> {
 
     // Waste to foundation or tableau
     if (waste.isNotEmpty) {
-      Card topWaste = Card(waste.last);
+      final topWaste = Card(waste.last);
       // To foundation
-      int suitIndex = _suitIndex(topWaste.suit);
+      final suitIndex = _suitIndex(topWaste.suit);
       if (foundation[suitIndex] == null ||
           Card(foundation[suitIndex]!).canPlaceOnFoundation(topWaste)) {
         moves.add(KlondikeMove(
@@ -129,7 +129,7 @@ class KlondikeSolverState implements SolverState<KlondikeMove> {
       // To tableau
       for (int i = 0; i < 7; i++) {
         if (tableau[i].isNotEmpty) {
-          Card topTableau = Card(tableau[i].last);
+          final topTableau = Card(tableau[i].last);
           if (topWaste.canPlaceOn(topTableau)) {
             moves.add(KlondikeMove(KlondikeMoveType.wasteToTableau, -1, i, -1));
           }
@@ -143,10 +143,10 @@ class KlondikeSolverState implements SolverState<KlondikeMove> {
     // Tableau moves
     for (int from = 0; from < 7; from++) {
       if (tableau[from].isEmpty) continue;
-      Card topCard = Card(tableau[from].last);
+      final topCard = Card(tableau[from].last);
 
       // To foundation
-      int suitIndex = _suitIndex(topCard.suit);
+      final suitIndex = _suitIndex(topCard.suit);
       if (foundation[suitIndex] == null ||
           Card(foundation[suitIndex]!).canPlaceOnFoundation(topCard)) {
         moves.add(KlondikeMove(
@@ -157,7 +157,7 @@ class KlondikeSolverState implements SolverState<KlondikeMove> {
       for (int to = 0; to < 7; to++) {
         if (to == from) continue;
         if (tableau[to].isNotEmpty) {
-          Card destTop = Card(tableau[to].last);
+          final destTop = Card(tableau[to].last);
           if (topCard.canPlaceOn(destTop)) {
             moves.add(
                 KlondikeMove(KlondikeMoveType.tableauToTableau, from, to, -1));
@@ -195,42 +195,44 @@ class KlondikeSolverState implements SolverState<KlondikeMove> {
     switch (move.type) {
       case KlondikeMoveType.drawCard:
         if (stock.isEmpty) throw StateError('No cards in stock');
-        var newWaste = List<String>.from(waste)..add(stock.removeLast());
-        return copyWith(waste: newWaste, stock: stock);
+        final newStock = List<String>.from(stock);
+        final drawnCard = newStock.removeLast();
+        final newWaste = List<String>.from(waste)..add(drawnCard);
+        return copyWith(waste: newWaste, stock: newStock);
 
       case KlondikeMoveType.wasteToFoundation:
         if (waste.isEmpty) throw StateError('No cards in waste');
-        var card = waste.last;
-        var newWaste = List<String>.from(waste)..removeLast();
-        var newFoundation = List<String?>.from(foundation);
+        final card = waste.last;
+        final newWaste = List<String>.from(waste)..removeLast();
+        final newFoundation = List<String?>.from(foundation);
         newFoundation[move.toPile] = card;
         return copyWith(waste: newWaste, foundation: newFoundation);
 
       case KlondikeMoveType.wasteToTableau:
         if (waste.isEmpty) throw StateError('No cards in waste');
-        var card = waste.last;
-        var newWaste = List<String>.from(waste)..removeLast();
-        var newTableau =
+        final card = waste.last;
+        final newWaste = List<String>.from(waste)..removeLast();
+        final newTableau =
             List<List<String>>.from(tableau.map((p) => List.from(p)));
         newTableau[move.toPile].add(card);
         return copyWith(waste: newWaste, tableau: newTableau);
 
       case KlondikeMoveType.tableauToFoundation:
-        var pile = tableau[move.fromPile];
+        final pile = tableau[move.fromPile];
         if (pile.isEmpty) throw StateError('Pile is empty');
-        var card = pile.last;
-        var newTableau =
+        final card = pile.last;
+        final newTableau =
             List<List<String>>.from(tableau.map((p) => List.from(p)));
         newTableau[move.fromPile].removeLast();
-        var newFoundation = List<String?>.from(foundation);
+        final newFoundation = List<String?>.from(foundation);
         newFoundation[move.toPile] = card;
         return copyWith(tableau: newTableau, foundation: newFoundation);
 
       case KlondikeMoveType.tableauToTableau:
-        var fromPile = tableau[move.fromPile];
+        final fromPile = tableau[move.fromPile];
         if (fromPile.isEmpty) throw StateError('Pile is empty');
-        var card = fromPile.last;
-        var newTableau =
+        final card = fromPile.last;
+        final newTableau =
             List<List<String>>.from(tableau.map((p) => List.from(p)));
         newTableau[move.fromPile].removeLast();
         newTableau[move.toPile].add(card);
@@ -243,7 +245,7 @@ class KlondikeSolverState implements SolverState<KlondikeMove> {
   }
 
   @override
-  bool get isWon => foundation.every((f) => f != null && Card(f!).rank == 13);
+  bool get isWon => foundation.every((f) => f != null && Card(f).rank == 13);
 
   @override
   String get signature => jsonEncode({
@@ -257,9 +259,9 @@ class KlondikeSolverState implements SolverState<KlondikeMove> {
   int get heuristicScore {
     if (isWon) return 1000;
     int score = 0;
-    foundation.forEach((f) {
+    for (final f in foundation) {
       if (f != null) score += 10 * Card(f).rank;
-    });
+    }
     // No face-down tracking, so no +5 for flipping
     return score;
   }
