@@ -293,8 +293,9 @@ class GameController extends ChangeNotifier {
 
   /// Handle action on the currently focused pile (Enter/Space key)
   void activateFocusedPile() {
-    if (_isDisposed || _state != GameState.playing || _focusedPile == null)
+    if (_isDisposed || _state != GameState.playing || _focusedPile == null) {
       return;
+    }
 
     final stockPile = _game.stockPile;
     final wastePile = _game.wastePile;
@@ -667,7 +668,9 @@ class GameController extends ChangeNotifier {
   void undo() {
     if (_isDisposed ||
         _state == GameState.autoCompleting ||
-        _state == GameState.autoplaying) return;
+        _state == GameState.autoplaying) {
+      return;
+    }
     clearHint();
 
     if (_game.undo()) {
@@ -687,7 +690,9 @@ class GameController extends ChangeNotifier {
   void redo() {
     if (_isDisposed ||
         _state == GameState.autoCompleting ||
-        _state == GameState.autoplaying) return;
+        _state == GameState.autoplaying) {
+      return;
+    }
     clearHint();
 
     if (_game.redo()) {
@@ -875,7 +880,7 @@ class GameController extends ChangeNotifier {
   void autoFinishGame() {
     if (_isDisposed || !canAutoFinish) return;
 
-    print('Auto Finish Triggered');
+    // TODO: Implement auto-finish animation in Phase 3
 
     // Emit the event for achievements and other listeners
     if (!_eventController.isClosed) {

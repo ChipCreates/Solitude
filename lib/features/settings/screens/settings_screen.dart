@@ -180,8 +180,9 @@ class _SettingsScreenState extends State<SettingsScreen>
                   ? Colors.white.withValues(alpha: 0.12)
                   : Colors.black.withValues(alpha: 0.06);
             }
-            if (states.contains(WidgetState.pressed))
+            if (states.contains(WidgetState.pressed)) {
               return theme.accentColor.withValues(alpha: 0.14);
+            }
             return Colors.transparent;
           }),
           labelColor: theme.accentColor,

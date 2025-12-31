@@ -162,8 +162,9 @@ class _GameScreenState extends State<GameScreen> {
             // Lost overlay - only rebuilds when game state changes
             Consumer<GameController>(
               builder: (context, controller, _) {
-                if (controller.state != GameState.lost)
+                if (controller.state != GameState.lost) {
                   return const SizedBox.shrink();
+                }
 
                 return Center(
                   child: Dialog(
@@ -210,10 +211,10 @@ class _GameScreenState extends State<GameScreen> {
             ),
 
             // Auto Finish FAB - positioned bottom-right
-            Positioned(
+            const Positioned(
               bottom: 16,
               right: 16,
-              child: const AutoFinishFab(),
+              child: AutoFinishFab(),
             ),
           ],
         ),
