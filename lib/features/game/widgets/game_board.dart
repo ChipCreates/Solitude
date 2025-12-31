@@ -39,15 +39,20 @@ class _GameBoardState extends State<GameBoard> {
           decoration: _buildFeltBackground(context),
           child: Padding(
             padding: EdgeInsets.fromLTRB(
-              layout.padding + 24,  // Left padding
+              layout.padding + 24, // Left padding
               layout.padding,
-              layout.padding + 24,  // Right padding (equal to left)
+              layout.padding + 24, // Right padding (equal to left)
               layout.padding,
             ),
             child: Column(
               children: [
-                // Top row: Delegated to strategy (uses Selectors internally)
-                _layoutDelegate.buildTopRow(context, controller, layout),
+                // Top row: Delegated to strategy (listen to settings changes for leftHandMode)
+                Consumer<SettingsProvider>(
+                  builder: (context, settings, _) {
+                    return _layoutDelegate.buildTopRow(
+                        context, controller, layout);
+                  },
+                ),
                 SizedBox(height: layout.rowSpacing),
                 // Tableau - uses Selectors for granular rebuilds
                 Expanded(
@@ -60,7 +65,7 @@ class _GameBoardState extends State<GameBoard> {
       },
     );
   }
-  
+
   BoxDecoration _buildFeltBackground(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final settings = Provider.of<SettingsProvider>(context);
@@ -69,7 +74,8 @@ class _GameBoardState extends State<GameBoard> {
 
     // Get theme-specific colors
     final baseColor = theme.getTableColor(Theme.of(context).brightness);
-    final darkerColor = isDark ? theme.toolbarColorDark : theme.toolbarColorLight;
+    final darkerColor =
+        isDark ? theme.toolbarColorDark : theme.toolbarColorLight;
     final highlightColor = isDark
         ? baseColor.withValues(alpha: 0.3)
         : baseColor.withValues(alpha: 0.5);
@@ -84,14 +90,15 @@ class _GameBoardState extends State<GameBoard> {
         colors: [
           highlightColor,
           baseColor,
-          darkerColor.withValues(alpha:0.8),
+          darkerColor.withValues(alpha: 0.8),
         ],
         stops: const [0.0, 0.5, 1.0],
       ),
     );
   }
 
-  Widget _buildTableau(BuildContext context, GameController controller, BoardLayoutData layout) {
+  Widget _buildTableau(
+      BuildContext context, GameController controller, BoardLayoutData layout) {
     // Only build as many piles as the controller has, up to column count
     // This allows the layout to adapt if the game state doesn't match the delegate's expectation
     // (though in a correct implementation they should match)
@@ -115,7 +122,7 @@ class _GameBoardState extends State<GameBoard> {
       ],
     );
   }
-  
+
   BoardLayoutData _calculateLayout(BoxConstraints constraints) {
     // Return cached layout if constraints haven't changed
     if (_lastConstraints == constraints && _cachedLayout != null) {
@@ -135,14 +142,15 @@ class _GameBoardState extends State<GameBoard> {
     // Dynamic column count from delegate
     final int columns = _layoutDelegate.columnCount;
     final int gaps = columns - 1;
-    
+
     // availableWidth = columns * cardWidth + gaps * spacing
     // spacing = 0.15 * cardWidth
     // availableWidth = columns * cardWidth + gaps * 0.15 * cardWidth
     // availableWidth = cardWidth * (columns + gaps * 0.15)
-    
+
     final denominator = columns + (gaps * 0.15);
-    final cardWidth = (availableWidth / denominator).clamp(minCardWidth, maxCardWidth);
+    final cardWidth =
+        (availableWidth / denominator).clamp(minCardWidth, maxCardWidth);
     final pileSpacing = cardWidth * 0.15;
 
     final cardHeight = cardWidth / CardWidget.aspectRatio;
@@ -151,13 +159,15 @@ class _GameBoardState extends State<GameBoard> {
     final topRowHeight = cardHeight;
     // Increased from 0.02 to 0.04 for more space between top row and tableau
     final rowSpacing = constraints.maxHeight * 0.04;
-    final availableTableauHeight = constraints.maxHeight - topRowHeight - rowSpacing - (padding * 2);
+    final availableTableauHeight =
+        constraints.maxHeight - topRowHeight - rowSpacing - (padding * 2);
 
     // Max cards in a tableau pile after dealing: 7 + (remaining deck if all went to one pile)
     // Realistically, aim for ~20 cards visible
     const maxVisibleCards = 20;
     final stackOffset = (availableTableauHeight - cardHeight) / maxVisibleCards;
-    final clampedStackOffset = stackOffset.clamp(cardHeight * 0.15, cardHeight * 0.28);
+    final clampedStackOffset =
+        stackOffset.clamp(cardHeight * 0.15, cardHeight * 0.28);
 
     // Cache the computed layout
     _cachedLayout = BoardLayoutData(

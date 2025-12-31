@@ -140,6 +140,37 @@ class GameController extends ChangeNotifier {
   Offset? getCardPosition(Pile pile, {double stackOffset = 0}) =>
       boardLayout.getCardPosition(pile, stackOffset: stackOffset);
 
+  /// Start a new game with the specified game type
+  void startNewGame(GameType gameType) {
+    if (_isDisposed) return;
+
+    // Change the game type if different
+    if (_game.runtimeType != GameFactory.createGame(gameType).runtimeType) {
+      _game = GameFactory.createGame(gameType);
+
+      // Reinitialize game-specific services
+      _bot = SolitaireBot(
+        _game,
+        () {
+          if (!_isDisposed) notifyListeners();
+        },
+        _handleWin,
+        _handleLoss,
+        (event) {
+          if (!_isDisposed && !_eventController.isClosed) {
+            _eventController.add(event);
+          }
+        },
+      );
+
+      // Reinitialize board layout
+      initializePileKeys();
+    }
+
+    // Then proceed with normal new game logic
+    newGame();
+  }
+
   void newGame() {
     if (_isDisposed) return;
     _stopTimer();
@@ -149,6 +180,9 @@ class GameController extends ChangeNotifier {
 
     // Update difficulty settings via game interface
     _game.applyDifficulty(settingsProvider.difficulty);
+
+    // Configure game with current settings (Draw Mode, Vegas Mode, etc.)
+    _game.configure(settingsProvider);
 
     _game.initialize();
     _state = GameState.playing;
@@ -997,62 +1031,24 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  /// Solves the current Klondike game using the AI solver in a background isolate.
-  Future<List<KlondikeMove>?> solveKlondike() async {
+  /// Solves the current game using the AI solver in a background isolate.
+  /// Returns null if the game doesn't support solving (e.g., Spider).
+  Future<List<KlondikeMove>?> solveGame() async {
     if (_isDisposed) return null;
 
-    // Convert current game state to KlondikeSolverState
-    final tableau = <List<String>>[];
-    for (final pile in _game.tableauPiles) {
-      final cards = <String>[];
-      for (final card in pile.cards) {
-        final suitChar = card.suit.name[0]; // 'H', 'D', 'C', 'S'
-        cards.add('${card.rank}$suitChar');
-      }
-      tableau.add(cards);
-    }
+    // Get solver state from the game interface
+    final solverState = _game.getSolverState();
 
-    final waste = <String>[];
-    if (_game.wastePile != null) {
-      for (final card in _game.wastePile!.cards) {
-        final suitChar = card.suit.name[0];
-        waste.add('${card.rank}$suitChar');
-      }
-    }
+    // If the game doesn't support solving, return null
+    if (solverState == null) return null;
 
-    final stock = <String>[];
-    if (_game.stockPile != null) {
-      for (final card in _game.stockPile!.cards) {
-        final suitChar = card.suit.name[0];
-        stock.add('${card.rank}$suitChar');
-      }
-    }
-
-    final foundation = <String?>[null, null, null, null]; // H, D, C, S
-    final suitOrder = ['H', 'D', 'C', 'S'];
-    for (int i = 0; i < _game.foundationPiles.length; i++) {
-      final pile = _game.foundationPiles[i];
-      if (!pile.isEmpty) {
-        final card = pile.topCard!;
-        final suitChar = card.suit.name[0];
-        final index = suitOrder.indexOf(suitChar);
-        if (index >= 0) {
-          foundation[index] = '${card.rank}$suitChar';
-        }
-      }
-    }
-
-    final initialState = KlondikeSolverState(
-      tableau: tableau,
-      waste: waste,
-      stock: stock,
-      foundation: foundation,
-    );
+    // Currently only KlondikeSolverState is supported
+    if (solverState is! KlondikeSolverState) return null;
 
     // Run the solver in a background isolate
     return await Isolate.run(() async {
       final engine = SolverEngine();
-      return await engine.solve(initialState);
+      return await engine.solve(solverState);
     });
   }
 
@@ -1124,7 +1120,7 @@ class GameController extends ChangeNotifier {
   /// Solves and auto-plays the current game (debug/power user tool).
   Future<void> solveAndAutoPlay() async {
     if (_isDisposed) return;
-    final path = await solveKlondike();
+    final path = await solveGame();
     if (path != null && !_isDisposed) {
       await autoPlaySolution(path);
     }
@@ -1135,7 +1131,9 @@ class GameController extends ChangeNotifier {
     _cachedWinningPath = null;
     _solveDebounceTimer?.cancel();
     // Check settings.hintMode: if smart, proceed with debounce; if fast or off, do not run solver
-    if (settingsProvider.hintMode == HintMode.smart) {
+    // Also check if the game supports solving
+    if (settingsProvider.hintMode == HintMode.smart &&
+        _game.getSolverState() != null) {
       _solveDebounceTimer =
           Timer(const Duration(milliseconds: 500), _backgroundSolve);
     }
@@ -1144,7 +1142,7 @@ class GameController extends ChangeNotifier {
   /// Background solver execution.
   void _backgroundSolve() async {
     if (_isDisposed) return;
-    final path = await solveKlondike();
+    final path = await solveGame();
     if (!_isDisposed) {
       _cachedWinningPath = path;
     }

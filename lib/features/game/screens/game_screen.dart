@@ -16,6 +16,7 @@ import '../models/victory_pattern.dart' as settings_victory;
 import '../widgets/auto_finish_fab.dart';
 import 'package:solitude/features/settings/screens/settings_screen.dart';
 import 'package:solitude/features/statistics/screens/statistics_screen.dart';
+import 'package:solitude/features/home/widgets/game_selector_sheet.dart';
 import '../games/game_factory.dart';
 
 class GameScreen extends StatefulWidget {
@@ -265,7 +266,8 @@ class _GameScreenState extends State<GameScreen> {
 
   void _confirmNewGame(BuildContext context, GameController controller) {
     if (controller.moveCount == 0 || controller.isWon) {
-      controller.newGame();
+      // Show game selector for fresh game
+      _showGameSelector(context, controller);
       return;
     }
 
@@ -274,11 +276,24 @@ class _GameScreenState extends State<GameScreen> {
       builder: (context) => _NewGameDialog(
         onConfirm: () {
           Navigator.pop(context);
-          controller.newGame();
+          // Show game selector after confirmation
+          _showGameSelector(context, controller);
         },
         onCancel: () => Navigator.pop(context),
       ),
     );
+  }
+
+  void _showGameSelector(BuildContext context, GameController controller) {
+    showModalBottomSheet<GameType>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const GameSelectorSheet(),
+    ).then((selectedGameType) {
+      if (selectedGameType != null) {
+        controller.startNewGame(selectedGameType);
+      }
+    });
   }
 }
 

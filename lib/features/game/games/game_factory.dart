@@ -1,5 +1,6 @@
 import 'game_interface.dart';
 import 'klondike/klondike_game.dart';
+import 'spider/spider_game.dart';
 
 /// Supported game types
 enum GameType {
@@ -33,7 +34,7 @@ class GameFactory {
       case GameType.klondike:
         return KlondikeGame();
       case GameType.spider:
-        throw UnsupportedError('Spider game not yet implemented');
+        return SpiderGame();
     }
   }
 }

@@ -3,6 +3,8 @@ import '../models/card.dart';
 import '../models/pile.dart';
 import '../models/move.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
+import 'package:solitude/features/settings/services/settings_provider.dart';
+import '../ai/abstract_solver.dart';
 
 /// Abstract interface that all solitaire game types must implement.
 /// This allows for future expansion to Spider, FreeCell, etc.
@@ -30,43 +32,43 @@ abstract class GameInterface {
   /// Initialize a new game with shuffled deck.
   /// Optionally accepts a [Random] instance for deterministic testing.
   void initialize({Random? random});
-  
+
   /// Reset the current game to its initial state
   void reset();
-  
+
   /// Get all piles in the game
   List<Pile> get allPiles;
-  
+
   /// Check if moving cards from one pile to another is valid
   bool isValidMove(Pile from, Pile to, List<PlayingCard> cards);
-  
+
   /// Execute a move (assumes validity already checked)
   Move? executeMove(Pile from, Pile to, List<PlayingCard> cards);
-  
+
   /// Undo the last move
   bool undo();
-  
+
   /// Check if the game is won
   bool checkWin();
-  
+
   /// Check if auto-complete is possible (all cards face-up)
   bool canAutoComplete();
-  
+
   /// Perform one step of auto-complete, returns true if a move was made
   bool autoCompleteStep();
-  
+
   /// Get the current move count
   int get moveCount;
-  
+
   /// Get the move history for undo
   List<Move> get moveHistory;
-  
+
   /// Handle tap on stock pile (draw cards)
   Move? tapStock();
-  
+
   /// Find valid moves for a given card selection
   List<Pile> getValidDestinations(Pile from, List<PlayingCard> cards);
-  
+
   /// Get hint for next possible move
   ({Pile from, Pile to, List<PlayingCard> cards})? getHint();
 
@@ -115,6 +117,21 @@ abstract class GameInterface {
   /// Default implementation does nothing.
   void applyDifficulty(Difficulty difficulty) {}
 
+  /// Configure the game based on current settings.
+  /// This allows the game to adapt to Draw Mode, Vegas Mode, etc.
+  /// Called after game creation in newGame().
+  /// Default implementation does nothing.
+  void configure(SettingsProvider settings) {}
+
+  // ==========================================================================
+  // Solver Support
+  // ==========================================================================
+
+  /// Returns a solver state snapshot for AI analysis.
+  /// Returns null if the game doesn't support solving (e.g., Spider in V1.0).
+  /// Each game type implements its own solver state conversion.
+  SolverState? getSolverState();
+
   /// Get a specific pile by type (for single piles like stock/waste)
   Pile? getPile(PileType type);
 
@@ -136,7 +153,7 @@ class LayoutConfig {
   final int foundationCount;
   final bool hasStock;
   final bool hasWaste;
-  
+
   const LayoutConfig({
     required this.tableauCount,
     required this.foundationCount,

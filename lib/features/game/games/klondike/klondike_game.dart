@@ -7,6 +7,8 @@ import '../../models/pile.dart';
 import '../../models/move.dart';
 import '../../models/draw_mode.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
+import 'package:solitude/features/settings/services/settings_provider.dart';
+import '../../ai/games/klondike_solver_state.dart';
 
 class KlondikeGame extends SolitaireGameBase {
   late Pile stock;
@@ -15,7 +17,8 @@ class KlondikeGame extends SolitaireGameBase {
   late List<Pile> tableau;
 
   DrawMode drawMode;
-  int? maxStockRecycles; // null = unlimited, otherwise max number of recycles allowed
+  int?
+      maxStockRecycles; // null = unlimited, otherwise max number of recycles allowed
   final List<Move> _moveHistory = [];
   final List<Move> _redoStack = [];
   int _moveCount = 0;
@@ -24,14 +27,15 @@ class KlondikeGame extends SolitaireGameBase {
   KlondikeGame({this.drawMode = DrawMode.one, this.maxStockRecycles}) {
     _initializePiles();
   }
-  
+
   void _initializePiles() {
     stock = Pile(type: PileType.stock);
     waste = Pile(type: PileType.waste);
-    foundations = List.generate(4, (i) => Pile(type: PileType.foundation, index: i));
+    foundations =
+        List.generate(4, (i) => Pile(type: PileType.foundation, index: i));
     tableau = List.generate(7, (i) => Pile(type: PileType.tableau, index: i));
   }
-  
+
   @override
   void initialize({Random? random}) {
     _initializePiles();
@@ -42,7 +46,7 @@ class KlondikeGame extends SolitaireGameBase {
 
     final deck = Deck();
     deck.shuffle(random ?? Random());
-    
+
     // Deal to tableau: pile i gets i+1 cards
     for (int i = 0; i < 7; i++) {
       for (int j = i; j < 7; j++) {
@@ -51,7 +55,7 @@ class KlondikeGame extends SolitaireGameBase {
         tableau[j].addCard(card);
       }
     }
-    
+
     // Remaining cards go to stock (face down)
     while (!deck.isEmpty) {
       final card = deck.draw()!;
@@ -59,12 +63,12 @@ class KlondikeGame extends SolitaireGameBase {
       stock.addCard(card);
     }
   }
-  
+
   @override
   void reset() {
     initialize();
   }
-  
+
   @override
   List<Pile> get allPiles => [stock, waste, ...foundations, ...tableau];
 
@@ -90,11 +94,11 @@ class KlondikeGame extends SolitaireGameBase {
 
   @override
   LayoutConfig get layoutConfig => const LayoutConfig(
-    tableauCount: 7,
-    foundationCount: 4,
-    hasStock: true,
-    hasWaste: true,
-  );
+        tableauCount: 7,
+        foundationCount: 4,
+        hasStock: true,
+        hasWaste: true,
+      );
 
   // ==========================================================================
   // Pile Accessors (GameInterface)
@@ -127,6 +131,74 @@ class KlondikeGame extends SolitaireGameBase {
   void applyDifficulty(Difficulty difficulty) {
     drawMode = difficulty.drawMode;
     maxStockRecycles = difficulty.maxStockRecycles;
+  }
+
+  @override
+  void configure(SettingsProvider settings) {
+    // Map settings.drawMode to internal logic
+    drawMode = settings.drawMode;
+
+    // Map settings.scoringMode to internal logic
+    // For Vegas mode, we typically have limited stock recycling
+    if (settings.scoringMode == ScoringMode.vegas) {
+      // Vegas mode typically allows only one pass through the stock
+      // unless difficulty overrides this
+      if (maxStockRecycles == null) {
+        maxStockRecycles = 1;
+      }
+    }
+  }
+
+  @override
+  KlondikeSolverState? getSolverState() {
+    // Convert current game state to KlondikeSolverState for AI analysis
+    final tableauData = <List<String>>[];
+    for (final pile in tableau) {
+      final cards = <String>[];
+      for (final card in pile.cards) {
+        final suitChar = card.suit.name[0].toUpperCase(); // 'H', 'D', 'C', 'S'
+        cards.add('${card.rank}$suitChar');
+      }
+      tableauData.add(cards);
+    }
+
+    final wasteData = <String>[];
+    for (final card in waste.cards) {
+      final suitChar = card.suit.name[0].toUpperCase();
+      wasteData.add('${card.rank}$suitChar');
+    }
+
+    final stockData = <String>[];
+    for (final card in stock.cards) {
+      final suitChar = card.suit.name[0].toUpperCase();
+      stockData.add('${card.rank}$suitChar');
+    }
+
+    final foundationData = <String?>[
+      null,
+      null,
+      null,
+      null
+    ]; // H, D, C, S order
+    final suitOrder = ['H', 'D', 'C', 'S'];
+    for (int i = 0; i < foundations.length; i++) {
+      final pile = foundations[i];
+      if (!pile.isEmpty) {
+        final card = pile.topCard!;
+        final suitChar = card.suit.name[0].toUpperCase();
+        final index = suitOrder.indexOf(suitChar);
+        if (index >= 0) {
+          foundationData[index] = '${card.rank}$suitChar';
+        }
+      }
+    }
+
+    return KlondikeSolverState(
+      tableau: tableauData,
+      waste: wasteData,
+      stock: stockData,
+      foundation: foundationData,
+    );
   }
 
   // ==========================================================================
@@ -172,25 +244,25 @@ class KlondikeGame extends SolitaireGameBase {
 
     return null;
   }
-  
+
   @override
   bool isValidMove(Pile from, Pile to, List<PlayingCard> cards) {
     if (cards.isEmpty) return false;
     final movingCard = cards.first;
-    
+
     // Can't move to stock
     if (to.type == PileType.stock) return false;
-    
+
     // Can't move to waste (only stock draws to waste)
     if (to.type == PileType.waste) return false;
-    
+
     // Foundation moves
     if (to.type == PileType.foundation) {
       // Only single cards to foundation
       if (cards.length > 1) return false;
       return movingCard.canStackOnFoundation(to.topCard);
     }
-    
+
     // Tableau moves
     if (to.type == PileType.tableau) {
       if (to.isEmpty) {
@@ -198,20 +270,21 @@ class KlondikeGame extends SolitaireGameBase {
         return movingCard.rank == Rank.king;
       }
       // Must be alternating colors and descending
-      return movingCard.canStackOn(to.topCard!, alternatingColors: true, descending: true);
+      return movingCard.canStackOn(to.topCard!,
+          alternatingColors: true, descending: true);
     }
-    
+
     return false;
   }
-  
+
   @override
   Move? executeMove(Pile from, Pile to, List<PlayingCard> cards) {
     if (!isValidMove(from, to, cards)) return null;
-    
+
     // Find index of first card being moved
     final startIndex = from.indexOfCard(cards.first);
     if (startIndex == -1) return null;
-    
+
     // Check if we'll need to flip a card after this move
     bool willFlipCard = false;
     if (from.type == PileType.tableau && startIndex > 0) {
@@ -220,18 +293,18 @@ class KlondikeGame extends SolitaireGameBase {
         willFlipCard = true;
       }
     }
-    
+
     // Remove cards from source
     final removed = from.removeFrom(startIndex);
-    
+
     // Add to destination
     to.addCards(removed);
-    
+
     // Flip the newly exposed card if needed
     if (willFlipCard) {
       from.flipTopCard();
     }
-    
+
     // Record move
     final move = Move(
       fromPile: from,
@@ -245,7 +318,7 @@ class KlondikeGame extends SolitaireGameBase {
 
     return move;
   }
-  
+
   @override
   Move? tapStock() {
     if (stock.isEmpty) {
@@ -275,18 +348,18 @@ class KlondikeGame extends SolitaireGameBase {
       _moveCount++;
       return move;
     }
-    
+
     // Draw cards from stock to waste
     final drawCount = drawMode == DrawMode.one ? 1 : 3;
     final drawnCards = <PlayingCard>[];
-    
+
     for (int i = 0; i < drawCount && !stock.isEmpty; i++) {
       final card = stock.removeTop()!;
       card.faceUp = true;
       waste.addCard(card);
       drawnCards.add(card);
     }
-    
+
     final move = Move(
       fromPile: stock,
       toPile: waste,
@@ -299,7 +372,7 @@ class KlondikeGame extends SolitaireGameBase {
 
     return move;
   }
-  
+
   @override
   bool undo() {
     if (_moveHistory.isEmpty) return false;
@@ -396,13 +469,13 @@ class KlondikeGame extends SolitaireGameBase {
     _moveHistory.add(move);
     return true;
   }
-  
+
   @override
   bool checkWin() {
     // Win when all foundations have 13 cards (Ace through King)
     return foundations.every((f) => f.length == 13);
   }
-  
+
   @override
   bool canAutoComplete() {
     // Can auto-complete when all cards in tableau and stock/waste are face-up
@@ -414,7 +487,7 @@ class KlondikeGame extends SolitaireGameBase {
     }
     return stock.isEmpty;
   }
-  
+
   @override
   bool autoCompleteStep() {
     // Try to move cards to foundations
@@ -428,7 +501,7 @@ class KlondikeGame extends SolitaireGameBase {
         }
       }
     }
-    
+
     // Check tableau piles
     for (final pile in tableau) {
       if (pile.isEmpty) continue;
@@ -440,26 +513,26 @@ class KlondikeGame extends SolitaireGameBase {
         }
       }
     }
-    
+
     return false;
   }
-  
+
   @override
   List<Pile> getValidDestinations(Pile from, List<PlayingCard> cards) {
     final destinations = <Pile>[];
-    
+
     for (final foundation in foundations) {
       if (isValidMove(from, foundation, cards)) {
         destinations.add(foundation);
       }
     }
-    
+
     for (final pile in tableau) {
       if (pile != from && isValidMove(from, pile, cards)) {
         destinations.add(pile);
       }
     }
-    
+
     return destinations;
   }
 
@@ -496,7 +569,9 @@ class KlondikeGame extends SolitaireGameBase {
 
         // Try moving to foundations
         for (final foundation in foundations) {
-          if (cardsToMove.length == 1 && cardsToMove.first.canStackOnFoundation(foundation.topCard)) return true;
+          if (cardsToMove.length == 1 &&
+              cardsToMove.first.canStackOnFoundation(foundation.topCard))
+            return true;
         }
 
         // Try moving to other tableau piles
@@ -526,7 +601,8 @@ class KlondikeGame extends SolitaireGameBase {
         for (final pile in tableau) {
           if (pile.isEmpty) {
             if (card.rank == Rank.king) return false;
-          } else if (card.canStackOn(pile.topCard!, alternatingColors: true, descending: true)) {
+          } else if (card.canStackOn(pile.topCard!,
+              alternatingColors: true, descending: true)) {
             return false;
           }
         }
@@ -552,11 +628,11 @@ class KlondikeGame extends SolitaireGameBase {
 
         // Tableau moves that expose face-down cards are progress
         final wouldExposeCard = i > 0 && !fromPile.cardAt(i - 1)!.faceUp;
-        
+
         for (final toPile in tableau) {
           if (toPile == fromPile) continue;
           if (!isValidMove(fromPile, toPile, cardsToMove)) continue;
-          
+
           // Moving to non-empty pile or exposing a card = progress
           if (!toPile.isEmpty || wouldExposeCard) {
             return false;
@@ -568,7 +644,7 @@ class KlondikeGame extends SolitaireGameBase {
     // No useful moves available
     return true;
   }
-  
+
   @override
   ({Pile from, Pile to, List<PlayingCard> cards})? getHint() {
     // Priority 1: Move cards to foundations (always good)
@@ -581,7 +657,7 @@ class KlondikeGame extends SolitaireGameBase {
         }
       }
     }
-    
+
     // Check tableau to foundation
     for (final pile in tableau) {
       if (pile.isEmpty) continue;
@@ -592,11 +668,11 @@ class KlondikeGame extends SolitaireGameBase {
         }
       }
     }
-    
+
     // Priority 2: Moves that expose face-down cards
     for (final fromPile in tableau) {
       if (fromPile.isEmpty) continue;
-      
+
       // Find the first face-up card
       int firstFaceUp = -1;
       for (int i = 0; i < fromPile.cards.length; i++) {
@@ -605,12 +681,12 @@ class KlondikeGame extends SolitaireGameBase {
           break;
         }
       }
-      
+
       // Only interested if there's a face-down card to expose
       if (firstFaceUp <= 0) continue;
-      
+
       final cardsToMove = fromPile.cards.sublist(firstFaceUp);
-      
+
       // Try moving to non-empty tableau piles first
       for (final toPile in tableau) {
         if (toPile == fromPile) continue;
@@ -619,7 +695,7 @@ class KlondikeGame extends SolitaireGameBase {
           return (from: fromPile, to: toPile, cards: cardsToMove);
         }
       }
-      
+
       // Then try empty piles (only if moving a King)
       if (cardsToMove.first.rank == Rank.king) {
         for (final toPile in tableau) {
@@ -631,7 +707,7 @@ class KlondikeGame extends SolitaireGameBase {
         }
       }
     }
-    
+
     // Priority 3: Waste to tableau (brings new cards into play)
     if (!waste.isEmpty) {
       final card = waste.topCard!;
@@ -652,11 +728,11 @@ class KlondikeGame extends SolitaireGameBase {
         }
       }
     }
-    
+
     // Priority 4: Tableau to tableau that builds stacks (no face-down exposure)
     for (final fromPile in tableau) {
       if (fromPile.isEmpty) continue;
-      
+
       int firstFaceUp = 0;
       for (int i = 0; i < fromPile.cards.length; i++) {
         if (fromPile.cards[i].faceUp) {
@@ -664,12 +740,12 @@ class KlondikeGame extends SolitaireGameBase {
           break;
         }
       }
-      
+
       // Skip if this would expose a card (already handled in Priority 2)
       if (firstFaceUp > 0) continue;
-      
+
       final cardsToMove = fromPile.cards.sublist(firstFaceUp);
-      
+
       // Only move to non-empty piles (avoid shuffling Kings to empty)
       for (final toPile in tableau) {
         if (toPile == fromPile) continue;
@@ -679,11 +755,11 @@ class KlondikeGame extends SolitaireGameBase {
         }
       }
     }
-    
+
     // No useful moves found - caller should try drawing from stock
     return null;
   }
-  
+
   void setDrawMode(DrawMode mode) {
     drawMode = mode;
   }

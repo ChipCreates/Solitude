@@ -27,7 +27,8 @@ class BoardLayoutData {
 
 abstract class GameLayoutDelegate {
   int get columnCount;
-  Widget buildTopRow(BuildContext context, GameController controller, BoardLayoutData layout);
+  Widget buildTopRow(
+      BuildContext context, GameController controller, BoardLayoutData layout);
 }
 
 class KlondikeLayoutDelegate implements GameLayoutDelegate {
@@ -37,48 +38,75 @@ class KlondikeLayoutDelegate implements GameLayoutDelegate {
   int get columnCount => 7;
 
   @override
-  Widget buildTopRow(BuildContext context, GameController controller, BoardLayoutData layout) {
+  Widget buildTopRow(
+      BuildContext context, GameController controller, BoardLayoutData layout) {
     // Calculate the width of the first 3 tableau piles section
     final first3Width = layout.cardWidth * 3 + layout.pileSpacing * 2;
     final stockPile = controller.stock;
     final wastePile = controller.waste;
     final settings = Provider.of<SettingsProvider>(context, listen: false);
+    final isLeftHandMode = settings.leftHandMode;
+
+    // Build stock/waste section
+    final stockWasteSection = <Widget>[];
+    if (stockPile != null) {
+      stockWasteSection.add(SizedBox(
+        width: layout.cardWidth,
+        child: _StockPileSelector(cardWidth: layout.cardWidth),
+      ));
+    }
+    if (stockPile != null)
+      stockWasteSection.add(SizedBox(width: layout.pileSpacing));
+    if (wastePile != null) {
+      stockWasteSection.add(SizedBox(
+        width: layout.cardWidth,
+        child: _WastePileSelector(
+          cardWidth: layout.cardWidth,
+          spreadCount: settings.difficulty.drawMode.drawCount,
+        ),
+      ));
+    }
+
+    // Build foundations section
+    final foundationsSection = <Widget>[];
+    for (int i = 0; i < controller.foundations.length; i++) {
+      foundationsSection.add(SizedBox(
+        width: layout.cardWidth,
+        child: _FoundationPileSelector(
+          foundationIndex: i,
+          cardWidth: layout.cardWidth,
+        ),
+      ));
+      if (i < controller.foundations.length - 1) {
+        foundationsSection.add(SizedBox(width: layout.pileSpacing));
+      }
+    }
+
+    // Build row based on left hand mode
+    final rowChildren = <Widget>[];
+    if (isLeftHandMode) {
+      // Left hand mode: foundations on left, stock/waste on right
+      rowChildren.addAll(foundationsSection);
+      rowChildren.add(SizedBox(width: layout.pileSpacing));
+      // Spacer to fill remaining space in "first 3 piles" section
+      rowChildren.add(SizedBox(
+          width: first3Width - (layout.cardWidth * 2 + layout.pileSpacing)));
+      rowChildren.add(SizedBox(width: layout.pileSpacing));
+      rowChildren.addAll(stockWasteSection);
+    } else {
+      // Normal mode: stock/waste on left, foundations on right
+      rowChildren.addAll(stockWasteSection);
+      // Spacer to fill remaining space in "first 3 piles" section
+      rowChildren.add(SizedBox(
+          width: first3Width - (layout.cardWidth * 2 + layout.pileSpacing)));
+      rowChildren.add(SizedBox(width: layout.pileSpacing));
+      rowChildren.addAll(foundationsSection);
+    }
 
     return SizedBox(
       height: layout.cardHeight,
       child: Row(
-        children: [
-          // Stock - uses Selector for granular rebuilds
-          if (stockPile != null)
-            SizedBox(
-              width: layout.cardWidth,
-              child: _StockPileSelector(cardWidth: layout.cardWidth),
-            ),
-          if (stockPile != null) SizedBox(width: layout.pileSpacing),
-          // Waste - uses Selector for granular rebuilds
-          if (wastePile != null)
-            SizedBox(
-              width: layout.cardWidth,
-              child: _WastePileSelector(
-                cardWidth: layout.cardWidth,
-                spreadCount: settings.difficulty.drawMode.drawCount,
-              ),
-            ),
-          // Spacer to fill remaining space in "first 3 piles" section
-          SizedBox(width: first3Width - (layout.cardWidth * 2 + layout.pileSpacing)),
-          SizedBox(width: layout.pileSpacing),
-          // Foundations - each uses Selector for granular rebuilds
-          for (int i = 0; i < controller.foundations.length; i++) ...[
-            SizedBox(
-              width: layout.cardWidth,
-              child: _FoundationPileSelector(
-                foundationIndex: i,
-                cardWidth: layout.cardWidth,
-              ),
-            ),
-            if (i < controller.foundations.length - 1) SizedBox(width: layout.pileSpacing),
-          ],
-        ],
+        children: rowChildren,
       ),
     );
   }

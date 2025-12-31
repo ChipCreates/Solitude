@@ -148,7 +148,8 @@ extension KlondikeDifficultyExtension on DifficultyLevel {
   DrawMode get drawMode => KlondikeDifficulty.fromLevel(this).drawMode;
 
   /// Maximum stock recycles for Klondike
-  int? get maxStockRecycles => KlondikeDifficulty.fromLevel(this).maxStockRecycles;
+  int? get maxStockRecycles =>
+      KlondikeDifficulty.fromLevel(this).maxStockRecycles;
 
   /// Description (defaults to Klondike for backward compatibility)
   String get description => descriptionFor(GameType.klondike);
@@ -160,7 +161,8 @@ extension KlondikeDifficultyExtension on DifficultyLevel {
 /// Scoring mode for Klondike Solitaire
 enum ScoringMode {
   standard,
-  vegas;
+  vegas,
+  vegasCumulative;
 
   String get displayName {
     switch (this) {
@@ -168,6 +170,8 @@ enum ScoringMode {
         return 'Standard';
       case ScoringMode.vegas:
         return 'Vegas';
+      case ScoringMode.vegasCumulative:
+        return 'Vegas Cumulative';
     }
   }
 
@@ -177,6 +181,8 @@ enum ScoringMode {
         return 'STD';
       case ScoringMode.vegas:
         return 'VEGAS';
+      case ScoringMode.vegasCumulative:
+        return 'VEGAS+';
     }
   }
 
@@ -193,6 +199,8 @@ enum ScoringMode {
         return 'Track time and moves';
       case ScoringMode.vegas:
         return 'Pay \$52, earn \$5 per card';
+      case ScoringMode.vegasCumulative:
+        return 'Bankroll across games';
     }
   }
 
@@ -203,6 +211,8 @@ enum ScoringMode {
         return 'Traditional scoring that tracks your best time and fewest moves. Perfect for improving your skills.';
       case ScoringMode.vegas:
         return 'Casino-style scoring where you pay \$52 to play and earn \$5 for each card moved to the foundations. Win money by getting more than 11 cards to the foundations!';
+      case ScoringMode.vegasCumulative:
+        return 'Vegas scoring with a persistent bankroll that carries across games. Start with \$0 and build your casino fortune over multiple games!';
     }
   }
 }

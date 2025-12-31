@@ -26,6 +26,10 @@ class SettingsProvider extends ChangeNotifier {
   static const String _hintModeKey = 'hintMode';
   static const String _victoryPatternKey = 'victoryPattern';
   static const String _vibrationEnabledKey = 'vibrationEnabled';
+  static const String _leftHandModeKey = 'leftHandMode';
+  static const String _vegasBankrollKey = 'vegasBankroll';
+  static const String _cumulativeVegasKey = 'cumulativeVegas';
+  static const String _showTimerKey = 'showTimer';
 
   DrawMode _drawMode = DrawMode.one;
   bool _autoComplete = true;
@@ -52,6 +56,10 @@ class SettingsProvider extends ChangeNotifier {
   HintMode _hintMode = HintMode.smart;
   VictoryPattern _victoryPattern = VictoryPattern.random;
   bool _vibrationEnabled = true;
+  bool _leftHandMode = false;
+  int _vegasBankroll = -52;
+  bool _cumulativeVegas = false;
+  bool _showTimer = true;
 
   DrawMode get drawMode => _drawMode;
   bool get autoComplete => _autoComplete;
@@ -70,6 +78,10 @@ class SettingsProvider extends ChangeNotifier {
   HintMode get hintMode => _hintMode;
   VictoryPattern get victoryPattern => _victoryPattern;
   bool get vibrationEnabled => _vibrationEnabled;
+  bool get leftHandMode => _leftHandMode;
+  int get vegasBankroll => _vegasBankroll;
+  bool get cumulativeVegas => _cumulativeVegas;
+  bool get showTimer => _showTimer;
 
   ThemePreset get currentTheme {
     return ThemePreset.findById(_currentThemeId) ?? ThemePreset.defaultTheme;
@@ -138,6 +150,11 @@ class SettingsProvider extends ChangeNotifier {
         .values[victoryPatternIndex.clamp(0, VictoryPattern.values.length - 1)];
 
     _vibrationEnabled = prefs.getBool(_vibrationEnabledKey) ?? true;
+
+    _leftHandMode = prefs.getBool(_leftHandModeKey) ?? false;
+    _vegasBankroll = prefs.getInt(_vegasBankrollKey) ?? -52;
+    _cumulativeVegas = prefs.getBool(_cumulativeVegasKey) ?? false;
+    _showTimer = prefs.getBool(_showTimerKey) ?? true;
 
     notifyListeners();
   }
@@ -287,5 +304,43 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_vibrationEnabledKey, value);
+  }
+
+  Future<void> setLeftHandMode(bool value) async {
+    _leftHandMode = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_leftHandModeKey, value);
+  }
+
+  Future<void> setVegasBankroll(int value) async {
+    _vegasBankroll = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_vegasBankrollKey, value);
+  }
+
+  Future<void> setCumulativeVegas(bool value) async {
+    _cumulativeVegas = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_cumulativeVegasKey, value);
+  }
+
+  Future<void> setShowTimer(bool value) async {
+    _showTimer = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showTimerKey, value);
+  }
+
+  /// Reset Vegas bankroll to initial value (-52)
+  Future<void> resetVegasBankroll() async {
+    await setVegasBankroll(-52);
+  }
+
+  /// Add to Vegas bankroll (for game wins/losses)
+  Future<void> addToVegasBankroll(int amount) async {
+    await setVegasBankroll(_vegasBankroll + amount);
   }
 }

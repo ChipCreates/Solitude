@@ -7,10 +7,9 @@ import 'package:solitude/features/game/services/game_controller.dart';
 import 'package:solitude/core/theme/app_theme.dart';
 import '../models/difficulty.dart';
 import '../models/theme_preset.dart';
-// ignore: unused_import
 import '../models/hint_mode.dart';
-// ignore: unused_import
 import '../../game/models/victory_pattern.dart';
+import '../../game/models/draw_mode.dart';
 
 import '../widgets/game_toggle.dart';
 import 'package:solitude/core/widgets/game_button.dart';
@@ -880,6 +879,120 @@ class _GameplayTab extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
+              // Rule Settings Section
+              Row(
+                children: [
+                  Container(
+                      width: 40,
+                      height: 1,
+                      color:
+                          AppTheme.accentColor(context).withValues(alpha: 0.3)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text('RULE SETTINGS',
+                        style: AppTypography.subheading(context)),
+                  ),
+                  Expanded(
+                      child: Container(
+                          height: 1,
+                          color: AppTheme.accentColor(context)
+                              .withValues(alpha: 0.3))),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _buildSettingRow(
+                context,
+                label: 'Draw Mode',
+                subtitle: settings.drawMode == DrawMode.one
+                    ? 'Draw 1 card'
+                    : 'Draw 3 cards',
+                child: GameToggle<DrawMode>(
+                  value: settings.drawMode,
+                  options: [
+                    GameToggleOption(
+                        value: DrawMode.one,
+                        label: '1',
+                        color: settings.currentTheme.accentColor),
+                    GameToggleOption(
+                        value: DrawMode.three,
+                        label: '3',
+                        color: settings.currentTheme.accentColor),
+                  ],
+                  onChanged: settings.setDrawMode,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _buildSettingRow(
+                context,
+                label: 'Scoring',
+                subtitle: settings.scoringMode.shortName,
+                child: _buildScoringDropdown(context, settings),
+              ),
+              const SizedBox(height: 28),
+
+              // Accessibility Section
+              Row(
+                children: [
+                  Container(
+                      width: 40,
+                      height: 1,
+                      color:
+                          AppTheme.accentColor(context).withValues(alpha: 0.3)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text('ACCESSIBILITY',
+                        style: AppTypography.subheading(context)),
+                  ),
+                  Expanded(
+                      child: Container(
+                          height: 1,
+                          color: AppTheme.accentColor(context)
+                              .withValues(alpha: 0.3))),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _buildSettingRow(
+                context,
+                label: 'Left Hand Mode',
+                subtitle: 'Swap foundations and stock positions',
+                child: GameSwitch(
+                  value: settings.leftHandMode,
+                  onChanged: settings.setLeftHandMode,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _buildSettingRow(
+                context,
+                label: 'Show Timer',
+                subtitle: 'Display elapsed game time',
+                child: GameSwitch(
+                  value: settings.showTimer,
+                  onChanged: settings.setShowTimer,
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Gameplay Section
+              Row(
+                children: [
+                  Container(
+                      width: 40,
+                      height: 1,
+                      color:
+                          AppTheme.accentColor(context).withValues(alpha: 0.3)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text('GAMEPLAY',
+                        style: AppTypography.subheading(context)),
+                  ),
+                  Expanded(
+                      child: Container(
+                          height: 1,
+                          color: AppTheme.accentColor(context)
+                              .withValues(alpha: 0.3))),
+                ],
+              ),
+              const SizedBox(height: 20),
               _buildSettingRow(
                 context,
                 label: 'Difficulty',
@@ -905,29 +1018,6 @@ class _GameplayTab extends StatelessWidget {
                           .game
                           .applyDifficulty(difficulty);
                     },
-                  );
-                }),
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Scoring Mode',
-                subtitle: settings.scoringMode.description,
-                child: Builder(builder: (ctx) {
-                  final accent = settings.currentTheme.accentColor;
-                  return GameToggle<ScoringMode>(
-                    value: settings.scoringMode,
-                    options: [
-                      GameToggleOption(
-                          value: ScoringMode.standard,
-                          label: 'STD',
-                          color: accent),
-                      GameToggleOption(
-                          value: ScoringMode.vegas,
-                          label: 'VEGAS',
-                          color: accent),
-                    ],
-                    onChanged: settings.setScoringMode,
                   );
                 }),
               ),
@@ -986,6 +1076,46 @@ class _GameplayTab extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildScoringDropdown(
+      BuildContext context, SettingsProvider settings) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.buttonColor(context),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppTheme.buttonBorderColor(context),
+          width: 1,
+        ),
+      ),
+      child: DropdownButton<ScoringMode>(
+        value: settings.scoringMode,
+        onChanged: (ScoringMode? newValue) {
+          if (newValue != null) {
+            settings.setScoringMode(newValue);
+          }
+        },
+        items: ScoringMode.values
+            .map<DropdownMenuItem<ScoringMode>>((ScoringMode value) {
+          return DropdownMenuItem<ScoringMode>(
+            value: value,
+            child: Text(
+              value.displayName,
+              style: AppTypography.body(context),
+            ),
+          );
+        }).toList(),
+        underline: const SizedBox.shrink(),
+        icon: Icon(
+          Icons.arrow_drop_down,
+          color: AppTheme.accentColor(context),
+        ),
+        dropdownColor: AppTheme.toolbarColor(context),
+        borderRadius: BorderRadius.circular(8),
+      ),
     );
   }
 }
