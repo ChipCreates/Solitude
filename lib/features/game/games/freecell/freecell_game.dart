@@ -271,9 +271,34 @@ class FreeCellGame extends SolitaireGameBase {
   @override
   bool canAutoComplete() {
     // In FreeCell, all cards are always face-up
-    // Can auto-complete when all cards are in valid sequences
-    // (low cards are safely on foundations)
-    return true;
+    // Can auto-complete when there are actually safe moves to foundation
+    // Check if there's at least one card that can be safely auto-moved
+
+    // Check freecells for safe moves
+    for (final cell in freeCells) {
+      if (cell.isEmpty) continue;
+      final card = cell.topCard!;
+      for (final foundation in foundations) {
+        if (card.canStackOnFoundation(foundation.topCard) &&
+            _isSafeToAutoMove(card)) {
+          return true;
+        }
+      }
+    }
+
+    // Check tableau for safe moves
+    for (final pile in tableau) {
+      if (pile.isEmpty) continue;
+      final card = pile.topCard!;
+      for (final foundation in foundations) {
+        if (card.canStackOnFoundation(foundation.topCard) &&
+            _isSafeToAutoMove(card)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   @override

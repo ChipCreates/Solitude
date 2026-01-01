@@ -51,8 +51,8 @@ class GameController extends ChangeNotifier {
   // Audio service
   late final dynamic _audioService;
 
-  // Solver service for AI hints
-  late final SolverService _solverService;
+  // Solver service for AI hints (not final - can be reassigned when switching games)
+  late SolverService _solverService;
 
   // Timer service for inactivity detection
   late final GameTimerService _inactivityService;

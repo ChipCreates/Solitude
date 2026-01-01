@@ -127,8 +127,11 @@ class GameToolbar extends StatelessWidget {
               GameIconButton(
                 icon: Icons.help_outline,
                 onPressed: () {
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const HelpScreen()));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              HelpScreen(gameType: controller.game.gameType)));
                 },
                 tooltip: 'How to Play',
                 label: 'Help',

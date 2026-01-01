@@ -1156,8 +1156,11 @@ class GameToolbar extends StatelessWidget {
               GameIconButton(
                 icon: Icons.help_outline,
                 onPressed: () {
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const HelpScreen()));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              HelpScreen(gameType: controller.game.gameType)));
                 },
                 tooltip: 'How to Play',
                 label: 'Help',
@@ -2876,6 +2879,7 @@ import '../../models/move.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
 import '../../ai/abstract_solver.dart';
+import '../../ai/games/spider_solver_state.dart';
 
 /// Spider Solitaire game implementation.
 ///
@@ -3097,9 +3101,30 @@ class SpiderGame extends SolitaireGameBase {
   }
 
   @override
-  SolverState? getSolverState() {
-    // Solver not implemented for Spider in V1.0
-    return null;
+  SpiderSolverState? getSolverState() {
+    // Convert card to solver format
+    String cardToString(PlayingCard card) {
+      return '${card.value}${card.suit.name[0].toUpperCase()}';
+    }
+
+    // Convert tableau piles
+    final solverTableau = tableau.map((pile) {
+      return pile.cards
+          .map((card) => SpiderCard(cardToString(card), faceUp: card.faceUp))
+          .toList();
+    }).toList();
+
+    // Calculate stock deals remaining (each deal is 10 cards)
+    final stockDeals = stock.length ~/ 10;
+
+    // Count completed sequences
+    final completed = completedPiles.where((p) => !p.isEmpty).length;
+
+    return SpiderSolverState(
+      tableau: solverTableau,
+      stockDeals: stockDeals,
+      completedSequences: completed,
+    );
   }
 
   // ==========================================================================
@@ -4165,6 +4190,7 @@ import '../../models/move.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
 import '../../ai/abstract_solver.dart';
+import '../../ai/games/freecell_solver_state.dart';
 
 /// FreeCell Solitaire implementation.
 ///
@@ -4427,9 +4453,34 @@ class FreeCellGame extends SolitaireGameBase {
   @override
   bool canAutoComplete() {
     // In FreeCell, all cards are always face-up
-    // Can auto-complete when all cards are in valid sequences
-    // (low cards are safely on foundations)
-    return true;
+    // Can auto-complete when there are actually safe moves to foundation
+    // Check if there's at least one card that can be safely auto-moved
+
+    // Check freecells for safe moves
+    for (final cell in freeCells) {
+      if (cell.isEmpty) continue;
+      final card = cell.topCard!;
+      for (final foundation in foundations) {
+        if (card.canStackOnFoundation(foundation.topCard) &&
+            _isSafeToAutoMove(card)) {
+          return true;
+        }
+      }
+    }
+
+    // Check tableau for safe moves
+    for (final pile in tableau) {
+      if (pile.isEmpty) continue;
+      final card = pile.topCard!;
+      for (final foundation in foundations) {
+        if (card.canStackOnFoundation(foundation.topCard) &&
+            _isSafeToAutoMove(card)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   @override
@@ -4740,9 +4791,50 @@ class FreeCellGame extends SolitaireGameBase {
   }
 
   @override
-  SolverState? getSolverState() {
-    // TODO: Implement FreeCell solver state
-    return null;
+  FreeCellSolverState? getSolverState() {
+    // Convert card to solver format: "rankSuit" e.g. "1H" for Ace of Hearts
+    String cardToString(PlayingCard card) {
+      return '${card.value}${card.suit.name[0].toUpperCase()}';
+    }
+
+    // Convert tableau piles
+    final solverTableau = tableau.map((pile) {
+      return pile.cards.map((card) => cardToString(card)).toList();
+    }).toList();
+
+    // Convert free cells
+    final solverCells = freeCells.map((cell) {
+      if (cell.isEmpty) return null;
+      return cardToString(cell.topCard!);
+    }).toList();
+
+    // Convert foundations (top card of each, indexed by suit H,D,C,S)
+    final solverFoundation = <String?>[null, null, null, null];
+    for (final foundation in foundations) {
+      if (foundation.isEmpty) continue;
+      final topCard = foundation.topCard!;
+      final suitIdx = _suitToIndex(topCard.suit);
+      solverFoundation[suitIdx] = cardToString(topCard);
+    }
+
+    return FreeCellSolverState(
+      tableau: solverTableau,
+      freeCells: solverCells,
+      foundation: solverFoundation,
+    );
+  }
+
+  int _suitToIndex(Suit suit) {
+    switch (suit) {
+      case Suit.hearts:
+        return 0;
+      case Suit.diamonds:
+        return 1;
+      case Suit.clubs:
+        return 2;
+      case Suit.spades:
+        return 3;
+    }
   }
 
   @override
@@ -4799,6 +4891,7 @@ import '../../models/move.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
 import '../../ai/abstract_solver.dart';
+import '../../ai/games/pyramid_solver_state.dart';
 
 /// Pyramid Solitaire implementation.
 ///
@@ -5411,9 +5504,29 @@ class PyramidGame extends SolitaireGameBase {
   }
 
   @override
-  SolverState? getSolverState() {
-    // TODO: Implement Pyramid solver state
-    return null;
+  PyramidSolverState? getSolverState() {
+    // Convert card to solver format
+    String cardToString(PlayingCard card) {
+      return '${card.value}${card.suit.name[0].toUpperCase()}';
+    }
+
+    // Convert pyramid piles
+    final solverPyramid = pyramidPiles.map((pile) {
+      if (pile.isEmpty) return null;
+      return cardToString(pile.topCard!);
+    }).toList();
+
+    // Convert stock
+    final solverStock = stock.cards.map((c) => cardToString(c)).toList();
+
+    // Convert waste
+    final solverWaste = waste.cards.map((c) => cardToString(c)).toList();
+
+    return PyramidSolverState(
+      pyramid: solverPyramid,
+      stock: solverStock,
+      waste: solverWaste,
+    );
   }
 
   @override
@@ -5494,6 +5607,7 @@ import '../../models/move.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
 import '../../ai/abstract_solver.dart';
+import '../../ai/games/tripeaks_solver_state.dart';
 
 /// TriPeaks Solitaire implementation.
 ///
@@ -5935,8 +6049,33 @@ class TriPeaksGame extends SolitaireGameBase {
   }
 
   @override
-  SolverState? getSolverState() {
-    return null;
+  SolverState<TriPeaksMove>? getSolverState() {
+    // Convert card to solver format: "rankSuit" (e.g., "1H" for Ace of Hearts)
+    String cardToString(PlayingCard card) {
+      return '${card.value}${card.suit.name[0].toUpperCase()}';
+    }
+
+    // Convert peak piles to list of card strings (null = empty)
+    final peakCards = <String?>[];
+    for (int i = 0; i < 28; i++) {
+      if (peakPiles[i].isEmpty) {
+        peakCards.add(null);
+      } else {
+        peakCards.add(cardToString(peakPiles[i].topCard!));
+      }
+    }
+
+    // Convert stock
+    final stockCards = stock.cards.map(cardToString).toList();
+
+    // Get waste top
+    final wasteTopCard = waste.isEmpty ? null : cardToString(waste.topCard!);
+
+    return TriPeaksSolverState(
+      peaks: peakCards,
+      stock: stockCards,
+      wasteTop: wasteTopCard,
+    );
   }
 
   @override
@@ -6010,6 +6149,7 @@ import '../../models/move.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
 import '../../ai/abstract_solver.dart';
+import '../../ai/games/golf_solver_state.dart';
 
 /// Golf Solitaire implementation.
 ///
@@ -6357,8 +6497,30 @@ class GolfGame extends SolitaireGameBase {
   }
 
   @override
-  SolverState? getSolverState() {
-    return null;
+  SolverState<GolfMove>? getSolverState() {
+    // Convert card to solver format: "rankSuit" (e.g., "1H" for Ace of Hearts)
+    String cardToString(PlayingCard card) {
+      return '${card.value}${card.suit.name[0].toUpperCase()}';
+    }
+
+    // Convert tableau piles
+    final tableauCards = <List<String>>[];
+    for (final pile in tableau) {
+      tableauCards.add(pile.cards.map(cardToString).toList());
+    }
+
+    // Convert stock (face down, but we track them for the solver)
+    final stockCards = stock.cards.map(cardToString).toList();
+
+    // Get waste top
+    final wasteTopCard = waste.isEmpty ? null : cardToString(waste.topCard!);
+
+    return GolfSolverState(
+      tableau: tableauCards,
+      stock: stockCards,
+      wasteTop: wasteTopCard,
+      allowWrapping: allowWrapping,
+    );
   }
 
   @override
@@ -6420,6 +6582,7 @@ import '../../models/move.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
 import '../../ai/abstract_solver.dart';
+import '../../ai/games/yukon_solver_state.dart';
 
 /// Yukon Solitaire implementation.
 ///
@@ -6881,8 +7044,50 @@ class YukonGame extends SolitaireGameBase {
   }
 
   @override
-  SolverState? getSolverState() {
-    return null;
+  SolverState<YukonMove>? getSolverState() {
+    // Convert card to solver format: "rankSuit" (e.g., "1H" for Ace of Hearts)
+    String cardToString(PlayingCard card) {
+      return '${card.value}${card.suit.name[0].toUpperCase()}';
+    }
+
+    // Get suit index for foundation
+    int getSuitIndex(Suit suit) {
+      switch (suit) {
+        case Suit.hearts:
+          return 0;
+        case Suit.diamonds:
+          return 1;
+        case Suit.clubs:
+          return 2;
+        case Suit.spades:
+          return 3;
+      }
+    }
+
+    // Convert tableau piles
+    final tableauCards = <List<YukonCardInfo>>[];
+    for (final pile in tableau) {
+      tableauCards.add(
+        pile.cards
+            .map((c) => YukonCardInfo(cardToString(c), c.faceUp))
+            .toList(),
+      );
+    }
+
+    // Convert foundations (just track top rank per suit)
+    final foundationRanks = <int>[0, 0, 0, 0];
+    for (final foundation in foundations) {
+      if (!foundation.isEmpty) {
+        final topCard = foundation.topCard!;
+        final suitIdx = getSuitIndex(topCard.suit);
+        foundationRanks[suitIdx] = topCard.value;
+      }
+    }
+
+    return YukonSolverState(
+      tableau: tableauCards,
+      foundations: foundationRanks,
+    );
   }
 
   @override
@@ -6943,6 +7148,7 @@ import '../../models/move.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
 import '../../ai/abstract_solver.dart';
+import '../../ai/games/forty_thieves_solver_state.dart';
 
 /// Forty Thieves Solitaire implementation.
 ///
@@ -7416,8 +7622,40 @@ class FortyThievesGame extends SolitaireGameBase {
   }
 
   @override
-  SolverState? getSolverState() {
-    return null;
+  SolverState<FortyThievesMove>? getSolverState() {
+    // Convert card to solver format: "rankSuit" (e.g., "1H" for Ace of Hearts)
+    String cardToString(PlayingCard card) {
+      return '${card.value}${card.suit.name[0].toUpperCase()}';
+    }
+
+    // Convert tableau piles
+    final tableauCards = <List<String>>[];
+    for (final pile in tableau) {
+      tableauCards.add(pile.cards.map(cardToString).toList());
+    }
+
+    // Convert foundations (top card or null)
+    final foundationTops = <String?>[];
+    for (final foundation in foundations) {
+      if (foundation.isEmpty) {
+        foundationTops.add(null);
+      } else {
+        foundationTops.add(cardToString(foundation.topCard!));
+      }
+    }
+
+    // Convert stock
+    final stockCards = stock.cards.map(cardToString).toList();
+
+    // Get waste top
+    final wasteTopCard = waste.isEmpty ? null : cardToString(waste.topCard!);
+
+    return FortyThievesSolverState(
+      tableau: tableauCards,
+      foundations: foundationTops,
+      stock: stockCards,
+      wasteTop: wasteTopCard,
+    );
   }
 
   @override
@@ -7494,6 +7732,7 @@ import '../../models/move.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
 import '../../ai/abstract_solver.dart';
+import '../../ai/games/canfield_solver_state.dart';
 
 /// Canfield Solitaire implementation.
 ///
@@ -8156,8 +8395,53 @@ class CanfieldGame extends SolitaireGameBase {
   }
 
   @override
-  SolverState? getSolverState() {
-    return null;
+  SolverState<CanfieldMove>? getSolverState() {
+    if (_baseRank == null) return null;
+
+    // Convert card to solver format: "rankSuit" (e.g., "1H" for Ace of Hearts)
+    String cardToString(PlayingCard card) {
+      return '${card.value}${card.suit.name[0].toUpperCase()}';
+    }
+
+    // Convert tableau piles
+    final tableauCards = <List<CanfieldCardInfo>>[];
+    for (final pile in tableau) {
+      tableauCards.add(
+        pile.cards
+            .map((c) => CanfieldCardInfo(cardToString(c), c.faceUp))
+            .toList(),
+      );
+    }
+
+    // Convert foundations (top card or null)
+    final foundationTops = <String?>[];
+    for (final foundation in foundations) {
+      if (foundation.isEmpty) {
+        foundationTops.add(null);
+      } else {
+        foundationTops.add(cardToString(foundation.topCard!));
+      }
+    }
+
+    // Convert reserve
+    final reserveCards = reserve.cards
+        .map((c) => CanfieldCardInfo(cardToString(c), c.faceUp))
+        .toList();
+
+    // Convert stock
+    final stockCards = stock.cards.map(cardToString).toList();
+
+    // Get waste top
+    final wasteTopCard = waste.isEmpty ? null : cardToString(waste.topCard!);
+
+    return CanfieldSolverState(
+      tableau: tableauCards,
+      foundations: foundationTops,
+      reserve: reserveCards,
+      stock: stockCards,
+      wasteTop: wasteTopCard,
+      baseRank: _baseRank!.index + 1, // Convert Rank enum to value (1-13)
+    );
   }
 
   @override
@@ -8233,6 +8517,7 @@ import '../../models/move.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
 import '../../ai/abstract_solver.dart';
+import '../../ai/games/scorpion_solver_state.dart';
 
 /// Scorpion Solitaire implementation.
 ///
@@ -8774,8 +9059,30 @@ class ScorpionGame extends SolitaireGameBase {
   }
 
   @override
-  SolverState? getSolverState() {
-    return null;
+  SolverState<ScorpionMove>? getSolverState() {
+    // Convert card to solver format: "rankSuit" (e.g., "1H" for Ace of Hearts)
+    String cardToString(PlayingCard card) {
+      return '${card.value}${card.suit.name[0].toUpperCase()}';
+    }
+
+    // Convert tableau piles
+    final tableauCards = <List<ScorpionCardInfo>>[];
+    for (final pile in tableau) {
+      tableauCards.add(
+        pile.cards
+            .map((c) => ScorpionCardInfo(cardToString(c), c.faceUp))
+            .toList(),
+      );
+    }
+
+    // Convert stock (the "tail")
+    final stockCards = stock.cards.map(cardToString).toList();
+
+    return ScorpionSolverState(
+      tableau: tableauCards,
+      stock: stockCards,
+      completedSuits: _completedSuits,
+    );
   }
 
   @override
@@ -9659,19 +9966,20 @@ class _GameChooserScreenState extends State<GameChooserScreen> {
                 ),
                 const SizedBox(height: 48),
                 Expanded(
-                  child: ListView(
-                    children: [
-                      _GameOption(
-                        gameType: GameType.klondike,
-                        onSelected: () =>
-                            _selectGame(context, GameType.klondike),
-                      ),
-                      const SizedBox(height: 16),
-                      _GameOption(
-                        gameType: GameType.spider,
-                        onSelected: () => _selectGame(context, GameType.spider),
-                      ),
-                    ],
+                  child: ListView.builder(
+                    itemCount: GameType.values.length,
+                    itemBuilder: (context, index) {
+                      final gameType = GameType.values[index];
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index < GameType.values.length - 1 ? 16.0 : 0,
+                        ),
+                        child: _GameOption(
+                          gameType: gameType,
+                          onSelected: () => _selectGame(context, gameType),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -10882,8 +11190,8 @@ class GameController extends ChangeNotifier {
   // Audio service
   late final dynamic _audioService;
 
-  // Solver service for AI hints
-  late final SolverService _solverService;
+  // Solver service for AI hints (not final - can be reassigned when switching games)
+  late SolverService _solverService;
 
   // Timer service for inactivity detection
   late final GameTimerService _inactivityService;
@@ -15358,6 +15666,2655 @@ class KlondikeSolverState implements SolverState<KlondikeMove> {
 }
 
 
+// --- FILE: lib/features/game/ai/games/freecell_solver_state.dart ---
+import 'dart:convert';
+
+import '../abstract_solver.dart';
+
+/// Represents a card in the FreeCell solver.
+/// Format: 'rankSuit' where rank 1-13 (1=Ace, 13=King), suit H/D/C/S.
+class FreeCellCard {
+  final String value;
+
+  FreeCellCard(this.value);
+
+  int get rank => int.parse(value.substring(0, value.length - 1));
+
+  String get suit => value.substring(value.length - 1);
+
+  bool get isRed => suit == 'H' || suit == 'D';
+
+  bool get isBlack => !isRed;
+
+  @override
+  String toString() => value;
+
+  /// Check if this card can be placed on top of another in tableau.
+  /// (Alternating colors, descending rank)
+  bool canPlaceOn(FreeCellCard other) {
+    return (isRed && other.isBlack || isBlack && other.isRed) &&
+        rank == other.rank - 1;
+  }
+
+  /// Check if this card can be placed in foundation on top of another.
+  bool canPlaceOnFoundation(FreeCellCard? other) {
+    if (other == null) return rank == 1;
+    return suit == other.suit && rank == other.rank + 1;
+  }
+}
+
+/// Enum for different move types in FreeCell.
+enum FreeCellMoveType {
+  tableauToTableau,
+  tableauToFoundation,
+  tableauToCell,
+  cellToTableau,
+  cellToFoundation,
+}
+
+/// Represents a move in FreeCell solitaire.
+class FreeCellMove extends SolverMove {
+  final FreeCellMoveType type;
+  final int fromIndex; // Pile/cell index
+  final int toIndex; // Pile/cell/foundation index
+  final int cardCount; // Number of cards to move (for supermoves)
+
+  FreeCellMove(this.type, this.fromIndex, this.toIndex, [this.cardCount = 1]);
+
+  @override
+  int get priority => _calculatePriority();
+
+  int _calculatePriority() {
+    switch (type) {
+      case FreeCellMoveType.tableauToFoundation:
+      case FreeCellMoveType.cellToFoundation:
+        return 10; // High priority for foundation moves
+      case FreeCellMoveType.cellToTableau:
+        return 7; // Good to free up cells
+      case FreeCellMoveType.tableauToTableau:
+        return 5; // Medium for tableau moves
+      case FreeCellMoveType.tableauToCell:
+        return 2; // Low priority - use cells sparingly
+    }
+  }
+
+  @override
+  String toString() => '$type from:$fromIndex to:$toIndex cards:$cardCount';
+}
+
+/// Lightweight state representation for FreeCell solver.
+class FreeCellSolverState implements SolverState<FreeCellMove> {
+  final List<List<String>> tableau; // 8 piles
+  final List<String?> freeCells; // 4 cells, null if empty
+  final List<String?>
+      foundation; // Top card for each suit H,D,C,S, null if empty
+
+  FreeCellSolverState({
+    required this.tableau,
+    required this.freeCells,
+    required this.foundation,
+  });
+
+  /// Creates a copy with modified fields.
+  FreeCellSolverState copyWith({
+    List<List<String>>? tableau,
+    List<String?>? freeCells,
+    List<String?>? foundation,
+  }) {
+    return FreeCellSolverState(
+      tableau: tableau ?? List.from(this.tableau.map((p) => List.from(p))),
+      freeCells: freeCells ?? List.from(this.freeCells),
+      foundation: foundation ?? List.from(this.foundation),
+    );
+  }
+
+  /// Calculate max moveable cards: (emptyCells + 1) * 2^emptyColumns
+  int get _maxMoveableCards {
+    final emptyCells = freeCells.where((c) => c == null).length;
+    final emptyColumns = tableau.where((t) => t.isEmpty).length;
+    return (emptyCells + 1) * (1 << emptyColumns);
+  }
+
+  /// Calculate max moveable cards when moving TO an empty column
+  int get _maxMoveableCardsToEmpty {
+    final emptyCells = freeCells.where((c) => c == null).length;
+    int emptyColumns = tableau.where((t) => t.isEmpty).length - 1;
+    if (emptyColumns < 0) emptyColumns = 0;
+    return (emptyCells + 1) * (1 << emptyColumns);
+  }
+
+  /// Check if cards form valid alternating-color descending sequence
+  bool _isValidSequence(List<String> cards) {
+    if (cards.length <= 1) return true;
+    for (int i = 1; i < cards.length; i++) {
+      final prev = FreeCellCard(cards[i - 1]);
+      final curr = FreeCellCard(cards[i]);
+      if (curr.isRed == prev.isRed || curr.rank != prev.rank - 1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  int _suitIndex(String suit) {
+    switch (suit) {
+      case 'H':
+        return 0;
+      case 'D':
+        return 1;
+      case 'C':
+        return 2;
+      case 'S':
+        return 3;
+      default:
+        throw ArgumentError('Invalid suit: $suit');
+    }
+  }
+
+  @override
+  List<FreeCellMove> getAvailableMoves() {
+    final moves = <FreeCellMove>[];
+
+    // Moves from free cells
+    for (int cellIdx = 0; cellIdx < 4; cellIdx++) {
+      final cellCard = freeCells[cellIdx];
+      if (cellCard == null) continue;
+
+      final card = FreeCellCard(cellCard);
+
+      // Cell to foundation
+      final suitIdx = _suitIndex(card.suit);
+      final foundTop = foundation[suitIdx];
+      if (foundTop == null && card.rank == 1) {
+        moves.add(
+            FreeCellMove(FreeCellMoveType.cellToFoundation, cellIdx, suitIdx));
+      } else if (foundTop != null &&
+          card.canPlaceOnFoundation(FreeCellCard(foundTop))) {
+        moves.add(
+            FreeCellMove(FreeCellMoveType.cellToFoundation, cellIdx, suitIdx));
+      }
+
+      // Cell to tableau
+      for (int pileIdx = 0; pileIdx < 8; pileIdx++) {
+        if (tableau[pileIdx].isEmpty) {
+          moves.add(
+              FreeCellMove(FreeCellMoveType.cellToTableau, cellIdx, pileIdx));
+        } else {
+          final topCard = FreeCellCard(tableau[pileIdx].last);
+          if (card.canPlaceOn(topCard)) {
+            moves.add(
+                FreeCellMove(FreeCellMoveType.cellToTableau, cellIdx, pileIdx));
+          }
+        }
+      }
+    }
+
+    // Moves from tableau
+    for (int fromPile = 0; fromPile < 8; fromPile++) {
+      if (tableau[fromPile].isEmpty) continue;
+
+      // Try moving different sequence lengths
+      for (int startIdx = 0; startIdx < tableau[fromPile].length; startIdx++) {
+        final cardsToMove = tableau[fromPile].sublist(startIdx);
+        if (!_isValidSequence(cardsToMove)) continue;
+
+        final topCard = FreeCellCard(cardsToMove.first);
+        final cardCount = cardsToMove.length;
+
+        // Single card to foundation
+        if (cardCount == 1) {
+          final suitIdx = _suitIndex(topCard.suit);
+          final foundTop = foundation[suitIdx];
+          if (foundTop == null && topCard.rank == 1) {
+            moves.add(FreeCellMove(
+                FreeCellMoveType.tableauToFoundation, fromPile, suitIdx));
+          } else if (foundTop != null &&
+              topCard.canPlaceOnFoundation(FreeCellCard(foundTop))) {
+            moves.add(FreeCellMove(
+                FreeCellMoveType.tableauToFoundation, fromPile, suitIdx));
+          }
+        }
+
+        // To other tableau piles
+        for (int toPile = 0; toPile < 8; toPile++) {
+          if (toPile == fromPile) continue;
+
+          final maxCards = tableau[toPile].isEmpty
+              ? _maxMoveableCardsToEmpty
+              : _maxMoveableCards;
+          if (cardCount > maxCards) continue;
+
+          if (tableau[toPile].isEmpty) {
+            // Any sequence can go on empty pile (if we have capacity)
+            moves.add(FreeCellMove(FreeCellMoveType.tableauToTableau, fromPile,
+                toPile, cardCount));
+          } else {
+            final destTop = FreeCellCard(tableau[toPile].last);
+            if (topCard.canPlaceOn(destTop)) {
+              moves.add(FreeCellMove(FreeCellMoveType.tableauToTableau,
+                  fromPile, toPile, cardCount));
+            }
+          }
+        }
+
+        // Single card to free cell
+        if (cardCount == 1) {
+          for (int cellIdx = 0; cellIdx < 4; cellIdx++) {
+            if (freeCells[cellIdx] == null) {
+              moves.add(FreeCellMove(
+                  FreeCellMoveType.tableauToCell, fromPile, cellIdx));
+              break; // Only need one empty cell move
+            }
+          }
+        }
+      }
+    }
+
+    return moves;
+  }
+
+  @override
+  SolverState<FreeCellMove> applyMove(FreeCellMove move) {
+    switch (move.type) {
+      case FreeCellMoveType.cellToFoundation:
+        final card = freeCells[move.fromIndex]!;
+        final newCells = List<String?>.from(freeCells);
+        newCells[move.fromIndex] = null;
+        final newFoundation = List<String?>.from(foundation);
+        newFoundation[move.toIndex] = card;
+        return copyWith(freeCells: newCells, foundation: newFoundation);
+
+      case FreeCellMoveType.cellToTableau:
+        final card = freeCells[move.fromIndex]!;
+        final newCells = List<String?>.from(freeCells);
+        newCells[move.fromIndex] = null;
+        final newTableau =
+            List<List<String>>.from(tableau.map((p) => List.from(p)));
+        newTableau[move.toIndex].add(card);
+        return copyWith(freeCells: newCells, tableau: newTableau);
+
+      case FreeCellMoveType.tableauToFoundation:
+        final pile = tableau[move.fromIndex];
+        final card = pile.last;
+        final newTableau =
+            List<List<String>>.from(tableau.map((p) => List.from(p)));
+        newTableau[move.fromIndex].removeLast();
+        final newFoundation = List<String?>.from(foundation);
+        newFoundation[move.toIndex] = card;
+        return copyWith(tableau: newTableau, foundation: newFoundation);
+
+      case FreeCellMoveType.tableauToTableau:
+        final fromPile = tableau[move.fromIndex];
+        final startIdx = fromPile.length - move.cardCount;
+        final cardsToMove = fromPile.sublist(startIdx);
+        final newTableau =
+            List<List<String>>.from(tableau.map((p) => List.from(p)));
+        newTableau[move.fromIndex] = fromPile.sublist(0, startIdx);
+        newTableau[move.toIndex].addAll(cardsToMove);
+        return copyWith(tableau: newTableau);
+
+      case FreeCellMoveType.tableauToCell:
+        final card = tableau[move.fromIndex].last;
+        final newTableau =
+            List<List<String>>.from(tableau.map((p) => List.from(p)));
+        newTableau[move.fromIndex].removeLast();
+        final newCells = List<String?>.from(freeCells);
+        newCells[move.toIndex] = card;
+        return copyWith(tableau: newTableau, freeCells: newCells);
+    }
+  }
+
+  @override
+  bool get isWon =>
+      foundation.every((f) => f != null && FreeCellCard(f).rank == 13);
+
+  @override
+  String get signature {
+    // Normalize tableau by sorting (order doesn't matter for equivalence)
+    final sortedTableau =
+        List<List<String>>.from(tableau.map((p) => List.from(p)));
+    sortedTableau.sort((a, b) => a.join(',').compareTo(b.join(',')));
+
+    return jsonEncode({
+      'tableau': sortedTableau,
+      'cells': freeCells,
+      'foundation': foundation,
+    });
+  }
+
+  @override
+  int get heuristicScore {
+    if (isWon) return 1000;
+
+    int score = 0;
+
+    // Foundation cards are very valuable
+    for (final f in foundation) {
+      if (f != null) score += 15 * FreeCellCard(f).rank;
+    }
+
+    // Empty cells are valuable
+    score += freeCells.where((c) => c == null).length * 5;
+
+    // Empty tableau columns are very valuable
+    score += tableau.where((t) => t.isEmpty).length * 10;
+
+    // Cards in proper sequences are valuable
+    for (final pile in tableau) {
+      if (pile.length > 1) {
+        for (int i = pile.length - 1; i > 0; i--) {
+          final lower = FreeCellCard(pile[i]);
+          final upper = FreeCellCard(pile[i - 1]);
+          if (lower.canPlaceOn(upper)) {
+            score += 2;
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    return score;
+  }
+}
+
+
+// --- FILE: lib/features/game/ai/games/spider_solver_state.dart ---
+import 'dart:convert';
+
+import '../abstract_solver.dart';
+
+/// Represents a card in the Spider solver.
+/// Format: 'rankSuit' where rank 1-13 (1=Ace, 13=King), suit H/D/C/S.
+/// Also tracks if card is face-up.
+class SpiderCard {
+  final String value;
+  final bool faceUp;
+
+  SpiderCard(this.value, {this.faceUp = true});
+
+  int get rank => int.parse(value.substring(0, value.length - 1));
+
+  String get suit => value.substring(value.length - 1);
+
+  @override
+  String toString() => faceUp ? value : '?';
+
+  /// Check if this card can stack on another in tableau.
+  /// (Descending rank, any suit for stacking)
+  bool canStackOn(SpiderCard other) {
+    return rank == other.rank - 1;
+  }
+
+  /// Check if this card is same suit as another
+  bool isSameSuit(SpiderCard other) => suit == other.suit;
+}
+
+/// Enum for different move types in Spider.
+enum SpiderMoveType {
+  tableauToTableau,
+  dealFromStock,
+}
+
+/// Represents a move in Spider solitaire.
+class SpiderMove extends SolverMove {
+  final SpiderMoveType type;
+  final int fromPile;
+  final int toPile;
+  final int cardCount;
+
+  SpiderMove(this.type, this.fromPile, this.toPile, [this.cardCount = 1]);
+
+  @override
+  int get priority => _calculatePriority();
+
+  int _calculatePriority() {
+    switch (type) {
+      case SpiderMoveType.tableauToTableau:
+        return 5;
+      case SpiderMoveType.dealFromStock:
+        return 1; // Low priority - only deal when needed
+    }
+  }
+
+  @override
+  String toString() => '$type from:$fromPile to:$toPile cards:$cardCount';
+}
+
+/// Lightweight state representation for Spider solver.
+class SpiderSolverState implements SolverState<SpiderMove> {
+  final List<List<SpiderCard>> tableau; // 10 piles
+  final int stockDeals; // Number of deals remaining (0-5)
+  final int completedSequences; // Number of K->A sequences completed (0-8)
+
+  SpiderSolverState({
+    required this.tableau,
+    required this.stockDeals,
+    required this.completedSequences,
+  });
+
+  /// Creates a copy with modified fields.
+  SpiderSolverState copyWith({
+    List<List<SpiderCard>>? tableau,
+    int? stockDeals,
+    int? completedSequences,
+  }) {
+    return SpiderSolverState(
+      tableau: tableau ?? List.from(this.tableau.map((p) => List.from(p))),
+      stockDeals: stockDeals ?? this.stockDeals,
+      completedSequences: completedSequences ?? this.completedSequences,
+    );
+  }
+
+  /// Check if cards form a valid same-suit descending sequence.
+  bool _isValidSameSuitSequence(List<SpiderCard> cards) {
+    if (cards.length <= 1) return true;
+    for (int i = 1; i < cards.length; i++) {
+      final prev = cards[i - 1];
+      final curr = cards[i];
+      if (curr.suit != prev.suit || curr.rank != prev.rank - 1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Check if pile has a complete K->A sequence at the bottom.
+  bool _hasCompleteSequence(List<SpiderCard> pile) {
+    if (pile.length < 13) return false;
+
+    final startIdx = pile.length - 13;
+    final sequence = pile.sublist(startIdx);
+
+    // Must start with King and all face up
+    if (sequence.first.rank != 13) return false;
+    if (!sequence.every((c) => c.faceUp)) return false;
+
+    return _isValidSameSuitSequence(sequence);
+  }
+
+  @override
+  List<SpiderMove> getAvailableMoves() {
+    final moves = <SpiderMove>[];
+
+    // Tableau to tableau moves
+    for (int fromPile = 0; fromPile < 10; fromPile++) {
+      if (tableau[fromPile].isEmpty) continue;
+
+      // Find all valid same-suit sequences we can move
+      for (int startIdx = tableau[fromPile].length - 1;
+          startIdx >= 0;
+          startIdx--) {
+        final card = tableau[fromPile][startIdx];
+        if (!card.faceUp) break; // Can't move face-down cards
+
+        final cardsToMove = tableau[fromPile].sublist(startIdx);
+        if (!_isValidSameSuitSequence(cardsToMove)) break;
+
+        final topCard = cardsToMove.first;
+
+        // Try moving to other piles
+        for (int toPile = 0; toPile < 10; toPile++) {
+          if (toPile == fromPile) continue;
+
+          if (tableau[toPile].isEmpty) {
+            // Any sequence can go on empty pile
+            moves.add(SpiderMove(
+              SpiderMoveType.tableauToTableau,
+              fromPile,
+              toPile,
+              cardsToMove.length,
+            ));
+          } else {
+            final destTop = tableau[toPile].last;
+            if (topCard.canStackOn(destTop)) {
+              moves.add(SpiderMove(
+                SpiderMoveType.tableauToTableau,
+                fromPile,
+                toPile,
+                cardsToMove.length,
+              ));
+            }
+          }
+        }
+      }
+    }
+
+    // Deal from stock (only if no empty piles and stock has cards)
+    if (stockDeals > 0) {
+      final hasEmptyPile = tableau.any((p) => p.isEmpty);
+      if (!hasEmptyPile) {
+        moves.add(SpiderMove(SpiderMoveType.dealFromStock, -1, -1));
+      }
+    }
+
+    return moves;
+  }
+
+  @override
+  SolverState<SpiderMove> applyMove(SpiderMove move) {
+    switch (move.type) {
+      case SpiderMoveType.tableauToTableau:
+        final fromPile = tableau[move.fromPile];
+        final startIdx = fromPile.length - move.cardCount;
+        final cardsToMove = fromPile.sublist(startIdx);
+
+        final newTableau = List<List<SpiderCard>>.from(
+            tableau.map((p) => List<SpiderCard>.from(p)));
+
+        // Remove cards from source
+        newTableau[move.fromPile] = fromPile.sublist(0, startIdx);
+
+        // Flip top card if needed
+        if (newTableau[move.fromPile].isNotEmpty &&
+            !newTableau[move.fromPile].last.faceUp) {
+          final topCard = newTableau[move.fromPile].last;
+          newTableau[move.fromPile][newTableau[move.fromPile].length - 1] =
+              SpiderCard(topCard.value, faceUp: true);
+        }
+
+        // Add to destination
+        newTableau[move.toPile].addAll(cardsToMove);
+
+        // Check for completed sequence
+        var newCompletedSequences = completedSequences;
+        if (_hasCompleteSequence(newTableau[move.toPile])) {
+          // Remove the completed sequence
+          newTableau[move.toPile] = newTableau[move.toPile]
+              .sublist(0, newTableau[move.toPile].length - 13);
+          newCompletedSequences++;
+
+          // Flip new top card if needed
+          if (newTableau[move.toPile].isNotEmpty &&
+              !newTableau[move.toPile].last.faceUp) {
+            final topCard = newTableau[move.toPile].last;
+            newTableau[move.toPile][newTableau[move.toPile].length - 1] =
+                SpiderCard(topCard.value, faceUp: true);
+          }
+        }
+
+        return copyWith(
+            tableau: newTableau, completedSequences: newCompletedSequences);
+
+      case SpiderMoveType.dealFromStock:
+        // Deal one card to each pile
+        final newTableau = List<List<SpiderCard>>.from(
+            tableau.map((p) => List<SpiderCard>.from(p)));
+
+        // Add a placeholder face-up card to each pile
+        // In the real game, this would be actual cards from stock
+        // For solver, we track this as new cards
+        for (int i = 0; i < 10; i++) {
+          // Add a generic card (solver will explore from here)
+          newTableau[i].add(SpiderCard('0X', faceUp: true));
+        }
+
+        return copyWith(
+          tableau: newTableau,
+          stockDeals: stockDeals - 1,
+        );
+    }
+  }
+
+  @override
+  bool get isWon => completedSequences >= 8;
+
+  @override
+  String get signature {
+    // Create a normalized signature
+    final tableauSig = tableau
+        .map((pile) => pile.map((c) => c.faceUp ? c.value : '?').join(','))
+        .join('|');
+
+    return jsonEncode({
+      'tableau': tableauSig,
+      'stock': stockDeals,
+      'completed': completedSequences,
+    });
+  }
+
+  @override
+  int get heuristicScore {
+    if (isWon) return 1000;
+
+    int score = 0;
+
+    // Completed sequences are very valuable
+    score += completedSequences * 100;
+
+    // Count face-up cards
+    int faceUpCards = 0;
+    for (final pile in tableau) {
+      for (final card in pile) {
+        if (card.faceUp) faceUpCards++;
+      }
+    }
+    score += faceUpCards;
+
+    // Bonus for same-suit sequences
+    for (final pile in tableau) {
+      if (pile.length > 1) {
+        int sequenceLength = 1;
+        for (int i = pile.length - 1; i > 0; i--) {
+          final lower = pile[i];
+          final upper = pile[i - 1];
+          if (lower.faceUp &&
+              upper.faceUp &&
+              lower.isSameSuit(upper) &&
+              lower.canStackOn(upper)) {
+            sequenceLength++;
+          } else {
+            break;
+          }
+        }
+        score += sequenceLength * 3;
+      }
+    }
+
+    // Penalty for face-down cards
+    for (final pile in tableau) {
+      for (final card in pile) {
+        if (!card.faceUp) score -= 2;
+      }
+    }
+
+    // Empty piles are valuable
+    score += tableau.where((p) => p.isEmpty).length * 10;
+
+    return score;
+  }
+}
+
+
+// --- FILE: lib/features/game/ai/games/pyramid_solver_state.dart ---
+import 'dart:convert';
+
+import '../abstract_solver.dart';
+
+/// Represents a card in the Pyramid solver.
+/// Format: 'rankSuit' where rank 1-13 (1=Ace, 13=King), suit H/D/C/S.
+class PyramidCard {
+  final String value;
+
+  PyramidCard(this.value);
+
+  int get rank => int.parse(value.substring(0, value.length - 1));
+
+  String get suit => value.substring(value.length - 1);
+
+  bool get isKing => rank == 13;
+
+  @override
+  String toString() => value;
+
+  /// Check if this card pairs with another to sum to 13
+  bool pairsWith(PyramidCard other) => rank + other.rank == 13;
+}
+
+/// Enum for different move types in Pyramid.
+enum PyramidMoveType {
+  removeKing, // Remove a King by itself
+  matchPair, // Match two cards summing to 13
+  drawFromStock, // Draw a card from stock to waste
+  recycleWaste, // Recycle waste back to stock
+}
+
+/// Represents a move in Pyramid solitaire.
+class PyramidMove extends SolverMove {
+  final PyramidMoveType type;
+  final int cardIndex1; // Pyramid index or -1 for waste
+  final int cardIndex2; // Second card index for pairs, -1 otherwise
+
+  PyramidMove(this.type, this.cardIndex1, [this.cardIndex2 = -1]);
+
+  @override
+  int get priority => _calculatePriority();
+
+  int _calculatePriority() {
+    switch (type) {
+      case PyramidMoveType.removeKing:
+        return 10; // High priority - always good to remove Kings
+      case PyramidMoveType.matchPair:
+        return 8; // Good priority for matches
+      case PyramidMoveType.drawFromStock:
+        return 3; // Medium priority
+      case PyramidMoveType.recycleWaste:
+        return 1; // Low priority
+    }
+  }
+
+  @override
+  String toString() => '$type idx1:$cardIndex1 idx2:$cardIndex2';
+}
+
+/// Lightweight state representation for Pyramid solver.
+class PyramidSolverState implements SolverState<PyramidMove> {
+  // Pyramid positions: 28 slots, null if removed
+  final List<String?> pyramid;
+  final List<String> stock; // Cards in stock
+  final List<String> waste; // Cards in waste
+
+  // Track which positions cover which (static structure)
+  static final List<List<int>> _covers = _buildCoverStructure();
+
+  PyramidSolverState({
+    required this.pyramid,
+    required this.stock,
+    required this.waste,
+  });
+
+  static List<List<int>> _buildCoverStructure() {
+    final covers = <List<int>>[];
+    for (int row = 0; row < 7; row++) {
+      for (int col = 0; col <= row; col++) {
+        final covering = <int>[];
+        if (row < 6) {
+          final nextRowStart = (row + 1) * (row + 2) ~/ 2;
+          covering.add(nextRowStart + col);
+          covering.add(nextRowStart + col + 1);
+        }
+        covers.add(covering);
+      }
+    }
+    return covers;
+  }
+
+  /// Check if a pyramid position is uncovered
+  bool isUncovered(int index) {
+    if (index < 0 || index >= 28) return false;
+    if (pyramid[index] == null) return false;
+
+    // Check if any card is covering this position
+    for (int i = 0; i < 28; i++) {
+      if (_covers[i].contains(index) && pyramid[i] != null) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Creates a copy with modified fields.
+  PyramidSolverState copyWith({
+    List<String?>? pyramid,
+    List<String>? stock,
+    List<String>? waste,
+  }) {
+    return PyramidSolverState(
+      pyramid: pyramid ?? List.from(this.pyramid),
+      stock: stock ?? List.from(this.stock),
+      waste: waste ?? List.from(this.waste),
+    );
+  }
+
+  @override
+  List<PyramidMove> getAvailableMoves() {
+    final moves = <PyramidMove>[];
+
+    // Collect all matchable cards
+    final uncoveredPyramid = <int>[];
+    for (int i = 0; i < 28; i++) {
+      if (isUncovered(i)) {
+        uncoveredPyramid.add(i);
+      }
+    }
+
+    // Remove Kings from pyramid
+    for (final idx in uncoveredPyramid) {
+      final card = PyramidCard(pyramid[idx]!);
+      if (card.isKing) {
+        moves.add(PyramidMove(PyramidMoveType.removeKing, idx));
+      }
+    }
+
+    // Remove King from waste
+    if (waste.isNotEmpty) {
+      final wasteTop = PyramidCard(waste.last);
+      if (wasteTop.isKing) {
+        moves.add(PyramidMove(PyramidMoveType.removeKing, -1));
+      }
+    }
+
+    // Match pairs within pyramid
+    for (int i = 0; i < uncoveredPyramid.length; i++) {
+      final card1 = PyramidCard(pyramid[uncoveredPyramid[i]]!);
+      if (card1.isKing) continue;
+
+      for (int j = i + 1; j < uncoveredPyramid.length; j++) {
+        final card2 = PyramidCard(pyramid[uncoveredPyramid[j]]!);
+        if (card1.pairsWith(card2)) {
+          moves.add(PyramidMove(
+            PyramidMoveType.matchPair,
+            uncoveredPyramid[i],
+            uncoveredPyramid[j],
+          ));
+        }
+      }
+    }
+
+    // Match pyramid with waste
+    if (waste.isNotEmpty) {
+      final wasteTop = PyramidCard(waste.last);
+      if (!wasteTop.isKing) {
+        for (final idx in uncoveredPyramid) {
+          final pyramidCard = PyramidCard(pyramid[idx]!);
+          if (pyramidCard.pairsWith(wasteTop)) {
+            moves.add(PyramidMove(PyramidMoveType.matchPair, idx, -1));
+          }
+        }
+      }
+    }
+
+    // Draw from stock
+    if (stock.isNotEmpty) {
+      moves.add(PyramidMove(PyramidMoveType.drawFromStock, -1));
+    }
+
+    // Recycle waste (only if stock is empty and waste has cards)
+    if (stock.isEmpty && waste.isNotEmpty) {
+      moves.add(PyramidMove(PyramidMoveType.recycleWaste, -1));
+    }
+
+    return moves;
+  }
+
+  @override
+  SolverState<PyramidMove> applyMove(PyramidMove move) {
+    switch (move.type) {
+      case PyramidMoveType.removeKing:
+        if (move.cardIndex1 == -1) {
+          // King from waste
+          final newWaste = List<String>.from(waste);
+          newWaste.removeLast();
+          return copyWith(waste: newWaste);
+        } else {
+          // King from pyramid
+          final newPyramid = List<String?>.from(pyramid);
+          newPyramid[move.cardIndex1] = null;
+          return copyWith(pyramid: newPyramid);
+        }
+
+      case PyramidMoveType.matchPair:
+        final newPyramid = List<String?>.from(pyramid);
+
+        if (move.cardIndex2 == -1) {
+          // Matching pyramid with waste
+          newPyramid[move.cardIndex1] = null;
+          final newWaste = List<String>.from(waste);
+          newWaste.removeLast();
+          return copyWith(pyramid: newPyramid, waste: newWaste);
+        } else {
+          // Matching two pyramid cards
+          newPyramid[move.cardIndex1] = null;
+          newPyramid[move.cardIndex2] = null;
+          return copyWith(pyramid: newPyramid);
+        }
+
+      case PyramidMoveType.drawFromStock:
+        final newStock = List<String>.from(stock);
+        final card = newStock.removeLast();
+        final newWaste = List<String>.from(waste)..add(card);
+        return copyWith(stock: newStock, waste: newWaste);
+
+      case PyramidMoveType.recycleWaste:
+        // Waste goes back to stock (reversed)
+        final newStock = waste.reversed.toList();
+        return copyWith(stock: newStock, waste: []);
+    }
+  }
+
+  @override
+  bool get isWon => pyramid.every((card) => card == null);
+
+  @override
+  String get signature {
+    return jsonEncode({
+      'pyramid': pyramid,
+      'stock': stock.length, // Only track count for stock
+      'waste': waste.isEmpty ? '' : waste.last, // Only top of waste matters
+    });
+  }
+
+  @override
+  int get heuristicScore {
+    if (isWon) return 1000;
+
+    int score = 0;
+
+    // Count removed pyramid cards (very valuable)
+    final removedCount = pyramid.where((c) => c == null).length;
+    score += removedCount * 20;
+
+    // Bonus for uncovered cards (more options)
+    for (int i = 0; i < 28; i++) {
+      if (isUncovered(i)) score += 3;
+    }
+
+    // Bonus for accessible Kings
+    for (int i = 0; i < 28; i++) {
+      if (isUncovered(i) && pyramid[i] != null) {
+        final card = PyramidCard(pyramid[i]!);
+        if (card.isKing) score += 5;
+      }
+    }
+
+    // Bonus for matching pairs available
+    final uncovered = <int>[];
+    for (int i = 0; i < 28; i++) {
+      if (isUncovered(i)) uncovered.add(i);
+    }
+
+    for (int i = 0; i < uncovered.length; i++) {
+      final card1 = PyramidCard(pyramid[uncovered[i]]!);
+      for (int j = i + 1; j < uncovered.length; j++) {
+        final card2 = PyramidCard(pyramid[uncovered[j]]!);
+        if (card1.pairsWith(card2)) score += 8;
+      }
+    }
+
+    return score;
+  }
+}
+
+
+// --- FILE: lib/features/game/ai/games/golf_solver_state.dart ---
+import 'dart:convert';
+
+import '../abstract_solver.dart';
+
+/// Represents a card in the Golf solver.
+/// Format: 'rankSuit' where rank 1-13 (1=Ace, 13=King), suit H/D/C/S.
+class GolfCard {
+  final String value;
+
+  GolfCard(this.value);
+
+  int get rank => int.parse(value.substring(0, value.length - 1));
+
+  String get suit => value.substring(value.length - 1);
+
+  @override
+  String toString() => value;
+
+  /// Check if this card can be played to waste (+/- 1 rank)
+  bool canPlayOn(GolfCard wasteTop, {bool allowWrapping = false}) {
+    final diff = (rank - wasteTop.rank).abs();
+    if (allowWrapping) {
+      return diff == 1 || diff == 12; // 12 handles K-A wrapping
+    }
+    return diff == 1;
+  }
+}
+
+/// Enum for different move types in Golf.
+enum GolfMoveType {
+  tableauToWaste,
+  drawFromStock,
+}
+
+/// Represents a move in Golf solitaire.
+class GolfMove extends SolverMove {
+  final GolfMoveType type;
+  final int tableauIndex; // Which tableau pile (-1 for stock draw)
+
+  GolfMove(this.type, this.tableauIndex);
+
+  @override
+  int get priority => _calculatePriority();
+
+  int _calculatePriority() {
+    switch (type) {
+      case GolfMoveType.tableauToWaste:
+        return 5; // Prefer playing cards
+      case GolfMoveType.drawFromStock:
+        return 2; // Draw when needed
+    }
+  }
+
+  @override
+  String toString() => '$type idx:$tableauIndex';
+}
+
+/// Lightweight state representation for Golf solver.
+class GolfSolverState implements SolverState<GolfMove> {
+  final List<List<String>> tableau; // 7 piles
+  final List<String> stock;
+  final String? wasteTop; // Only top matters
+  final bool allowWrapping;
+
+  GolfSolverState({
+    required this.tableau,
+    required this.stock,
+    required this.wasteTop,
+    this.allowWrapping = false,
+  });
+
+  /// Creates a copy with modified fields.
+  GolfSolverState copyWith({
+    List<List<String>>? tableau,
+    List<String>? stock,
+    String? wasteTop,
+    bool? allowWrapping,
+  }) {
+    return GolfSolverState(
+      tableau: tableau ?? List.from(this.tableau.map((p) => List.from(p))),
+      stock: stock ?? List.from(this.stock),
+      wasteTop: wasteTop ?? this.wasteTop,
+      allowWrapping: allowWrapping ?? this.allowWrapping,
+    );
+  }
+
+  @override
+  List<GolfMove> getAvailableMoves() {
+    final moves = <GolfMove>[];
+
+    // Tableau to waste moves
+    if (wasteTop != null) {
+      final wasteCard = GolfCard(wasteTop!);
+
+      for (int i = 0; i < 7; i++) {
+        if (tableau[i].isEmpty) continue;
+        final topCard = GolfCard(tableau[i].last);
+        if (topCard.canPlayOn(wasteCard, allowWrapping: allowWrapping)) {
+          moves.add(GolfMove(GolfMoveType.tableauToWaste, i));
+        }
+      }
+    }
+
+    // Draw from stock
+    if (stock.isNotEmpty) {
+      moves.add(GolfMove(GolfMoveType.drawFromStock, -1));
+    }
+
+    return moves;
+  }
+
+  @override
+  SolverState<GolfMove> applyMove(GolfMove move) {
+    switch (move.type) {
+      case GolfMoveType.tableauToWaste:
+        final newTableau =
+            List<List<String>>.from(tableau.map((p) => List<String>.from(p)));
+        final card = newTableau[move.tableauIndex].removeLast();
+        return copyWith(tableau: newTableau, wasteTop: card);
+
+      case GolfMoveType.drawFromStock:
+        final newStock = List<String>.from(stock);
+        final card = newStock.removeLast();
+        return copyWith(stock: newStock, wasteTop: card);
+    }
+  }
+
+  @override
+  bool get isWon => tableau.every((pile) => pile.isEmpty);
+
+  @override
+  String get signature {
+    return jsonEncode({
+      'tableau': tableau.map((p) => p.isEmpty ? '' : p.last).toList(),
+      'stock': stock.length,
+      'waste': wasteTop,
+    });
+  }
+
+  @override
+  int get heuristicScore {
+    if (isWon) return 1000;
+
+    int score = 0;
+
+    // Count cards cleared (35 - remaining)
+    int remaining = 0;
+    for (final pile in tableau) {
+      remaining += pile.length;
+    }
+    score += (35 - remaining) * 15;
+
+    // Bonus for available moves
+    if (wasteTop != null) {
+      final wasteCard = GolfCard(wasteTop!);
+      for (int i = 0; i < 7; i++) {
+        if (tableau[i].isEmpty) continue;
+        final topCard = GolfCard(tableau[i].last);
+        if (topCard.canPlayOn(wasteCard, allowWrapping: allowWrapping)) {
+          score += 10;
+        }
+      }
+    }
+
+    // Penalty for empty stock (fewer options)
+    if (stock.isEmpty) score -= 20;
+
+    // Bonus for empty piles
+    score += tableau.where((p) => p.isEmpty).length * 5;
+
+    return score;
+  }
+}
+
+
+// --- FILE: lib/features/game/ai/games/tripeaks_solver_state.dart ---
+import 'dart:convert';
+
+import '../abstract_solver.dart';
+
+/// Represents a card in the TriPeaks solver.
+/// Format: 'rankSuit' where rank 1-13 (1=Ace, 13=King), suit H/D/C/S.
+class TriPeaksCard {
+  final String value;
+
+  TriPeaksCard(this.value);
+
+  int get rank => int.parse(value.substring(0, value.length - 1));
+
+  String get suit => value.substring(value.length - 1);
+
+  @override
+  String toString() => value;
+
+  /// Check if this card can be played to waste (+/- 1 rank with wrapping)
+  bool canPlayOn(TriPeaksCard wasteTop) {
+    final diff = (rank - wasteTop.rank).abs();
+    return diff == 1 || diff == 12; // 12 handles K-A wrapping
+  }
+}
+
+/// Enum for different move types in TriPeaks.
+enum TriPeaksMoveType {
+  peakToWaste,
+  drawFromStock,
+}
+
+/// Represents a move in TriPeaks solitaire.
+class TriPeaksMove extends SolverMove {
+  final TriPeaksMoveType type;
+  final int peakIndex; // Which peak pile (-1 for stock draw)
+
+  TriPeaksMove(this.type, this.peakIndex);
+
+  @override
+  int get priority => _calculatePriority();
+
+  int _calculatePriority() {
+    switch (type) {
+      case TriPeaksMoveType.peakToWaste:
+        return 5; // Prefer playing cards
+      case TriPeaksMoveType.drawFromStock:
+        return 2; // Draw when needed
+    }
+  }
+
+  @override
+  String toString() => '$type idx:$peakIndex';
+}
+
+/// Lightweight state representation for TriPeaks solver.
+class TriPeaksSolverState implements SolverState<TriPeaksMove> {
+  /// 28 peak positions (null = empty, String = card)
+  final List<String?> peaks;
+  final List<String> stock;
+  final String? wasteTop;
+
+  /// Peak structure: which positions each position covers
+  static const List<List<int>> peakCovers = [
+    // Row 0: Peak tops
+    [3, 4], // 0 covers 3, 4
+    [5, 6], // 1 covers 5, 6
+    [7, 8], // 2 covers 7, 8
+    // Row 1
+    [9, 10], // 3 covers 9, 10
+    [10, 11], // 4 covers 10, 11
+    [12, 13], // 5 covers 12, 13
+    [13, 14], // 6 covers 13, 14
+    [15, 16], // 7 covers 15, 16
+    [16, 17], // 8 covers 16, 17
+    // Row 2
+    [18, 19], // 9 covers 18, 19
+    [19, 20], // 10 covers 19, 20
+    [20, 21], // 11 covers 20, 21
+    [21, 22], // 12 covers 21, 22
+    [22, 23], // 13 covers 22, 23
+    [23, 24], // 14 covers 23, 24
+    [24, 25], // 15 covers 24, 25
+    [25, 26], // 16 covers 25, 26
+    [26, 27], // 17 covers 26, 27
+    // Row 3 (bottom) - covers nothing
+    [], [], [], [], [], [], [], [], [], []
+  ];
+
+  TriPeaksSolverState({
+    required this.peaks,
+    required this.stock,
+    required this.wasteTop,
+  });
+
+  /// Creates a copy with modified fields.
+  TriPeaksSolverState copyWith({
+    List<String?>? peaks,
+    List<String>? stock,
+    String? wasteTop,
+  }) {
+    return TriPeaksSolverState(
+      peaks: peaks ?? List.from(this.peaks),
+      stock: stock ?? List.from(this.stock),
+      wasteTop: wasteTop ?? this.wasteTop,
+    );
+  }
+
+  /// Check if a peak position is uncovered
+  bool isUncovered(int index) {
+    if (index < 0 || index >= 28) return false;
+    if (peaks[index] == null) return false;
+
+    // Card is uncovered if all cards it covers are empty
+    for (final coveredIndex in peakCovers[index]) {
+      if (peaks[coveredIndex] != null) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @override
+  List<TriPeaksMove> getAvailableMoves() {
+    final moves = <TriPeaksMove>[];
+
+    // Peak to waste moves
+    if (wasteTop != null) {
+      final wasteCard = TriPeaksCard(wasteTop!);
+
+      for (int i = 0; i < 28; i++) {
+        if (!isUncovered(i)) continue;
+        final peakCard = TriPeaksCard(peaks[i]!);
+        if (peakCard.canPlayOn(wasteCard)) {
+          moves.add(TriPeaksMove(TriPeaksMoveType.peakToWaste, i));
+        }
+      }
+    }
+
+    // Draw from stock
+    if (stock.isNotEmpty) {
+      moves.add(TriPeaksMove(TriPeaksMoveType.drawFromStock, -1));
+    }
+
+    return moves;
+  }
+
+  @override
+  SolverState<TriPeaksMove> applyMove(TriPeaksMove move) {
+    switch (move.type) {
+      case TriPeaksMoveType.peakToWaste:
+        final newPeaks = List<String?>.from(peaks);
+        final card = newPeaks[move.peakIndex];
+        newPeaks[move.peakIndex] = null;
+        return copyWith(peaks: newPeaks, wasteTop: card);
+
+      case TriPeaksMoveType.drawFromStock:
+        final newStock = List<String>.from(stock);
+        final card = newStock.removeLast();
+        return copyWith(stock: newStock, wasteTop: card);
+    }
+  }
+
+  @override
+  bool get isWon => peaks.every((p) => p == null);
+
+  @override
+  String get signature {
+    return jsonEncode({
+      'peaks': peaks,
+      'stock': stock.length,
+      'waste': wasteTop,
+    });
+  }
+
+  @override
+  int get heuristicScore {
+    if (isWon) return 1000;
+
+    int score = 0;
+
+    // Count cards cleared (28 - remaining)
+    final remaining = peaks.where((p) => p != null).length;
+    score += (28 - remaining) * 15;
+
+    // Bonus for available moves
+    if (wasteTop != null) {
+      final wasteCard = TriPeaksCard(wasteTop!);
+      for (int i = 0; i < 28; i++) {
+        if (!isUncovered(i)) continue;
+        final peakCard = TriPeaksCard(peaks[i]!);
+        if (peakCard.canPlayOn(wasteCard)) {
+          score += 10;
+        }
+      }
+    }
+
+    // Bonus for clearing peak tops (indices 0, 1, 2)
+    for (int i = 0; i < 3; i++) {
+      if (peaks[i] == null) {
+        score += 20;
+      }
+    }
+
+    // Penalty for empty stock
+    if (stock.isEmpty) score -= 20;
+
+    return score;
+  }
+}
+
+
+// --- FILE: lib/features/game/ai/games/yukon_solver_state.dart ---
+import 'dart:convert';
+
+import '../abstract_solver.dart';
+
+/// Represents a card in the Yukon solver.
+/// Format: 'rankSuit' where rank 1-13 (1=Ace, 13=King), suit H/D/C/S.
+class YukonCard {
+  final String value;
+  final bool faceUp;
+
+  YukonCard(this.value, {this.faceUp = true});
+
+  int get rank => int.parse(value.substring(0, value.length - 1));
+
+  String get suit => value.substring(value.length - 1);
+
+  bool get isRed => suit == 'H' || suit == 'D';
+  bool get isBlack => suit == 'C' || suit == 'S';
+
+  @override
+  String toString() => faceUp ? value : '?';
+
+  /// Check if this card can be placed on another in tableau (alternating colors, descending)
+  bool canStackOn(YukonCard other) {
+    if (isRed == other.isRed) return false; // Must alternate colors
+    return rank == other.rank - 1; // Must be descending
+  }
+}
+
+/// Enum for different move types in Yukon.
+enum YukonMoveType {
+  tableauToTableau,
+  tableauToFoundation,
+}
+
+/// Represents a move in Yukon solitaire.
+class YukonMove extends SolverMove {
+  final YukonMoveType type;
+  final int fromTableau;
+  final int toDestination; // Tableau or foundation index
+  final int cardIndex; // Index of the first card to move
+
+  YukonMove(this.type, this.fromTableau, this.toDestination, this.cardIndex);
+
+  @override
+  int get priority => _calculatePriority();
+
+  int _calculatePriority() {
+    switch (type) {
+      case YukonMoveType.tableauToFoundation:
+        return 10; // Prioritize foundation moves
+      case YukonMoveType.tableauToTableau:
+        return 5;
+    }
+  }
+
+  @override
+  String toString() => '$type from:$fromTableau[$cardIndex] to:$toDestination';
+}
+
+/// Card representation in a pile (with face-up status)
+class YukonCardInfo {
+  final String card;
+  final bool faceUp;
+
+  YukonCardInfo(this.card, this.faceUp);
+
+  @override
+  String toString() => faceUp ? card : '?';
+}
+
+/// Lightweight state representation for Yukon solver.
+class YukonSolverState implements SolverState<YukonMove> {
+  final List<List<YukonCardInfo>> tableau; // 7 piles with face-up status
+  final List<int> foundations; // Top rank of each foundation (0 = empty)
+
+  YukonSolverState({
+    required this.tableau,
+    required this.foundations,
+  });
+
+  /// Creates a copy with modified fields.
+  YukonSolverState copyWith({
+    List<List<YukonCardInfo>>? tableau,
+    List<int>? foundations,
+  }) {
+    return YukonSolverState(
+      tableau: tableau ??
+          List.from(this.tableau.map((p) => List<YukonCardInfo>.from(p))),
+      foundations: foundations ?? List.from(this.foundations),
+    );
+  }
+
+  /// Gets the suit index (0-3) for a card
+  int _getSuitIndex(String card) {
+    final suit = card.substring(card.length - 1);
+    switch (suit) {
+      case 'H':
+        return 0;
+      case 'D':
+        return 1;
+      case 'C':
+        return 2;
+      case 'S':
+        return 3;
+      default:
+        return 0;
+    }
+  }
+
+  @override
+  List<YukonMove> getAvailableMoves() {
+    final moves = <YukonMove>[];
+
+    for (int t = 0; t < 7; t++) {
+      if (tableau[t].isEmpty) continue;
+
+      // Find all face-up cards - each can be moved with all cards above it
+      for (int cardIdx = 0; cardIdx < tableau[t].length; cardIdx++) {
+        final cardInfo = tableau[t][cardIdx];
+        if (!cardInfo.faceUp) continue;
+
+        final card = YukonCard(cardInfo.card);
+
+        // Foundation moves (only top card)
+        if (cardIdx == tableau[t].length - 1) {
+          final suitIdx = _getSuitIndex(cardInfo.card);
+          if (card.rank == foundations[suitIdx] + 1) {
+            moves.add(YukonMove(
+              YukonMoveType.tableauToFoundation,
+              t,
+              suitIdx,
+              cardIdx,
+            ));
+          }
+        }
+
+        // Tableau to tableau moves
+        for (int dest = 0; dest < 7; dest++) {
+          if (dest == t) continue;
+
+          if (tableau[dest].isEmpty) {
+            // Only Kings to empty
+            if (card.rank == 13) {
+              moves.add(YukonMove(
+                YukonMoveType.tableauToTableau,
+                t,
+                dest,
+                cardIdx,
+              ));
+            }
+          } else {
+            final destTop = YukonCard(tableau[dest].last.card);
+            if (card.canStackOn(destTop)) {
+              moves.add(YukonMove(
+                YukonMoveType.tableauToTableau,
+                t,
+                dest,
+                cardIdx,
+              ));
+            }
+          }
+        }
+      }
+    }
+
+    return moves;
+  }
+
+  @override
+  SolverState<YukonMove> applyMove(YukonMove move) {
+    switch (move.type) {
+      case YukonMoveType.tableauToFoundation:
+        final newTableau = List<List<YukonCardInfo>>.from(
+            tableau.map((p) => List<YukonCardInfo>.from(p)));
+        final newFoundations = List<int>.from(foundations);
+
+        final card = newTableau[move.fromTableau].removeLast();
+        final cardObj = YukonCard(card.card);
+        newFoundations[move.toDestination] = cardObj.rank;
+
+        // Flip newly exposed card
+        if (newTableau[move.fromTableau].isNotEmpty &&
+            !newTableau[move.fromTableau].last.faceUp) {
+          final lastCard = newTableau[move.fromTableau].last;
+          newTableau[move.fromTableau]
+                  [newTableau[move.fromTableau].length - 1] =
+              YukonCardInfo(lastCard.card, true);
+        }
+
+        return copyWith(tableau: newTableau, foundations: newFoundations);
+
+      case YukonMoveType.tableauToTableau:
+        final newTableau = List<List<YukonCardInfo>>.from(
+            tableau.map((p) => List<YukonCardInfo>.from(p)));
+
+        // Move cards from index to end
+        final cardsToMove =
+            newTableau[move.fromTableau].sublist(move.cardIndex);
+        newTableau[move.fromTableau] =
+            newTableau[move.fromTableau].sublist(0, move.cardIndex);
+        newTableau[move.toDestination].addAll(cardsToMove);
+
+        // Flip newly exposed card
+        if (newTableau[move.fromTableau].isNotEmpty &&
+            !newTableau[move.fromTableau].last.faceUp) {
+          final lastCard = newTableau[move.fromTableau].last;
+          newTableau[move.fromTableau]
+                  [newTableau[move.fromTableau].length - 1] =
+              YukonCardInfo(lastCard.card, true);
+        }
+
+        return copyWith(tableau: newTableau);
+    }
+  }
+
+  @override
+  bool get isWon => foundations.every((f) => f == 13);
+
+  @override
+  String get signature {
+    // Create a unique signature for this state
+    final tableauSig = tableau.map((pile) {
+      return pile.map((c) => c.faceUp ? c.card : '?').join(',');
+    }).join('|');
+    return jsonEncode({
+      'tableau': tableauSig,
+      'foundations': foundations,
+    });
+  }
+
+  @override
+  int get heuristicScore {
+    if (isWon) return 10000;
+
+    int score = 0;
+
+    // Foundation progress is most important
+    for (final f in foundations) {
+      score += f * 20;
+    }
+
+    // Bonus for face-up cards
+    for (final pile in tableau) {
+      for (final card in pile) {
+        if (card.faceUp) score += 2;
+      }
+    }
+
+    // Bonus for empty tableau piles
+    score += tableau.where((p) => p.isEmpty).length * 5;
+
+    // Penalty for face-down cards
+    for (final pile in tableau) {
+      for (final card in pile) {
+        if (!card.faceUp) score -= 3;
+      }
+    }
+
+    return score;
+  }
+}
+
+
+// --- FILE: lib/features/game/ai/games/forty_thieves_solver_state.dart ---
+import 'dart:convert';
+
+import '../abstract_solver.dart';
+
+/// Represents a card in the Forty Thieves solver.
+/// Format: 'rankSuit' where rank 1-13 (1=Ace, 13=King), suit H/D/C/S.
+class FortyThievesCard {
+  final String value;
+
+  FortyThievesCard(this.value);
+
+  int get rank => int.parse(value.substring(0, value.length - 1));
+
+  String get suit => value.substring(value.length - 1);
+
+  @override
+  String toString() => value;
+
+  /// Check if this card can be placed on another in tableau (same suit, descending)
+  bool canStackOn(FortyThievesCard other) {
+    return suit == other.suit && rank == other.rank - 1;
+  }
+
+  /// Check if this card can be placed on foundation
+  bool canStackOnFoundation(FortyThievesCard? foundationTop) {
+    if (foundationTop == null) {
+      return rank == 1; // Only Aces on empty foundation
+    }
+    return suit == foundationTop.suit && rank == foundationTop.rank + 1;
+  }
+}
+
+/// Enum for different move types in Forty Thieves.
+enum FortyThievesMoveType {
+  tableauToTableau,
+  tableauToFoundation,
+  wasteToTableau,
+  wasteToFoundation,
+  drawFromStock,
+}
+
+/// Represents a move in Forty Thieves solitaire.
+class FortyThievesMove extends SolverMove {
+  final FortyThievesMoveType type;
+  final int fromIndex; // Source index (tableau or waste = -1)
+  final int toIndex; // Destination index
+
+  FortyThievesMove(this.type, this.fromIndex, this.toIndex);
+
+  @override
+  int get priority => _calculatePriority();
+
+  int _calculatePriority() {
+    switch (type) {
+      case FortyThievesMoveType.tableauToFoundation:
+      case FortyThievesMoveType.wasteToFoundation:
+        return 10; // Prioritize foundation moves
+      case FortyThievesMoveType.tableauToTableau:
+        return 5;
+      case FortyThievesMoveType.wasteToTableau:
+        return 4;
+      case FortyThievesMoveType.drawFromStock:
+        return 2;
+    }
+  }
+
+  @override
+  String toString() => '$type from:$fromIndex to:$toIndex';
+}
+
+/// Lightweight state representation for Forty Thieves solver.
+class FortyThievesSolverState implements SolverState<FortyThievesMove> {
+  final List<List<String>> tableau; // 10 piles
+  final List<String?> foundations; // 8 foundations (top card or null)
+  final List<String> stock;
+  final String? wasteTop;
+
+  FortyThievesSolverState({
+    required this.tableau,
+    required this.foundations,
+    required this.stock,
+    required this.wasteTop,
+  });
+
+  /// Creates a copy with modified fields.
+  FortyThievesSolverState copyWith({
+    List<List<String>>? tableau,
+    List<String?>? foundations,
+    List<String>? stock,
+    String? wasteTop,
+    bool clearWaste = false,
+  }) {
+    return FortyThievesSolverState(
+      tableau:
+          tableau ?? List.from(this.tableau.map((p) => List<String>.from(p))),
+      foundations: foundations ?? List.from(this.foundations),
+      stock: stock ?? List.from(this.stock),
+      wasteTop: clearWaste ? null : (wasteTop ?? this.wasteTop),
+    );
+  }
+
+  /// Gets foundation index for a suit (returns any foundation that matches or empty one)
+  int? _findFoundationForCard(FortyThievesCard card) {
+    // First look for matching suit that can accept the card
+    for (int i = 0; i < 8; i++) {
+      final foundTop = foundations[i];
+      if (foundTop != null) {
+        final topCard = FortyThievesCard(foundTop);
+        if (card.canStackOnFoundation(topCard)) {
+          return i;
+        }
+      }
+    }
+    // Then look for empty foundation for aces
+    if (card.rank == 1) {
+      for (int i = 0; i < 8; i++) {
+        if (foundations[i] == null) {
+          return i;
+        }
+      }
+    }
+    return null;
+  }
+
+  @override
+  List<FortyThievesMove> getAvailableMoves() {
+    final moves = <FortyThievesMove>[];
+
+    // Tableau to foundation/tableau moves
+    for (int t = 0; t < 10; t++) {
+      if (tableau[t].isEmpty) continue;
+      final card = FortyThievesCard(tableau[t].last);
+
+      // To foundation
+      final foundIdx = _findFoundationForCard(card);
+      if (foundIdx != null) {
+        moves.add(FortyThievesMove(
+          FortyThievesMoveType.tableauToFoundation,
+          t,
+          foundIdx,
+        ));
+      }
+
+      // To other tableau
+      for (int dest = 0; dest < 10; dest++) {
+        if (dest == t) continue;
+        if (tableau[dest].isEmpty) {
+          // Any card to empty
+          moves.add(FortyThievesMove(
+            FortyThievesMoveType.tableauToTableau,
+            t,
+            dest,
+          ));
+        } else {
+          final destTop = FortyThievesCard(tableau[dest].last);
+          if (card.canStackOn(destTop)) {
+            moves.add(FortyThievesMove(
+              FortyThievesMoveType.tableauToTableau,
+              t,
+              dest,
+            ));
+          }
+        }
+      }
+    }
+
+    // Waste moves
+    if (wasteTop != null) {
+      final card = FortyThievesCard(wasteTop!);
+
+      // To foundation
+      final foundIdx = _findFoundationForCard(card);
+      if (foundIdx != null) {
+        moves.add(FortyThievesMove(
+          FortyThievesMoveType.wasteToFoundation,
+          -1,
+          foundIdx,
+        ));
+      }
+
+      // To tableau
+      for (int dest = 0; dest < 10; dest++) {
+        if (tableau[dest].isEmpty) {
+          moves.add(FortyThievesMove(
+            FortyThievesMoveType.wasteToTableau,
+            -1,
+            dest,
+          ));
+        } else {
+          final destTop = FortyThievesCard(tableau[dest].last);
+          if (card.canStackOn(destTop)) {
+            moves.add(FortyThievesMove(
+              FortyThievesMoveType.wasteToTableau,
+              -1,
+              dest,
+            ));
+          }
+        }
+      }
+    }
+
+    // Draw from stock
+    if (stock.isNotEmpty) {
+      moves.add(FortyThievesMove(
+        FortyThievesMoveType.drawFromStock,
+        -1,
+        -1,
+      ));
+    }
+
+    return moves;
+  }
+
+  @override
+  SolverState<FortyThievesMove> applyMove(FortyThievesMove move) {
+    switch (move.type) {
+      case FortyThievesMoveType.tableauToFoundation:
+        final newTableau =
+            List<List<String>>.from(tableau.map((p) => List<String>.from(p)));
+        final newFoundations = List<String?>.from(foundations);
+        final card = newTableau[move.fromIndex].removeLast();
+        newFoundations[move.toIndex] = card;
+        return copyWith(tableau: newTableau, foundations: newFoundations);
+
+      case FortyThievesMoveType.tableauToTableau:
+        final newTableau =
+            List<List<String>>.from(tableau.map((p) => List<String>.from(p)));
+        final card = newTableau[move.fromIndex].removeLast();
+        newTableau[move.toIndex].add(card);
+        return copyWith(tableau: newTableau);
+
+      case FortyThievesMoveType.wasteToFoundation:
+        final newFoundations = List<String?>.from(foundations);
+        newFoundations[move.toIndex] = wasteTop;
+        return copyWith(foundations: newFoundations, clearWaste: true);
+
+      case FortyThievesMoveType.wasteToTableau:
+        final newTableau =
+            List<List<String>>.from(tableau.map((p) => List<String>.from(p)));
+        newTableau[move.toIndex].add(wasteTop!);
+        return copyWith(tableau: newTableau, clearWaste: true);
+
+      case FortyThievesMoveType.drawFromStock:
+        final newStock = List<String>.from(stock);
+        final card = newStock.removeLast();
+        return copyWith(stock: newStock, wasteTop: card);
+    }
+  }
+
+  @override
+  bool get isWon {
+    // All 8 foundations must have 13 cards (King on top)
+    return foundations.every((f) {
+      if (f == null) return false;
+      return FortyThievesCard(f).rank == 13;
+    });
+  }
+
+  @override
+  String get signature {
+    return jsonEncode({
+      'tableau': tableau.map((p) => p.isEmpty ? '' : p.last).toList(),
+      'foundations': foundations,
+      'stock': stock.length,
+      'waste': wasteTop,
+    });
+  }
+
+  @override
+  int get heuristicScore {
+    if (isWon) return 10000;
+
+    int score = 0;
+
+    // Foundation progress is most important
+    for (final f in foundations) {
+      if (f != null) {
+        score += FortyThievesCard(f).rank * 15;
+      }
+    }
+
+    // Bonus for empty tableau piles
+    score += tableau.where((p) => p.isEmpty).length * 8;
+
+    // Bonus for available moves
+    score += getAvailableMoves().length * 2;
+
+    // Penalty for cards in stock (more options = better)
+    score -= stock.length;
+
+    return score;
+  }
+}
+
+
+// --- FILE: lib/features/game/ai/games/canfield_solver_state.dart ---
+import 'dart:convert';
+
+import '../abstract_solver.dart';
+
+/// Represents a card in the Canfield solver.
+/// Format: 'rankSuit' where rank 1-13 (1=Ace, 13=King), suit H/D/C/S.
+class CanfieldCard {
+  final String value;
+
+  CanfieldCard(this.value);
+
+  int get rank => int.parse(value.substring(0, value.length - 1));
+
+  String get suit => value.substring(value.length - 1);
+
+  bool get isRed => suit == 'H' || suit == 'D';
+  bool get isBlack => suit == 'C' || suit == 'S';
+
+  @override
+  String toString() => value;
+
+  /// Check if this card can be placed on another in tableau (alternating colors, descending with wrap)
+  bool canStackOnTableau(CanfieldCard other) {
+    if (isRed == other.isRed) return false; // Must alternate colors
+    // Descending with wrap: expected value below other card
+    final expected = other.rank == 1 ? 13 : other.rank - 1;
+    return rank == expected;
+  }
+
+  /// Check if this card can be placed on foundation (same suit, ascending with wrap from base rank)
+  bool canStackOnFoundation(CanfieldCard? foundationTop, int baseRank) {
+    if (foundationTop == null) {
+      return rank == baseRank; // Empty foundation must start with base rank
+    }
+    if (suit != foundationTop.suit) return false;
+    // Ascending with wrap
+    final expected = foundationTop.rank == 13 ? 1 : foundationTop.rank + 1;
+    return rank == expected;
+  }
+}
+
+/// Card info with face-up status
+class CanfieldCardInfo {
+  final String card;
+  final bool faceUp;
+
+  CanfieldCardInfo(this.card, this.faceUp);
+
+  @override
+  String toString() => faceUp ? card : '?';
+}
+
+/// Enum for different move types in Canfield.
+enum CanfieldMoveType {
+  tableauToTableau,
+  tableauToFoundation,
+  wasteToTableau,
+  wasteToFoundation,
+  reserveToTableau,
+  reserveToFoundation,
+  drawFromStock,
+}
+
+/// Represents a move in Canfield solitaire.
+class CanfieldMove extends SolverMove {
+  final CanfieldMoveType type;
+  final int fromIndex; // Source index (for tableau)
+  final int toIndex; // Destination index
+  final int cardIndex; // For multi-card tableau moves
+
+  CanfieldMove(this.type, this.fromIndex, this.toIndex, [this.cardIndex = -1]);
+
+  @override
+  int get priority => _calculatePriority();
+
+  int _calculatePriority() {
+    switch (type) {
+      case CanfieldMoveType.tableauToFoundation:
+      case CanfieldMoveType.wasteToFoundation:
+      case CanfieldMoveType.reserveToFoundation:
+        return 10; // Prioritize foundation moves
+      case CanfieldMoveType.tableauToTableau:
+        return 5;
+      case CanfieldMoveType.wasteToTableau:
+      case CanfieldMoveType.reserveToTableau:
+        return 4;
+      case CanfieldMoveType.drawFromStock:
+        return 2;
+    }
+  }
+
+  @override
+  String toString() => '$type from:$fromIndex[$cardIndex] to:$toIndex';
+}
+
+/// Lightweight state representation for Canfield solver.
+class CanfieldSolverState implements SolverState<CanfieldMove> {
+  final List<List<CanfieldCardInfo>> tableau; // 4 piles
+  final List<String?> foundations; // 4 foundations (top card or null)
+  final List<CanfieldCardInfo> reserve; // Reserve pile
+  final List<String> stock;
+  final String? wasteTop;
+  final int baseRank; // The base rank for all foundations
+
+  CanfieldSolverState({
+    required this.tableau,
+    required this.foundations,
+    required this.reserve,
+    required this.stock,
+    required this.wasteTop,
+    required this.baseRank,
+  });
+
+  /// Creates a copy with modified fields.
+  CanfieldSolverState copyWith({
+    List<List<CanfieldCardInfo>>? tableau,
+    List<String?>? foundations,
+    List<CanfieldCardInfo>? reserve,
+    List<String>? stock,
+    String? wasteTop,
+    bool clearWaste = false,
+    int? baseRank,
+  }) {
+    return CanfieldSolverState(
+      tableau: tableau ??
+          List.from(this.tableau.map((p) => List<CanfieldCardInfo>.from(p))),
+      foundations: foundations ?? List.from(this.foundations),
+      reserve: reserve ?? List.from(this.reserve),
+      stock: stock ?? List.from(this.stock),
+      wasteTop: clearWaste ? null : (wasteTop ?? this.wasteTop),
+      baseRank: baseRank ?? this.baseRank,
+    );
+  }
+
+  /// Gets foundation index for a suit
+  int _getSuitIndex(String card) {
+    final suit = card.substring(card.length - 1);
+    switch (suit) {
+      case 'H':
+        return 0;
+      case 'D':
+        return 1;
+      case 'C':
+        return 2;
+      case 'S':
+        return 3;
+      default:
+        return 0;
+    }
+  }
+
+  /// Checks if cards form a valid tableau sequence
+  bool _isValidTableauSequence(List<CanfieldCardInfo> cards) {
+    if (cards.length <= 1) return true;
+    for (int i = 1; i < cards.length; i++) {
+      final prev = CanfieldCard(cards[i - 1].card);
+      final curr = CanfieldCard(cards[i].card);
+      if (!curr.canStackOnTableau(prev)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @override
+  List<CanfieldMove> getAvailableMoves() {
+    final moves = <CanfieldMove>[];
+
+    // Tableau moves
+    for (int t = 0; t < 4; t++) {
+      if (tableau[t].isEmpty) continue;
+
+      // Find movable sequences
+      for (int cardIdx = 0; cardIdx < tableau[t].length; cardIdx++) {
+        if (!tableau[t][cardIdx].faceUp) continue;
+
+        final cardsToMove = tableau[t].sublist(cardIdx);
+        if (!_isValidTableauSequence(cardsToMove)) continue;
+
+        final card = CanfieldCard(tableau[t][cardIdx].card);
+
+        // Foundation move (only top card)
+        if (cardIdx == tableau[t].length - 1) {
+          final suitIdx = _getSuitIndex(tableau[t][cardIdx].card);
+          final foundTop = foundations[suitIdx] != null
+              ? CanfieldCard(foundations[suitIdx]!)
+              : null;
+          if (card.canStackOnFoundation(foundTop, baseRank)) {
+            moves.add(CanfieldMove(
+              CanfieldMoveType.tableauToFoundation,
+              t,
+              suitIdx,
+              cardIdx,
+            ));
+          }
+        }
+
+        // Tableau to tableau
+        for (int dest = 0; dest < 4; dest++) {
+          if (dest == t) continue;
+          if (tableau[dest].isEmpty) {
+            // Any card to empty
+            moves.add(CanfieldMove(
+              CanfieldMoveType.tableauToTableau,
+              t,
+              dest,
+              cardIdx,
+            ));
+          } else {
+            final destTop = CanfieldCard(tableau[dest].last.card);
+            if (card.canStackOnTableau(destTop)) {
+              moves.add(CanfieldMove(
+                CanfieldMoveType.tableauToTableau,
+                t,
+                dest,
+                cardIdx,
+              ));
+            }
+          }
+        }
+      }
+    }
+
+    // Waste moves
+    if (wasteTop != null) {
+      final card = CanfieldCard(wasteTop!);
+      final suitIdx = _getSuitIndex(wasteTop!);
+
+      // To foundation
+      final foundTop = foundations[suitIdx] != null
+          ? CanfieldCard(foundations[suitIdx]!)
+          : null;
+      if (card.canStackOnFoundation(foundTop, baseRank)) {
+        moves
+            .add(CanfieldMove(CanfieldMoveType.wasteToFoundation, -1, suitIdx));
+      }
+
+      // To tableau
+      for (int dest = 0; dest < 4; dest++) {
+        if (tableau[dest].isEmpty) {
+          moves.add(CanfieldMove(CanfieldMoveType.wasteToTableau, -1, dest));
+        } else {
+          final destTop = CanfieldCard(tableau[dest].last.card);
+          if (card.canStackOnTableau(destTop)) {
+            moves.add(CanfieldMove(CanfieldMoveType.wasteToTableau, -1, dest));
+          }
+        }
+      }
+    }
+
+    // Reserve moves
+    if (reserve.isNotEmpty && reserve.last.faceUp) {
+      final card = CanfieldCard(reserve.last.card);
+      final suitIdx = _getSuitIndex(reserve.last.card);
+
+      // To foundation
+      final foundTop = foundations[suitIdx] != null
+          ? CanfieldCard(foundations[suitIdx]!)
+          : null;
+      if (card.canStackOnFoundation(foundTop, baseRank)) {
+        moves.add(
+            CanfieldMove(CanfieldMoveType.reserveToFoundation, -1, suitIdx));
+      }
+
+      // To tableau
+      for (int dest = 0; dest < 4; dest++) {
+        if (tableau[dest].isEmpty) {
+          moves.add(CanfieldMove(CanfieldMoveType.reserveToTableau, -1, dest));
+        } else {
+          final destTop = CanfieldCard(tableau[dest].last.card);
+          if (card.canStackOnTableau(destTop)) {
+            moves
+                .add(CanfieldMove(CanfieldMoveType.reserveToTableau, -1, dest));
+          }
+        }
+      }
+    }
+
+    // Draw from stock
+    if (stock.isNotEmpty) {
+      moves.add(CanfieldMove(CanfieldMoveType.drawFromStock, -1, -1));
+    }
+
+    return moves;
+  }
+
+  @override
+  SolverState<CanfieldMove> applyMove(CanfieldMove move) {
+    switch (move.type) {
+      case CanfieldMoveType.tableauToFoundation:
+        final newTableau = List<List<CanfieldCardInfo>>.from(
+            tableau.map((p) => List<CanfieldCardInfo>.from(p)));
+        final newFoundations = List<String?>.from(foundations);
+        final card = newTableau[move.fromIndex].removeLast();
+        newFoundations[move.toIndex] = card.card;
+
+        // Auto-fill from reserve if empty
+        final result =
+            copyWith(tableau: newTableau, foundations: newFoundations);
+        return result._autoFillTableau();
+
+      case CanfieldMoveType.tableauToTableau:
+        final newTableau = List<List<CanfieldCardInfo>>.from(
+            tableau.map((p) => List<CanfieldCardInfo>.from(p)));
+        final cardsToMove = newTableau[move.fromIndex].sublist(move.cardIndex);
+        newTableau[move.fromIndex] =
+            newTableau[move.fromIndex].sublist(0, move.cardIndex);
+        newTableau[move.toIndex].addAll(cardsToMove);
+
+        final result = copyWith(tableau: newTableau);
+        return result._autoFillTableau();
+
+      case CanfieldMoveType.wasteToFoundation:
+        final newFoundations = List<String?>.from(foundations);
+        newFoundations[move.toIndex] = wasteTop;
+        return copyWith(foundations: newFoundations, clearWaste: true);
+
+      case CanfieldMoveType.wasteToTableau:
+        final newTableau = List<List<CanfieldCardInfo>>.from(
+            tableau.map((p) => List<CanfieldCardInfo>.from(p)));
+        newTableau[move.toIndex].add(CanfieldCardInfo(wasteTop!, true));
+        return copyWith(tableau: newTableau, clearWaste: true);
+
+      case CanfieldMoveType.reserveToFoundation:
+        final newReserve = List<CanfieldCardInfo>.from(reserve);
+        final newFoundations = List<String?>.from(foundations);
+        final card = newReserve.removeLast();
+        newFoundations[move.toIndex] = card.card;
+        // Flip new top of reserve
+        if (newReserve.isNotEmpty && !newReserve.last.faceUp) {
+          newReserve[newReserve.length - 1] =
+              CanfieldCardInfo(newReserve.last.card, true);
+        }
+        return copyWith(reserve: newReserve, foundations: newFoundations);
+
+      case CanfieldMoveType.reserveToTableau:
+        final newReserve = List<CanfieldCardInfo>.from(reserve);
+        final newTableau = List<List<CanfieldCardInfo>>.from(
+            tableau.map((p) => List<CanfieldCardInfo>.from(p)));
+        final card = newReserve.removeLast();
+        newTableau[move.toIndex].add(CanfieldCardInfo(card.card, true));
+        // Flip new top of reserve
+        if (newReserve.isNotEmpty && !newReserve.last.faceUp) {
+          newReserve[newReserve.length - 1] =
+              CanfieldCardInfo(newReserve.last.card, true);
+        }
+        return copyWith(reserve: newReserve, tableau: newTableau);
+
+      case CanfieldMoveType.drawFromStock:
+        final newStock = List<String>.from(stock);
+        // Draw up to 3 cards
+        String? newWaste;
+        for (int i = 0; i < 3 && newStock.isNotEmpty; i++) {
+          newWaste = newStock.removeLast();
+        }
+        return copyWith(stock: newStock, wasteTop: newWaste);
+    }
+  }
+
+  /// Auto-fill empty tableau from reserve
+  CanfieldSolverState _autoFillTableau() {
+    if (reserve.isEmpty) return this;
+
+    final newTableau = List<List<CanfieldCardInfo>>.from(
+        tableau.map((p) => List<CanfieldCardInfo>.from(p)));
+    final newReserve = List<CanfieldCardInfo>.from(reserve);
+    bool changed = false;
+
+    for (int t = 0; t < 4; t++) {
+      if (newTableau[t].isEmpty && newReserve.isNotEmpty) {
+        final card = newReserve.removeLast();
+        newTableau[t].add(CanfieldCardInfo(card.card, true));
+        // Flip new top
+        if (newReserve.isNotEmpty && !newReserve.last.faceUp) {
+          newReserve[newReserve.length - 1] =
+              CanfieldCardInfo(newReserve.last.card, true);
+        }
+        changed = true;
+      }
+    }
+
+    if (!changed) return this;
+    return copyWith(tableau: newTableau, reserve: newReserve);
+  }
+
+  @override
+  bool get isWon => foundations.every((f) {
+        if (f == null) return false;
+        // Foundation is complete when it has 13 cards
+        // Check if top card is one below base rank (wrapped)
+        final card = CanfieldCard(f);
+        final expectedTop = baseRank == 1 ? 13 : baseRank - 1;
+        return card.rank == expectedTop;
+      });
+
+  @override
+  String get signature {
+    return jsonEncode({
+      'tableau': tableau.map((p) => p.map((c) => c.card).join(',')).toList(),
+      'foundations': foundations,
+      'reserve': reserve.length,
+      'stock': stock.length,
+      'waste': wasteTop,
+    });
+  }
+
+  @override
+  int get heuristicScore {
+    if (isWon) return 10000;
+
+    int score = 0;
+
+    // Foundation progress
+    for (final f in foundations) {
+      if (f != null) {
+        score += 15; // Each foundation card
+      }
+    }
+
+    // Bonus for empty reserve
+    if (reserve.isEmpty) score += 50;
+    score += (13 - reserve.length) * 3;
+
+    // Penalty for cards in stock
+    score -= stock.length;
+
+    // Bonus for face-up tableau cards
+    for (final pile in tableau) {
+      for (final card in pile) {
+        if (card.faceUp) score += 1;
+      }
+    }
+
+    return score;
+  }
+}
+
+
+// --- FILE: lib/features/game/ai/games/scorpion_solver_state.dart ---
+import 'dart:convert';
+
+import '../abstract_solver.dart';
+
+/// Represents a card in the Scorpion solver.
+/// Format: 'rankSuit' where rank 1-13 (1=Ace, 13=King), suit H/D/C/S.
+class ScorpionCard {
+  final String value;
+  final bool faceUp;
+
+  ScorpionCard(this.value, {this.faceUp = true});
+
+  int get rank => int.parse(value.substring(0, value.length - 1));
+
+  String get suit => value.substring(value.length - 1);
+
+  @override
+  String toString() => faceUp ? value : '?';
+
+  /// Check if this card can be placed on another in tableau (same suit, descending)
+  bool canStackOn(ScorpionCard other) {
+    if (suit != other.suit) return false; // Must be same suit
+    return rank == other.rank - 1; // Must be descending
+  }
+}
+
+/// Card info with face-up status
+class ScorpionCardInfo {
+  final String card;
+  final bool faceUp;
+
+  ScorpionCardInfo(this.card, this.faceUp);
+
+  @override
+  String toString() => faceUp ? card : '?';
+}
+
+/// Enum for different move types in Scorpion.
+enum ScorpionMoveType {
+  tableauToTableau,
+  dealFromStock,
+}
+
+/// Represents a move in Scorpion solitaire.
+class ScorpionMove extends SolverMove {
+  final ScorpionMoveType type;
+  final int fromTableau;
+  final int toTableau;
+  final int cardIndex; // Index of the first card to move
+
+  ScorpionMove(this.type, this.fromTableau, this.toTableau, this.cardIndex);
+
+  @override
+  int get priority => _calculatePriority();
+
+  int _calculatePriority() {
+    switch (type) {
+      case ScorpionMoveType.tableauToTableau:
+        return 5;
+      case ScorpionMoveType.dealFromStock:
+        return 2;
+    }
+  }
+
+  @override
+  String toString() => '$type from:$fromTableau[$cardIndex] to:$toTableau';
+}
+
+/// Lightweight state representation for Scorpion solver.
+class ScorpionSolverState implements SolverState<ScorpionMove> {
+  final List<List<ScorpionCardInfo>> tableau; // 7 piles with face-up status
+  final List<String> stock; // The "tail" (3 cards)
+  final int completedSuits;
+
+  ScorpionSolverState({
+    required this.tableau,
+    required this.stock,
+    required this.completedSuits,
+  });
+
+  /// Creates a copy with modified fields.
+  ScorpionSolverState copyWith({
+    List<List<ScorpionCardInfo>>? tableau,
+    List<String>? stock,
+    int? completedSuits,
+  }) {
+    return ScorpionSolverState(
+      tableau: tableau ??
+          List.from(this.tableau.map((p) => List<ScorpionCardInfo>.from(p))),
+      stock: stock ?? List.from(this.stock),
+      completedSuits: completedSuits ?? this.completedSuits,
+    );
+  }
+
+  /// Check for and count completed suit sequences
+  int _countCompletedSuits(List<List<ScorpionCardInfo>> tableauState) {
+    int completed = 0;
+
+    for (final pile in tableauState) {
+      if (pile.length < 13) continue;
+
+      // Check if bottom 13 cards form a complete suit sequence K-A
+      final start = pile.length - 13;
+      final firstCard = ScorpionCard(pile[start].card);
+      if (firstCard.rank != 13) continue; // Must start with King
+
+      bool isComplete = true;
+      final suit = firstCard.suit;
+
+      for (int i = 0; i < 13; i++) {
+        final card = ScorpionCard(pile[start + i].card);
+        if (card.suit != suit || card.rank != 13 - i) {
+          isComplete = false;
+          break;
+        }
+      }
+
+      if (isComplete) completed++;
+    }
+
+    return completed;
+  }
+
+  @override
+  List<ScorpionMove> getAvailableMoves() {
+    final moves = <ScorpionMove>[];
+
+    // Tableau to tableau moves
+    for (int t = 0; t < 7; t++) {
+      if (tableau[t].isEmpty) continue;
+
+      // Find all face-up cards - each can be moved with all cards above it
+      for (int cardIdx = 0; cardIdx < tableau[t].length; cardIdx++) {
+        final cardInfo = tableau[t][cardIdx];
+        if (!cardInfo.faceUp) continue;
+
+        final card = ScorpionCard(cardInfo.card);
+
+        for (int dest = 0; dest < 7; dest++) {
+          if (dest == t) continue;
+
+          if (tableau[dest].isEmpty) {
+            // Only Kings to empty
+            if (card.rank == 13) {
+              moves.add(ScorpionMove(
+                ScorpionMoveType.tableauToTableau,
+                t,
+                dest,
+                cardIdx,
+              ));
+            }
+          } else {
+            final destTop = ScorpionCard(tableau[dest].last.card);
+            if (card.canStackOn(destTop)) {
+              moves.add(ScorpionMove(
+                ScorpionMoveType.tableauToTableau,
+                t,
+                dest,
+                cardIdx,
+              ));
+            }
+          }
+        }
+      }
+    }
+
+    // Deal from stock
+    if (stock.isNotEmpty) {
+      moves.add(ScorpionMove(ScorpionMoveType.dealFromStock, -1, -1, -1));
+    }
+
+    return moves;
+  }
+
+  @override
+  SolverState<ScorpionMove> applyMove(ScorpionMove move) {
+    switch (move.type) {
+      case ScorpionMoveType.tableauToTableau:
+        final newTableau = List<List<ScorpionCardInfo>>.from(
+            tableau.map((p) => List<ScorpionCardInfo>.from(p)));
+
+        // Move cards from index to end
+        final cardsToMove =
+            newTableau[move.fromTableau].sublist(move.cardIndex);
+        newTableau[move.fromTableau] =
+            newTableau[move.fromTableau].sublist(0, move.cardIndex);
+        newTableau[move.toTableau].addAll(cardsToMove);
+
+        // Flip newly exposed card
+        if (newTableau[move.fromTableau].isNotEmpty &&
+            !newTableau[move.fromTableau].last.faceUp) {
+          final lastCard = newTableau[move.fromTableau].last;
+          newTableau[move.fromTableau]
+                  [newTableau[move.fromTableau].length - 1] =
+              ScorpionCardInfo(lastCard.card, true);
+        }
+
+        // Check for completed suits
+        final newCompleted = _countCompletedSuits(newTableau);
+        if (newCompleted > completedSuits) {
+          // Remove completed suit from tableau
+          for (int p = 0; p < 7; p++) {
+            if (newTableau[p].length >= 13) {
+              final start = newTableau[p].length - 13;
+              final firstCard = ScorpionCard(newTableau[p][start].card);
+              if (firstCard.rank == 13) {
+                bool isComplete = true;
+                final suit = firstCard.suit;
+                for (int i = 0; i < 13; i++) {
+                  final card = ScorpionCard(newTableau[p][start + i].card);
+                  if (card.suit != suit || card.rank != 13 - i) {
+                    isComplete = false;
+                    break;
+                  }
+                }
+                if (isComplete) {
+                  newTableau[p] = newTableau[p].sublist(0, start);
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        return copyWith(
+          tableau: newTableau,
+          completedSuits: newCompleted,
+        );
+
+      case ScorpionMoveType.dealFromStock:
+        final newTableau = List<List<ScorpionCardInfo>>.from(
+            tableau.map((p) => List<ScorpionCardInfo>.from(p)));
+        final newStock = List<String>.from(stock);
+
+        // Deal 3 cards to first 3 columns
+        for (int col = 0; col < 3 && newStock.isNotEmpty; col++) {
+          final card = newStock.removeLast();
+          newTableau[col].add(ScorpionCardInfo(card, true));
+        }
+
+        return copyWith(tableau: newTableau, stock: newStock);
+    }
+  }
+
+  @override
+  bool get isWon => completedSuits == 4;
+
+  @override
+  String get signature {
+    // Create a unique signature for this state
+    final tableauSig = tableau.map((pile) {
+      return pile.map((c) => c.faceUp ? c.card : '?').join(',');
+    }).join('|');
+    return jsonEncode({
+      'tableau': tableauSig,
+      'stock': stock.length,
+      'completed': completedSuits,
+    });
+  }
+
+  @override
+  int get heuristicScore {
+    if (isWon) return 10000;
+
+    int score = 0;
+
+    // Completed suits are most important
+    score += completedSuits * 500;
+
+    // Bonus for face-up cards
+    for (final pile in tableau) {
+      for (final card in pile) {
+        if (card.faceUp) score += 2;
+      }
+    }
+
+    // Bonus for suit sequences (count consecutive same-suit descending cards)
+    for (final pile in tableau) {
+      if (pile.isEmpty) continue;
+      int seqLength = 1;
+      for (int i = pile.length - 2; i >= 0; i--) {
+        if (!pile[i].faceUp) break;
+        final card = ScorpionCard(pile[i].card);
+        final nextCard = ScorpionCard(pile[i + 1].card);
+        if (card.suit == nextCard.suit && card.rank == nextCard.rank + 1) {
+          seqLength++;
+        } else {
+          break;
+        }
+      }
+      if (seqLength > 1) {
+        score += seqLength * 5;
+      }
+    }
+
+    // Penalty for face-down cards
+    for (final pile in tableau) {
+      for (final card in pile) {
+        if (!card.faceUp) score -= 5;
+      }
+    }
+
+    // Bonus for empty piles
+    score += tableau.where((p) => p.isEmpty).length * 10;
+
+    return score;
+  }
+}
+
+
 // --- FILE: lib/features/game/ai/solver_engine.dart ---
 import 'dart:async';
 
@@ -19441,9 +22398,14 @@ https://www.gnu.org/licenses/gpl-3.0.html
 import 'package:flutter/material.dart';
 import 'package:solitude/core/theme/app_theme.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
+import 'package:solitude/features/game/games/game_factory.dart';
 
+/// Game-aware help screen that displays rules and tips for the current game type.
 class HelpScreen extends StatelessWidget {
-  const HelpScreen({super.key});
+  /// The game type to display help for. Defaults to Klondike if not specified.
+  final GameType gameType;
+
+  const HelpScreen({super.key, this.gameType = GameType.klondike});
 
   @override
   Widget build(BuildContext context) {
@@ -19465,10 +22427,16 @@ class HelpScreen extends StatelessWidget {
                     const SizedBox(height: 32),
                     _buildGameplaySection(context),
                     const SizedBox(height: 32),
-                    _buildDifficultySection(context),
-                    const SizedBox(height: 32),
-                    _buildScoringSection(context),
-                    const SizedBox(height: 32),
+                    // Only show difficulty section for games that support it
+                    if (_hasDifficultySettings()) ...[
+                      _buildDifficultySection(context),
+                      const SizedBox(height: 32),
+                    ],
+                    // Only show scoring section for Klondike and Canfield
+                    if (_hasScoringModes()) ...[
+                      _buildScoringSection(context),
+                      const SizedBox(height: 32),
+                    ],
                     _buildKeyboardShortcutsSection(context),
                     const SizedBox(height: 32),
                     _buildTipsSection(context),
@@ -19482,6 +22450,14 @@ class HelpScreen extends StatelessWidget {
     );
   }
 
+  bool _hasDifficultySettings() {
+    return gameType == GameType.klondike || gameType == GameType.spider;
+  }
+
+  bool _hasScoringModes() {
+    return gameType == GameType.klondike || gameType == GameType.canfield;
+  }
+
   Widget _buildHeader(BuildContext context) {
     return Container(
       height: 56,
@@ -19490,7 +22466,7 @@ class HelpScreen extends StatelessWidget {
         color: AppTheme.toolbarColor(context),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -19519,11 +22495,13 @@ class HelpScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppTheme.cardBackColor(context).withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.accentColor(context).withValues(alpha:0.5), width: 2),
+              border: Border.all(
+                  color: AppTheme.accentColor(context).withValues(alpha: 0.5),
+                  width: 2),
             ),
             child: Center(
               child: Icon(
-                Icons.help_outline_rounded,
+                _getGameIcon(),
                 size: 40,
                 color: AppTheme.textColor(context),
               ),
@@ -19531,12 +22509,12 @@ class HelpScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Klondike Solitaire',
+            gameType.displayName,
             style: AppTypography.heading(context),
           ),
           const SizedBox(height: 8),
           Text(
-            'The classic card game of patience and strategy.',
+            _getGameTagline(),
             style: AppTypography.body(context),
             textAlign: TextAlign.center,
           ),
@@ -19545,55 +22523,355 @@ class HelpScreen extends StatelessWidget {
     );
   }
 
+  IconData _getGameIcon() {
+    switch (gameType) {
+      case GameType.klondike:
+        return Icons.style;
+      case GameType.spider:
+        return Icons.pest_control;
+      case GameType.freecell:
+        return Icons.grid_view;
+      case GameType.pyramid:
+        return Icons.change_history;
+      case GameType.triPeaks:
+        return Icons.landscape;
+      case GameType.golf:
+        return Icons.golf_course;
+      case GameType.yukon:
+        return Icons.terrain;
+      case GameType.fortyThieves:
+        return Icons.shield;
+      case GameType.canfield:
+        return Icons.casino;
+      case GameType.scorpion:
+        return Icons.flare;
+    }
+  }
+
+  String _getGameTagline() {
+    switch (gameType) {
+      case GameType.klondike:
+        return 'The classic card game of patience and strategy.';
+      case GameType.spider:
+        return 'Build complete suits within the tableau.';
+      case GameType.freecell:
+        return 'Strategic play with four free cells.';
+      case GameType.pyramid:
+        return 'Match cards that add up to 13.';
+      case GameType.triPeaks:
+        return 'Clear three overlapping pyramids.';
+      case GameType.golf:
+        return 'Score the lowest by clearing cards.';
+      case GameType.yukon:
+        return 'Move any face-up card freely.';
+      case GameType.fortyThieves:
+        return 'A rigorous two-deck challenge.';
+      case GameType.canfield:
+        return 'Compact casino-style gameplay.';
+      case GameType.scorpion:
+        return 'Build King-to-Ace suit sequences.';
+    }
+  }
+
   Widget _buildObjectiveSection(BuildContext context) {
     return _buildSection(
       context,
       title: 'Objective',
       children: [
         Text(
-          'Move all 52 cards to the four foundation piles at the top-right, organized by suit from Ace to King.',
+          _getObjectiveText(),
           style: AppTypography.body(context),
         ),
         const SizedBox(height: 16),
         _buildHighlightBox(
           context,
           icon: Icons.flag_outlined,
-          text: 'Win by completing all four foundation piles: ♠ ♥ ♣ ♦',
+          text: _getWinCondition(),
         ),
       ],
     );
+  }
+
+  String _getObjectiveText() {
+    switch (gameType) {
+      case GameType.klondike:
+        return 'Move all 52 cards to the four foundation piles at the top-right, organized by suit from Ace to King.';
+      case GameType.spider:
+        return 'Build complete same-suit sequences from King to Ace within the tableau. When complete, they are automatically moved to the foundation.';
+      case GameType.freecell:
+        return 'Move all 52 cards to the four foundation piles, building up by suit from Ace to King. Use the four free cells to temporarily store cards.';
+      case GameType.pyramid:
+        return 'Remove pairs of cards that add up to 13 from the pyramid. Kings (value 13) can be removed alone.';
+      case GameType.triPeaks:
+        return 'Clear all cards from the three peaks by playing cards that are one rank higher or lower than the top card of the waste pile.';
+      case GameType.golf:
+        return 'Move all cards from the tableau to the waste pile by playing cards one rank higher or lower, regardless of suit.';
+      case GameType.yukon:
+        return 'Move all cards to the four foundation piles, building up by suit from Ace to King. You can move any face-up card along with all cards on top of it.';
+      case GameType.fortyThieves:
+        return 'Move all 104 cards (two decks) to the eight foundation piles, building up by suit from Ace to King.';
+      case GameType.canfield:
+        return 'Move all cards to the four foundation piles, building up by suit from the base card (first card dealt to foundation).';
+      case GameType.scorpion:
+        return 'Build four complete same-suit sequences from King to Ace within the tableau columns.';
+    }
+  }
+
+  String _getWinCondition() {
+    switch (gameType) {
+      case GameType.klondike:
+        return 'Win by completing all four foundation piles: ♠ ♥ ♣ ♦';
+      case GameType.spider:
+        return 'Win by building 8 complete King-to-Ace sequences';
+      case GameType.freecell:
+        return 'Win by moving all cards to the foundations: ♠ ♥ ♣ ♦';
+      case GameType.pyramid:
+        return 'Win by clearing all cards from the pyramid';
+      case GameType.triPeaks:
+        return 'Win by clearing all three peaks';
+      case GameType.golf:
+        return 'Win by clearing all tableau cards to the waste';
+      case GameType.yukon:
+        return 'Win by completing all four foundation piles: ♠ ♥ ♣ ♦';
+      case GameType.fortyThieves:
+        return 'Win by completing all eight foundation piles';
+      case GameType.canfield:
+        return 'Win by completing all four foundation piles';
+      case GameType.scorpion:
+        return 'Win by building 4 complete King-to-Ace suit sequences';
+    }
   }
 
   Widget _buildGameplaySection(BuildContext context) {
     return _buildSection(
       context,
       title: 'How to Play',
-      children: [
-        _buildBulletPoint(
-          context,
-          title: 'Foundations (Top-Right)',
-          description: 'Build up from Ace to King in the same suit. Start each foundation with an Ace.',
-        ),
-        const SizedBox(height: 12),
-        _buildBulletPoint(
-          context,
-          title: 'Tableau (Bottom Seven Columns)',
-          description: 'Build down in alternating colors. Only Kings can be placed in empty tableau columns.',
-        ),
-        const SizedBox(height: 12),
-        _buildBulletPoint(
-          context,
-          title: 'Stock & Waste (Top-Left)',
-          description: 'Tap the stock to draw cards. Drawn cards appear in the waste pile and can be played to tableau or foundations.',
-        ),
-        const SizedBox(height: 12),
-        _buildBulletPoint(
-          context,
-          title: 'Moving Cards',
-          description: 'Drag and drop cards or tap to auto-move. You can move sequences of face-up cards in the tableau.',
-        ),
-      ],
+      children: _getGameplayRules(context),
     );
+  }
+
+  List<Widget> _getGameplayRules(BuildContext context) {
+    switch (gameType) {
+      case GameType.klondike:
+        return [
+          _buildBulletPoint(context,
+              title: 'Foundations (Top-Right)',
+              description:
+                  'Build up from Ace to King in the same suit. Start each foundation with an Ace.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Tableau (Bottom Seven Columns)',
+              description:
+                  'Build down in alternating colors. Only Kings can be placed in empty tableau columns.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Stock & Waste (Top-Left)',
+              description:
+                  'Tap the stock to draw cards. Drawn cards appear in the waste pile and can be played to tableau or foundations.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Moving Cards',
+              description:
+                  'Drag and drop cards or tap to auto-move. You can move sequences of face-up cards in the tableau.'),
+        ];
+
+      case GameType.spider:
+        return [
+          _buildBulletPoint(context,
+              title: 'Tableau (10 Columns)',
+              description:
+                  'Build down regardless of suit for movement. Only same-suit sequences can be moved as a group.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Complete Sequences',
+              description:
+                  'When you build a complete King-to-Ace same-suit sequence, it is automatically removed.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Stock (Top-Left)',
+              description:
+                  'Tap to deal one card to each tableau column. All columns must have at least one card.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Empty Columns',
+              description:
+                  'Any card or sequence can be moved to an empty column.'),
+        ];
+
+      case GameType.freecell:
+        return [
+          _buildBulletPoint(context,
+              title: 'Free Cells (Top-Left)',
+              description:
+                  'Four cells that can each hold one card temporarily. Use them to maneuver cards.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Foundations (Top-Right)',
+              description: 'Build up by suit from Ace to King.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Tableau (8 Columns)',
+              description:
+                  'Build down in alternating colors. Any card can fill an empty column.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Supermove',
+              description:
+                  'Move multiple cards at once based on available free cells and empty columns.'),
+        ];
+
+      case GameType.pyramid:
+        return [
+          _buildBulletPoint(context,
+              title: 'Matching Pairs',
+              description:
+                  'Remove pairs that add up to 13. A=1, J=11, Q=12, K=13 (removed alone).'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Exposed Cards',
+              description:
+                  'Only fully exposed cards (not covered by others) can be matched.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Stock & Waste',
+              description:
+                  'Draw from stock to find matching cards. Waste card can pair with pyramid cards.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Card Values',
+              description: 'A=1, 2-10=face value, J=11, Q=12, K=13'),
+        ];
+
+      case GameType.triPeaks:
+        return [
+          _buildBulletPoint(context,
+              title: 'Three Peaks',
+              description:
+                  'Clear overlapping pyramid formations by removing one card at a time.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Playing Cards',
+              description:
+                  'Play any exposed card that is one rank higher or lower than the waste pile top card.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Wrapping',
+              description:
+                  'Ace can be placed on 2 or King. King can be placed on Ace or Queen.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Stock',
+              description: 'Draw from stock when no moves are available.'),
+        ];
+
+      case GameType.golf:
+        return [
+          _buildBulletPoint(context,
+              title: 'Tableau (7 Columns)',
+              description:
+                  'Play any top card that is one rank higher or lower than the waste pile.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Waste Pile',
+              description:
+                  'Build by playing cards ±1 rank regardless of suit.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Stock',
+              description:
+                  'Draw when stuck. Each draw counts against your score.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Scoring',
+              description:
+                  'Lower is better. Cards left in tableau count against you.'),
+        ];
+
+      case GameType.yukon:
+        return [
+          _buildBulletPoint(context,
+              title: 'Free Movement',
+              description:
+                  'Move any face-up card with all cards above it, even if not in sequence.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Tableau Building',
+              description: 'Build down in alternating colors, like Klondike.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Foundations',
+              description: 'Build up by suit from Ace to King.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Empty Columns',
+              description: 'Only Kings can be placed in empty columns.'),
+        ];
+
+      case GameType.fortyThieves:
+        return [
+          _buildBulletPoint(context,
+              title: 'Tableau (10 Columns)',
+              description:
+                  'Build down by suit. Only the top card of each column can be moved.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Foundations (8 Piles)',
+              description: 'Build up by suit from Ace to King.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Stock & Waste',
+              description:
+                  'Draw one card at a time. Waste top card is available.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Empty Columns',
+              description: 'Any single card can fill an empty tableau column.'),
+        ];
+
+      case GameType.canfield:
+        return [
+          _buildBulletPoint(context,
+              title: 'Reserve (Left)',
+              description:
+                  'A pile of 13 cards. Top card is always available to play.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Foundations',
+              description:
+                  'Build up by suit, wrapping A after K. Base card determines starting rank.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Tableau (4 Columns)',
+              description:
+                  'Build down in alternating colors, wrapping K to A.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Stock',
+              description: 'Draw 3 cards at a time to waste pile.'),
+        ];
+
+      case GameType.scorpion:
+        return [
+          _buildBulletPoint(context,
+              title: 'Tableau (7 Columns)',
+              description:
+                  'Build down by the same suit. Move any face-up card with all cards below it.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Complete Sequences',
+              description:
+                  'Build King-to-Ace same-suit sequences. Completed sequences are removed.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Stock (3 Cards)',
+              description:
+                  'Deal 3 reserve cards to the first three columns when stuck.'),
+          const SizedBox(height: 12),
+          _buildBulletPoint(context,
+              title: 'Empty Columns',
+              description: 'Only Kings can fill empty columns.'),
+        ];
+    }
   }
 
   Widget _buildDifficultySection(BuildContext context) {
@@ -19628,7 +22906,8 @@ class HelpScreen extends StatelessWidget {
       title: 'Keyboard Shortcuts',
       children: [
         _buildShortcutItem(context, 'Tab', 'Cycle through piles'),
-        _buildShortcutItem(context, 'Shift+Tab', 'Cycle backwards through piles'),
+        _buildShortcutItem(
+            context, 'Shift+Tab', 'Cycle backwards through piles'),
         _buildShortcutItem(context, 'Enter/Space', 'Select focused pile'),
         _buildShortcutItem(context, 'U or Ctrl+Z', 'Undo last move'),
         _buildShortcutItem(context, 'N', 'Start new game'),
@@ -19643,24 +22922,135 @@ class HelpScreen extends StatelessWidget {
     return _buildSection(
       context,
       title: 'Tips & Strategies',
-      children: [
-        _buildTipItem(context, 'Always move Aces and 2s to foundations immediately.'),
-        _buildTipItem(context, 'Try to expose face-down cards in the tableau first.'),
-        _buildTipItem(context, 'Keep tableau columns balanced when possible.'),
-        _buildTipItem(context, 'Don\'t rush to move cards to foundations - sometimes it\'s better to keep cards in the tableau for flexibility.'),
-        _buildTipItem(context, 'Empty tableau columns are valuable - try to create them to reorganize your cards.'),
-        _buildTipItem(context, 'Use the hint button (💡) when stuck to see available moves.'),
-      ],
+      children: _getTips(context),
     );
   }
 
-  Widget _buildSection(BuildContext context, {required String title, required List<Widget> children}) {
+  List<Widget> _getTips(BuildContext context) {
+    switch (gameType) {
+      case GameType.klondike:
+        return [
+          _buildTipItem(
+              context, 'Always move Aces and 2s to foundations immediately.'),
+          _buildTipItem(
+              context, 'Try to expose face-down cards in the tableau first.'),
+          _buildTipItem(
+              context, 'Keep tableau columns balanced when possible.'),
+          _buildTipItem(context,
+              'Don\'t rush to move cards to foundations - sometimes it\'s better to keep cards in the tableau for flexibility.'),
+          _buildTipItem(context,
+              'Empty tableau columns are valuable - use them to reorganize.'),
+        ];
+
+      case GameType.spider:
+        return [
+          _buildTipItem(
+              context, 'Try to build same-suit sequences whenever possible.'),
+          _buildTipItem(context,
+              'Empty columns are extremely valuable - create and protect them.'),
+          _buildTipItem(context, 'Avoid mixing suits unless necessary.'),
+          _buildTipItem(context, 'Clear columns before dealing from stock.'),
+          _buildTipItem(context, 'Plan several moves ahead before committing.'),
+        ];
+
+      case GameType.freecell:
+        return [
+          _buildTipItem(context, 'Keep free cells empty as long as possible.'),
+          _buildTipItem(context,
+              'Plan your moves - most deals are winnable with good strategy.'),
+          _buildTipItem(
+              context, 'Empty columns are more valuable than free cells.'),
+          _buildTipItem(context, 'Move Aces and 2s to foundations early.'),
+          _buildTipItem(context, 'Think several moves ahead before starting.'),
+        ];
+
+      case GameType.pyramid:
+        return [
+          _buildTipItem(
+              context, 'Remove Kings immediately - they take up space.'),
+          _buildTipItem(context, 'Try to expose cards deeper in the pyramid.'),
+          _buildTipItem(
+              context, 'Plan which pairs to remove to uncover key cards.'),
+          _buildTipItem(context, 'Save stock draws for when truly stuck.'),
+        ];
+
+      case GameType.triPeaks:
+        return [
+          _buildTipItem(
+              context, 'Build long runs when possible for bonus points.'),
+          _buildTipItem(context, 'Plan which peak to tackle first.'),
+          _buildTipItem(context,
+              'Sometimes it\'s better to break a run to expose new cards.'),
+          _buildTipItem(context, 'Use wildcards (if available) strategically.'),
+        ];
+
+      case GameType.golf:
+        return [
+          _buildTipItem(
+              context, 'Build long runs to minimize draws from stock.'),
+          _buildTipItem(context, 'Plan your tableau clearance order.'),
+          _buildTipItem(context, 'Avoid getting stuck with face cards.'),
+          _buildTipItem(
+              context, 'Every card left in tableau counts against you.'),
+        ];
+
+      case GameType.yukon:
+        return [
+          _buildTipItem(
+              context, 'Expose face-down cards as quickly as possible.'),
+          _buildTipItem(
+              context, 'Use the free movement rule to dig into stacks.'),
+          _buildTipItem(context, 'Empty columns are valuable for Kings.'),
+          _buildTipItem(
+              context, 'Don\'t move cards just because you can - plan ahead.'),
+        ];
+
+      case GameType.fortyThieves:
+        return [
+          _buildTipItem(
+              context, 'This is a difficult game - expect to lose often.'),
+          _buildTipItem(
+              context, 'Only single cards can move, so plan carefully.'),
+          _buildTipItem(
+              context, 'Create empty columns early and protect them.'),
+          _buildTipItem(context,
+              'Build on foundations when safe, but not too aggressively.'),
+        ];
+
+      case GameType.canfield:
+        return [
+          _buildTipItem(
+              context, 'Empty the reserve pile as quickly as possible.'),
+          _buildTipItem(context,
+              'Note the foundation base card - it determines wrapping.'),
+          _buildTipItem(
+              context, 'Create empty tableau columns for flexibility.'),
+          _buildTipItem(context,
+              'Draw 3 cards at a time - plan for deep waste pile access.'),
+        ];
+
+      case GameType.scorpion:
+        return [
+          _buildTipItem(context, 'Expose face-down cards as priority.'),
+          _buildTipItem(context, 'Build same-suit sequences from King down.'),
+          _buildTipItem(
+              context, 'Save the 3 reserve cards for when truly stuck.'),
+          _buildTipItem(context, 'Empty columns can only hold Kings.'),
+        ];
+    }
+  }
+
+  Widget _buildSection(BuildContext context,
+      {required String title, required List<Widget> children}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Container(width: 40, height: 1, color: AppTheme.accentColor(context).withValues(alpha:0.3)),
+            Container(
+                width: 40,
+                height: 1,
+                color: AppTheme.accentColor(context).withValues(alpha: 0.3)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
@@ -19670,11 +23060,15 @@ class HelpScreen extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.5,
-                  color: AppTheme.accentColor(context).withValues(alpha:0.8),
+                  color: AppTheme.accentColor(context).withValues(alpha: 0.8),
                 ),
               ),
             ),
-            Expanded(child: Container(height: 1, color: AppTheme.accentColor(context).withValues(alpha:0.3))),
+            Expanded(
+                child: Container(
+                    height: 1,
+                    color:
+                        AppTheme.accentColor(context).withValues(alpha: 0.3))),
           ],
         ),
         const SizedBox(height: 16),
@@ -19683,7 +23077,8 @@ class HelpScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBulletPoint(BuildContext context, {required String title, required String description}) {
+  Widget _buildBulletPoint(BuildContext context,
+      {required String title, required String description}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -19693,7 +23088,7 @@ class HelpScreen extends StatelessWidget {
             width: 6,
             height: 6,
             decoration: BoxDecoration(
-              color: AppColors.gold.withValues(alpha:0.6),
+              color: AppColors.gold.withValues(alpha: 0.6),
               shape: BoxShape.circle,
             ),
           ),
@@ -19711,7 +23106,7 @@ class HelpScreen extends StatelessWidget {
               Text(
                 description,
                 style: AppTypography.body(context).copyWith(
-                  color: AppColors.cream.withValues(alpha:0.8),
+                  color: AppColors.cream.withValues(alpha: 0.8),
                 ),
               ),
             ],
@@ -19721,13 +23116,15 @@ class HelpScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHighlightBox(BuildContext context, {required IconData icon, required String text}) {
+  Widget _buildHighlightBox(BuildContext context,
+      {required IconData icon, required String text}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.accentColor(context).withValues(alpha:0.08),
+        color: AppTheme.accentColor(context).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.accentColor(context).withValues(alpha:0.2)),
+        border: Border.all(
+            color: AppTheme.accentColor(context).withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -19751,9 +23148,10 @@ class HelpScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.buttonColor(context).withValues(alpha:0.3),
+        color: AppTheme.buttonColor(context).withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.buttonBorderColor(context).withValues(alpha:0.12)),
+        border: Border.all(
+            color: AppTheme.buttonBorderColor(context).withValues(alpha: 0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -19761,11 +23159,14 @@ class HelpScreen extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentColor(context).withValues(alpha:0.18),
+                  color: AppTheme.accentColor(context).withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: AppTheme.accentColor(context).withValues(alpha:0.28)),
+                  border: Border.all(
+                      color: AppTheme.accentColor(context)
+                          .withValues(alpha: 0.28)),
                 ),
                 child: Text(
                   difficulty.shortName,
@@ -19784,7 +23185,7 @@ class HelpScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            difficulty.fullDescription,
+            difficulty.fullDescriptionFor(gameType),
             style: AppTypography.body(context),
           ),
         ],
@@ -19796,9 +23197,10 @@ class HelpScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.buttonColor(context).withValues(alpha:0.3),
+        color: AppTheme.buttonColor(context).withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.buttonBorderColor(context).withValues(alpha:0.12)),
+        border: Border.all(
+            color: AppTheme.buttonBorderColor(context).withValues(alpha: 0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -19806,8 +23208,10 @@ class HelpScreen extends StatelessWidget {
           Row(
             children: [
               Icon(
-                mode == ScoringMode.vegas ? Icons.attach_money : Icons.timer_outlined,
-                color: AppTheme.accentColor(context).withValues(alpha:0.9),
+                mode == ScoringMode.vegas
+                    ? Icons.attach_money
+                    : Icons.timer_outlined,
+                color: AppTheme.accentColor(context).withValues(alpha: 0.9),
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -19838,7 +23242,7 @@ class HelpScreen extends StatelessWidget {
             child: Text(
               tip,
               style: AppTypography.body(context).copyWith(
-                color: AppColors.cream.withValues(alpha:0.8),
+                color: AppColors.cream.withValues(alpha: 0.8),
               ),
             ),
           ),
@@ -19847,7 +23251,8 @@ class HelpScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildShortcutItem(BuildContext context, String key, String description) {
+  Widget _buildShortcutItem(
+      BuildContext context, String key, String description) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -19855,9 +23260,10 @@ class HelpScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppTheme.buttonColor(context).withValues(alpha:0.5),
+              color: AppTheme.buttonColor(context).withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppTheme.accentColor(context).withValues(alpha:0.3)),
+              border: Border.all(
+                  color: AppTheme.accentColor(context).withValues(alpha: 0.3)),
             ),
             child: Text(
               key,
@@ -19865,7 +23271,7 @@ class HelpScreen extends StatelessWidget {
                 fontFamily: 'Inter',
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.accentColor(context).withValues(alpha:0.95),
+                color: AppTheme.accentColor(context).withValues(alpha: 0.95),
                 letterSpacing: 0.5,
               ),
             ),
@@ -19883,9 +23289,6 @@ class HelpScreen extends StatelessWidget {
       ),
     );
   }
-
-  // Difficulty colors are now theme-driven; helper removed.
-  // Left here in case specialized coloring is needed later.
 }
 
 
@@ -20173,14 +23576,15 @@ import 'package:solitude/core/theme/app_theme.dart';
 import 'package:solitude/core/widgets/game_button.dart';
 import '../../../features/game/games/game_factory.dart';
 
-/// Bottom sheet modal for selecting which solitaire game to play
+/// Bottom sheet modal for selecting which solitaire game to play.
+/// Displays all 10 game variants in a 5x2 grid of cards (5 columns, 2 rows).
 class GameSelectorSheet extends StatelessWidget {
   const GameSelectorSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppTheme.toolbarColor(context).withValues(alpha: 0.98),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -20209,26 +23613,28 @@ class GameSelectorSheet extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Game Options
-          _buildGameOption(
-            context,
-            gameType: GameType.klondike,
-            icon: Icons.grid_on,
-            title: 'Klondike',
-            subtitle: 'Classic Solitaire with 7 tableau piles',
-          ),
-          const SizedBox(height: 16),
-          _buildGameOption(
-            context,
-            gameType: GameType.spider,
-            icon: Icons.bug_report,
-            title: 'Spider',
-            subtitle: 'Advanced solitaire with 10 tableau piles',
+          // 5x2 Grid of game cards (5 columns, 2 rows)
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 5,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 0.85, // Taller cards for compact layout
+            children: GameType.values.map((gameType) {
+              return _GameCard(
+                gameType: gameType,
+                icon: _getGameIcon(gameType),
+                title: gameType.displayName,
+                subtitle: _getShortDescription(gameType),
+                onTap: () => Navigator.pop(context, gameType),
+              );
+            }).toList(),
           ),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 20),
 
           // Cancel button
           GameButton(
@@ -20241,63 +23647,130 @@ class GameSelectorSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildGameOption(
-    BuildContext context, {
-    required GameType gameType,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
+  /// Returns an appropriate icon for each game type
+  IconData _getGameIcon(GameType gameType) {
+    switch (gameType) {
+      case GameType.klondike:
+        return Icons.style; // Classic card stack
+      case GameType.spider:
+        return Icons.pest_control; // Spider icon
+      case GameType.freecell:
+        return Icons.grid_view; // Grid for free cells
+      case GameType.pyramid:
+        return Icons.change_history; // Triangle/pyramid
+      case GameType.triPeaks:
+        return Icons.landscape; // Mountains/peaks
+      case GameType.golf:
+        return Icons.golf_course; // Golf course
+      case GameType.yukon:
+        return Icons.terrain; // Mountain terrain
+      case GameType.fortyThieves:
+        return Icons.shield; // Thieves theme
+      case GameType.canfield:
+        return Icons.casino; // Casino origin
+      case GameType.scorpion:
+        return Icons.flare; // Scorpion stinger
+    }
+  }
+
+  /// Returns a brief one-sentence description for each game type
+  String _getShortDescription(GameType gameType) {
+    switch (gameType) {
+      case GameType.klondike:
+        return 'Classic Solitaire';
+      case GameType.spider:
+        return 'Build full suits';
+      case GameType.freecell:
+        return 'Strategic cells';
+      case GameType.pyramid:
+        return 'Match to 13';
+      case GameType.triPeaks:
+        return 'Clear 3 peaks';
+      case GameType.golf:
+        return 'Score lowest';
+      case GameType.yukon:
+        return 'Free movement';
+      case GameType.fortyThieves:
+        return 'Two-deck hard';
+      case GameType.canfield:
+        return 'Casino style';
+      case GameType.scorpion:
+        return 'K to A suits';
+    }
+  }
+}
+
+/// Individual compact game card widget for the 5x2 grid
+class _GameCard extends StatelessWidget {
+  final GameType gameType;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _GameCard({
+    required this.gameType,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pop(context, gameType),
+      onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: AppTheme.backgroundColor(context).withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: AppTheme.accentColor(context).withValues(alpha: 0.2),
           ),
         ),
-        child: Row(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Icon
             Container(
-              width: 48,
-              height: 48,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: AppTheme.accentColor(context).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(
                 icon,
                 color: AppTheme.accentColor(context),
-                size: 28,
+                size: 18,
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTypography.label(context),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12,
-                      color: AppTheme.textColor(context).withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 6),
+            // Title
+            Text(
+              title,
+              style: AppTypography.label(context).copyWith(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
-            Icon(
-              Icons.chevron_right,
-              color: AppTheme.accentColor(context).withValues(alpha: 0.5),
+            const SizedBox(height: 2),
+            // Subtitle
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 9,
+                height: 1.2,
+                color: AppTheme.textColor(context).withValues(alpha: 0.6),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -20796,10 +24269,11 @@ extension HintModeExtension on HintMode {
 // --- FILE: lib/features/settings/screens/settings_screen.dart ---
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // Added for SVG rendering
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../services/settings_provider.dart';
 import 'package:solitude/features/game/services/game_controller.dart';
+import 'package:solitude/features/game/games/game_factory.dart';
 import 'package:solitude/core/theme/app_theme.dart';
 import '../models/difficulty.dart';
 import '../models/theme_preset.dart';
@@ -21659,195 +25133,110 @@ class _CardBackCustomization extends StatelessWidget {
 }
 
 // ============================================================================
-// GAMEPLAY TAB
+// GAMEPLAY TAB - Context-Aware Settings Based on Active Game Type
 // ============================================================================
 
 class _GameplayTab extends StatelessWidget {
   const _GameplayTab();
 
+  // ---------------------------------------------------------------------------
+  // VISIBILITY MATRIX - Determines which settings show for each game type
+  // ---------------------------------------------------------------------------
+
+  /// Check if Draw Mode setting should be shown for the current game type
+  /// Draw Mode (1 vs 3): ONLY for Klondike and Canfield
+  static bool _showDrawMode(GameType? gameType) {
+    if (gameType == null) return false;
+    return gameType == GameType.klondike || gameType == GameType.canfield;
+  }
+
+  /// Check if Scoring Mode setting should be shown for the current game type
+  /// Scoring Mode (Vegas): ONLY for Klondike and Canfield
+  static bool _showScoringMode(GameType? gameType) {
+    if (gameType == null) return false;
+    return gameType == GameType.klondike || gameType == GameType.canfield;
+  }
+
+  /// Check if this is a Spider game (for suit count difficulty options)
+  /// Spider gets special "Suits" difficulty selector
+  static bool _isSpiderGame(GameType? gameType) {
+    return gameType == GameType.spider;
+  }
+
+  /// Check if Difficulty selector should be shown
+  /// Currently only Spider has a meaningful difficulty selector (suit count)
+  static bool _showDifficulty(GameType? gameType) {
+    if (gameType == null) return false;
+    return gameType == GameType.spider;
+  }
+
+  /// Check if Auto-Complete setting should be shown
+  /// Hide for elimination games: Pyramid, TriPeaks, Golf
+  /// (they don't use foundations in the standard way)
+  static bool _showAutoComplete(GameType? gameType) {
+    if (gameType == null) return true; // Show by default if no game context
+    switch (gameType) {
+      case GameType.pyramid:
+      case GameType.triPeaks:
+      case GameType.golf:
+        return false;
+      default:
+        return true;
+    }
+  }
+
+  /// Get Spider-specific difficulty description (Suits: 1/2/4)
+  static String _getSpiderDifficultyDescription(Difficulty difficulty) {
+    switch (difficulty) {
+      case Difficulty.easy:
+        return '1 Suit - Easiest to win';
+      case Difficulty.medium:
+        return '2 Suits - Moderate challenge';
+      case Difficulty.hard:
+        return '4 Suits - Full difficulty';
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // SNACKBAR FEEDBACK - For gameplay-impacting setting changes
+  // ---------------------------------------------------------------------------
+
+  /// Shows a SnackBar warning that changes will apply to the next game
+  void _showSettingsChangedSnackBar(BuildContext context) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Changes will apply to the next game.'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppTheme.toolbarColor(context),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // BUILD METHOD - Main entry point
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
+    // Watch GameController for game type changes
+    final gameController = context.watch<GameController?>();
+    final activeGameType = gameController?.game.gameType;
+
     return Consumer<SettingsProvider>(
       builder: (context, settings, _) {
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              // Rule Settings Section
-              Row(
-                children: [
-                  Container(
-                      width: 40,
-                      height: 1,
-                      color:
-                          AppTheme.accentColor(context).withValues(alpha: 0.3)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('RULE SETTINGS',
-                        style: AppTypography.subheading(context)),
-                  ),
-                  Expanded(
-                      child: Container(
-                          height: 1,
-                          color: AppTheme.accentColor(context)
-                              .withValues(alpha: 0.3))),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Draw Mode',
-                subtitle: settings.drawMode == DrawMode.one
-                    ? 'Draw 1 card'
-                    : 'Draw 3 cards',
-                child: GameToggle<DrawMode>(
-                  value: settings.drawMode,
-                  options: [
-                    GameToggleOption(
-                        value: DrawMode.one,
-                        label: '1',
-                        color: settings.currentTheme.accentColor),
-                    GameToggleOption(
-                        value: DrawMode.three,
-                        label: '3',
-                        color: settings.currentTheme.accentColor),
-                  ],
-                  onChanged: settings.setDrawMode,
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Scoring',
-                subtitle: settings.scoringMode.shortName,
-                child: _buildScoringDropdown(context, settings),
-              ),
-              const SizedBox(height: 28),
+              // Game-specific settings (visibility based on active game)
+              ..._buildGameplaySettings(context, settings, activeGameType),
 
-              // Accessibility Section
-              Row(
-                children: [
-                  Container(
-                      width: 40,
-                      height: 1,
-                      color:
-                          AppTheme.accentColor(context).withValues(alpha: 0.3)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('ACCESSIBILITY',
-                        style: AppTypography.subheading(context)),
-                  ),
-                  Expanded(
-                      child: Container(
-                          height: 1,
-                          color: AppTheme.accentColor(context)
-                              .withValues(alpha: 0.3))),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Left Hand Mode',
-                subtitle: 'Swap foundations and stock positions',
-                child: GameSwitch(
-                  value: settings.leftHandMode,
-                  onChanged: settings.setLeftHandMode,
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Show Timer',
-                subtitle: 'Display elapsed game time',
-                child: GameSwitch(
-                  value: settings.showTimer,
-                  onChanged: settings.setShowTimer,
-                ),
-              ),
-              const SizedBox(height: 28),
+              // Global settings section (always visible)
+              _buildGlobalSettingsSection(context, settings),
 
-              // Gameplay Section
-              Row(
-                children: [
-                  Container(
-                      width: 40,
-                      height: 1,
-                      color:
-                          AppTheme.accentColor(context).withValues(alpha: 0.3)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('GAMEPLAY',
-                        style: AppTypography.subheading(context)),
-                  ),
-                  Expanded(
-                      child: Container(
-                          height: 1,
-                          color: AppTheme.accentColor(context)
-                              .withValues(alpha: 0.3))),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Difficulty',
-                subtitle: settings.difficulty.description,
-                child: Builder(builder: (ctx) {
-                  final accent = settings.currentTheme.accentColor;
-                  return GameToggle<Difficulty>(
-                    value: settings.difficulty,
-                    options: [
-                      GameToggleOption(
-                          value: Difficulty.easy, label: 'EASY', color: accent),
-                      GameToggleOption(
-                          value: Difficulty.medium,
-                          label: 'MED',
-                          color: accent),
-                      GameToggleOption(
-                          value: Difficulty.hard, label: 'HARD', color: accent),
-                    ],
-                    onChanged: (difficulty) {
-                      settings.setDifficulty(difficulty);
-                      context
-                          .read<GameController>()
-                          .game
-                          .applyDifficulty(difficulty);
-                    },
-                  );
-                }),
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Light/Dark Mode',
-                child: GameToggle<ThemeMode>(
-                  value: settings.themeMode,
-                  options: const [
-                    GameToggleOption(value: ThemeMode.light, label: 'LIGHT'),
-                    GameToggleOption(value: ThemeMode.dark, label: 'DARK'),
-                  ],
-                  onChanged: settings.setThemeMode,
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Auto-Complete',
-                subtitle: 'Finish game when all cards are revealed',
-                child: GameSwitch(
-                  value: settings.autoComplete,
-                  onChanged: settings.setAutoComplete,
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Autoplay',
-                subtitle: 'Let the game play itself',
-                child: GameSwitch(
-                  value: settings.autoplay,
-                  onChanged: settings.setAutoplay,
-                ),
-              ),
+              // Navigation buttons
               const SizedBox(height: 40),
               GameButton(
                 label: 'How to Play',
@@ -21873,6 +25262,249 @@ class _GameplayTab extends StatelessWidget {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // HELPER: Build game-specific settings based on active game type
+  // ---------------------------------------------------------------------------
+
+  List<Widget> _buildGameplaySettings(
+    BuildContext context,
+    SettingsProvider settings,
+    GameType? activeGameType,
+  ) {
+    final List<Widget> widgets = [];
+
+    // Determine which rule settings are applicable
+    final showDrawMode = _showDrawMode(activeGameType);
+    final showScoringMode = _showScoringMode(activeGameType);
+    final showDifficulty = _showDifficulty(activeGameType);
+    final showAutoComplete = _showAutoComplete(activeGameType);
+    final isSpider = _isSpiderGame(activeGameType);
+
+    // ---------------------------------------------------------------------------
+    // RULE SETTINGS SECTION - Draw Mode and Scoring Mode
+    // ---------------------------------------------------------------------------
+    if (showDrawMode || showScoringMode) {
+      widgets.addAll([
+        _buildSectionHeader(context, 'RULE SETTINGS'),
+        const SizedBox(height: 20),
+      ]);
+
+      // Draw Mode - Only for Klondike and Canfield
+      if (showDrawMode) {
+        widgets.addAll([
+          _buildSettingRow(
+            context,
+            label: 'Draw Mode',
+            subtitle: settings.drawMode == DrawMode.one
+                ? 'Draw 1 card'
+                : 'Draw 3 cards',
+            child: GameToggle<DrawMode>(
+              value: settings.drawMode,
+              options: [
+                GameToggleOption(
+                    value: DrawMode.one,
+                    label: '1',
+                    color: settings.currentTheme.accentColor),
+                GameToggleOption(
+                    value: DrawMode.three,
+                    label: '3',
+                    color: settings.currentTheme.accentColor),
+              ],
+              onChanged: (mode) {
+                settings.setDrawMode(mode);
+                _showSettingsChangedSnackBar(context);
+              },
+            ),
+          ),
+          const SizedBox(height: 20),
+        ]);
+      }
+
+      // Scoring Mode - Only for Klondike and Canfield
+      if (showScoringMode) {
+        widgets.addAll([
+          _buildSettingRow(
+            context,
+            label: 'Scoring',
+            subtitle: settings.scoringMode.shortName,
+            child: _buildScoringDropdown(context, settings),
+          ),
+          const SizedBox(height: 20),
+        ]);
+      }
+
+      widgets.add(const SizedBox(height: 8));
+    }
+
+    // ---------------------------------------------------------------------------
+    // DIFFICULTY SECTION - Spider-specific suit count selector
+    // ---------------------------------------------------------------------------
+    if (showDifficulty) {
+      widgets.addAll([
+        _buildSectionHeader(context, 'DIFFICULTY'),
+        const SizedBox(height: 20),
+      ]);
+
+      if (isSpider) {
+        // Spider-specific suit count toggle (1/2/4 suits)
+        widgets.addAll([
+          _buildSettingRow(
+            context,
+            label: 'Suits',
+            subtitle: _getSpiderDifficultyDescription(settings.difficulty),
+            child: _buildSpiderSuitToggle(context, settings),
+          ),
+          const SizedBox(height: 20),
+        ]);
+      }
+
+      widgets.add(const SizedBox(height: 8));
+    }
+
+    // ---------------------------------------------------------------------------
+    // GAMEPLAY OPTIONS SECTION - Auto-Complete (if applicable)
+    // ---------------------------------------------------------------------------
+    if (showAutoComplete) {
+      widgets.addAll([
+        _buildSectionHeader(context, 'GAMEPLAY'),
+        const SizedBox(height: 20),
+        _buildSettingRow(
+          context,
+          label: 'Auto-Complete',
+          subtitle: 'Finish game when all cards are revealed',
+          child: GameSwitch(
+            value: settings.autoComplete,
+            onChanged: settings.setAutoComplete,
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildSettingRow(
+          context,
+          label: 'Autoplay',
+          subtitle: 'Let the game play itself',
+          child: GameSwitch(
+            value: settings.autoplay,
+            onChanged: settings.setAutoplay,
+          ),
+        ),
+        const SizedBox(height: 28),
+      ]);
+    }
+
+    return widgets;
+  }
+
+  // ---------------------------------------------------------------------------
+  // HELPER: Build global settings section (always visible)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildGlobalSettingsSection(
+    BuildContext context,
+    SettingsProvider settings,
+  ) {
+    return Column(
+      children: [
+        _buildSectionHeader(context, 'ACCESSIBILITY'),
+        const SizedBox(height: 20),
+        _buildSettingRow(
+          context,
+          label: 'Left Hand Mode',
+          subtitle: 'Swap foundations and stock positions',
+          child: GameSwitch(
+            value: settings.leftHandMode,
+            onChanged: settings.setLeftHandMode,
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildSettingRow(
+          context,
+          label: 'Show Timer',
+          subtitle: 'Display elapsed game time',
+          child: GameSwitch(
+            value: settings.showTimer,
+            onChanged: settings.setShowTimer,
+          ),
+        ),
+        const SizedBox(height: 28),
+        _buildSectionHeader(context, 'APPEARANCE'),
+        const SizedBox(height: 20),
+        _buildSettingRow(
+          context,
+          label: 'Light/Dark Mode',
+          child: GameToggle<ThemeMode>(
+            value: settings.themeMode,
+            options: const [
+              GameToggleOption(value: ThemeMode.light, label: 'LIGHT'),
+              GameToggleOption(value: ThemeMode.dark, label: 'DARK'),
+            ],
+            onChanged: settings.setThemeMode,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // HELPER: Build section header
+  // ---------------------------------------------------------------------------
+
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 1,
+          color: AppTheme.accentColor(context).withValues(alpha: 0.3),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(title, style: AppTypography.subheading(context)),
+        ),
+        Expanded(
+          child: Container(
+            height: 1,
+            color: AppTheme.accentColor(context).withValues(alpha: 0.3),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // HELPER: Build Spider-specific suit count toggle
+  // ---------------------------------------------------------------------------
+
+  Widget _buildSpiderSuitToggle(
+    BuildContext context,
+    SettingsProvider settings,
+  ) {
+    final gameController = context.read<GameController?>();
+    final accent = settings.currentTheme.accentColor;
+
+    return GameToggle<Difficulty>(
+      value: settings.difficulty,
+      options: [
+        GameToggleOption(
+            value: Difficulty.easy, label: '1 Suit', color: accent),
+        GameToggleOption(
+            value: Difficulty.medium, label: '2 Suits', color: accent),
+        GameToggleOption(
+            value: Difficulty.hard, label: '4 Suits', color: accent),
+      ],
+      onChanged: (difficulty) {
+        settings.setDifficulty(difficulty);
+        if (gameController != null) {
+          gameController.game.applyDifficulty(difficulty);
+        }
+        _showSettingsChangedSnackBar(context);
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // HELPER: Build scoring mode dropdown
+  // ---------------------------------------------------------------------------
+
   Widget _buildScoringDropdown(
       BuildContext context, SettingsProvider settings) {
     return Container(
@@ -21890,6 +25522,7 @@ class _GameplayTab extends StatelessWidget {
         onChanged: (ScoringMode? newValue) {
           if (newValue != null) {
             settings.setScoringMode(newValue);
+            _showSettingsChangedSnackBar(context);
           }
         },
         items: ScoringMode.values
