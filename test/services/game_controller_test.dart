@@ -25,6 +25,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -43,6 +44,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -62,6 +64,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -86,6 +89,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -108,6 +112,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -131,6 +136,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -154,6 +160,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -173,6 +180,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -181,7 +189,8 @@ void main() {
       final ace = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
       controller.tableau[0].addCard(ace);
 
-      final result = controller.tryMove(controller.tableau[0], controller.foundations[0], [ace]);
+      final result = controller
+          .tryMove(controller.tableau[0], controller.foundations[0], [ace]);
 
       expect(result, isTrue);
       expect(controller.foundations[0].topCard, ace);
@@ -197,15 +206,18 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
-      final king = PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
+      final king =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
       controller.tableau[0].addCard(king);
 
       // Can't put king on empty foundation
-      final result = controller.tryMove(controller.tableau[0], controller.foundations[0], [king]);
+      final result = controller
+          .tryMove(controller.tableau[0], controller.foundations[0], [king]);
 
       expect(result, isFalse);
       expect(controller.tableau[0].topCard, king);
@@ -220,6 +232,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -228,7 +241,8 @@ void main() {
       controller.tableau[0].addCard(ace);
       controller.selectCard(controller.tableau[0], ace);
 
-      controller.tryMove(controller.tableau[0], controller.foundations[0], [ace]);
+      controller
+          .tryMove(controller.tableau[0], controller.foundations[0], [ace]);
 
       expect(controller.selectedPile, isNull);
     });
@@ -244,6 +258,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -251,7 +266,8 @@ void main() {
       final ace = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
       controller.tableau[0].addCard(ace);
 
-      controller.tryMove(controller.tableau[0], controller.foundations[0], [ace]);
+      controller
+          .tryMove(controller.tableau[0], controller.foundations[0], [ace]);
       expect(controller.foundations[0].topCard, ace);
 
       controller.undo();
@@ -269,6 +285,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -290,6 +307,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -310,6 +328,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -332,6 +351,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -353,11 +373,13 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
-      final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: false);
+      final card =
+          PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: false);
       controller.tableau[0].addCard(card);
 
       controller.tapCard(controller.tableau[0], card);
@@ -376,6 +398,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -398,11 +421,13 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
-      final king = PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
+      final king =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
       controller.tableau[0].addCard(king);
 
       final result = controller.doubleTapCard(controller.tableau[0], king);
@@ -421,6 +446,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -448,6 +474,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -465,6 +492,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -482,6 +510,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -499,6 +528,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -518,6 +548,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -535,6 +566,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -558,6 +590,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -573,6 +606,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -591,6 +625,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -611,6 +646,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -634,6 +670,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -656,6 +693,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -679,6 +717,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -696,6 +735,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -716,6 +756,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -740,6 +781,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -765,6 +807,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -792,11 +835,13 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
       final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
-      final otherCard = PlayingCard(suit: Suit.spades, rank: Rank.king, faceUp: true);
+      final otherCard =
+          PlayingCard(suit: Suit.spades, rank: Rank.king, faceUp: true);
 
       controller.startCardAnimation(
         card: card,
@@ -822,6 +867,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -846,7 +892,8 @@ void main() {
       }
 
       // Put one king in the waste pile to move to foundation
-      final kingOfHearts = PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
+      final kingOfHearts =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
       controller.waste!.addCard(kingOfHearts);
 
       // Use doubleTapCard which triggers win check - this moves king to hearts foundation
@@ -886,6 +933,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -910,6 +958,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -934,6 +983,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -962,6 +1012,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -984,11 +1035,13 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
       controller.tableau[0].clear();
-      final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: false);
+      final card =
+          PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: false);
       controller.tableau[0].addCard(card);
 
       final result = controller.doubleTapCard(controller.tableau[0], card);
@@ -1005,6 +1058,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -1014,7 +1068,8 @@ void main() {
       }
 
       // Add a king to tableau[0]
-      final king = PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
+      final king =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
       controller.tableau[0].addCard(king);
 
       // Double tap should move king to another empty tableau (not the same pile)
@@ -1042,6 +1097,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -1068,6 +1124,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 
@@ -1098,6 +1155,7 @@ void main() {
         selectionState: SelectionStateNotifier(),
         timerState: TimerStateNotifier(),
         boardLayout: BoardLayoutService(),
+        audioService: MockGameAudioService(),
         gameType: GameType.klondike,
       );
 

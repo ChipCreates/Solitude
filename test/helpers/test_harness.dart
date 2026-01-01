@@ -59,6 +59,7 @@ class TestHarness {
           timerState: effectiveTimerState,
           boardLayout: BoardLayoutService(),
           gameType: GameType.klondike,
+          audioService: MockGameAudioService(),
         );
 
     return MaterialApp(
@@ -90,7 +91,8 @@ class TestHarness {
   /// Build a minimal test widget without providers
   ///
   /// Useful for testing widgets that don't need the full provider tree.
-  static Widget buildMinimalWidget(Widget child, {ThemeMode themeMode = ThemeMode.dark}) {
+  static Widget buildMinimalWidget(Widget child,
+      {ThemeMode themeMode = ThemeMode.dark}) {
     return MaterialApp(
       theme: AppTheme.light(ThemePreset.defaultTheme),
       darkTheme: AppTheme.dark(ThemePreset.defaultTheme),
@@ -120,6 +122,7 @@ class TestHarness {
       timerState: timerState ?? TimerStateNotifier(),
       boardLayout: boardLayout ?? BoardLayoutService(),
       gameType: GameType.klondike,
+      audioService: MockGameAudioService(),
     );
   }
 }

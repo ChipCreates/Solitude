@@ -58,9 +58,12 @@ void main() {
       expect(Difficulty.medium.fullDescription, isNotEmpty);
       expect(Difficulty.hard.fullDescription, isNotEmpty);
 
-      expect(Difficulty.easy.fullDescription.length, greaterThan(Difficulty.easy.description.length));
-      expect(Difficulty.medium.fullDescription.length, greaterThan(Difficulty.medium.description.length));
-      expect(Difficulty.hard.fullDescription.length, greaterThan(Difficulty.hard.description.length));
+      expect(Difficulty.easy.fullDescription.length,
+          greaterThan(Difficulty.easy.description.length));
+      expect(Difficulty.medium.fullDescription.length,
+          greaterThan(Difficulty.medium.description.length));
+      expect(Difficulty.hard.fullDescription.length,
+          greaterThan(Difficulty.hard.description.length));
     });
 
     test('fullDescription contains specific details', () {
@@ -95,20 +98,25 @@ void main() {
       expect(Difficulty.easy.drawMode, Difficulty.medium.drawMode);
       expect(Difficulty.easy.description, Difficulty.medium.description);
       // But they have different full descriptions
-      expect(Difficulty.easy.fullDescription, isNot(Difficulty.medium.fullDescription));
+      expect(Difficulty.easy.fullDescription,
+          isNot(Difficulty.medium.fullDescription));
     });
 
     test('hard is the only difficulty with limited recycles', () {
-      final unlimited = Difficulty.values.where((d) => d.maxStockRecycles == null).toList();
-      final limited = Difficulty.values.where((d) => d.maxStockRecycles != null).toList();
+      final unlimited =
+          Difficulty.values.where((d) => d.maxStockRecycles == null).toList();
+      final limited =
+          Difficulty.values.where((d) => d.maxStockRecycles != null).toList();
 
       expect(unlimited, [Difficulty.easy, Difficulty.medium]);
       expect(limited, [Difficulty.hard]);
     });
 
     test('hard is the only difficulty with DrawMode.three', () {
-      final drawOne = Difficulty.values.where((d) => d.drawMode == DrawMode.one).toList();
-      final drawThree = Difficulty.values.where((d) => d.drawMode == DrawMode.three).toList();
+      final drawOne =
+          Difficulty.values.where((d) => d.drawMode == DrawMode.one).toList();
+      final drawThree =
+          Difficulty.values.where((d) => d.drawMode == DrawMode.three).toList();
 
       expect(drawOne, [Difficulty.easy, Difficulty.medium]);
       expect(drawThree, [Difficulty.hard]);
@@ -116,30 +124,35 @@ void main() {
   });
 
   group('ScoringMode Enum', () {
-    test('has two scoring modes', () {
-      expect(ScoringMode.values.length, 2);
+    test('has three scoring modes', () {
+      expect(ScoringMode.values.length, 3);
       expect(ScoringMode.values, contains(ScoringMode.standard));
       expect(ScoringMode.values, contains(ScoringMode.vegas));
+      expect(ScoringMode.values, contains(ScoringMode.vegasCumulative));
     });
 
     test('displayName returns correct strings', () {
       expect(ScoringMode.standard.displayName, 'Standard');
       expect(ScoringMode.vegas.displayName, 'Vegas');
+      expect(ScoringMode.vegasCumulative.displayName, 'Vegas Cumulative');
     });
 
     test('shortName returns correct strings', () {
       expect(ScoringMode.standard.shortName, 'STD');
       expect(ScoringMode.vegas.shortName, 'VEGAS');
+      expect(ScoringMode.vegasCumulative.shortName, 'VEGAS+');
     });
 
     test('vegasGameCost is constant', () {
       expect(ScoringMode.standard.vegasGameCost, -52);
       expect(ScoringMode.vegas.vegasGameCost, -52);
+      expect(ScoringMode.vegasCumulative.vegasGameCost, -52);
     });
 
     test('vegasCardValue is constant', () {
       expect(ScoringMode.standard.vegasCardValue, 5);
       expect(ScoringMode.vegas.vegasCardValue, 5);
+      expect(ScoringMode.vegasCumulative.vegasCardValue, 5);
     });
 
     test('vegas scoring break-even point', () {
@@ -163,6 +176,7 @@ void main() {
     test('description returns non-empty strings', () {
       expect(ScoringMode.standard.description, isNotEmpty);
       expect(ScoringMode.vegas.description, isNotEmpty);
+      expect(ScoringMode.vegasCumulative.description, isNotEmpty);
     });
 
     test('description contains key information', () {
@@ -171,14 +185,21 @@ void main() {
 
       expect(ScoringMode.vegas.description, contains('\$52'));
       expect(ScoringMode.vegas.description, contains('\$5'));
+
+      expect(ScoringMode.vegasCumulative.description, contains('Bankroll'));
     });
 
     test('fullDescription returns detailed explanations', () {
       expect(ScoringMode.standard.fullDescription, isNotEmpty);
       expect(ScoringMode.vegas.fullDescription, isNotEmpty);
+      expect(ScoringMode.vegasCumulative.fullDescription, isNotEmpty);
 
-      expect(ScoringMode.standard.fullDescription.length, greaterThan(ScoringMode.standard.description.length));
-      expect(ScoringMode.vegas.fullDescription.length, greaterThan(ScoringMode.vegas.description.length));
+      expect(ScoringMode.standard.fullDescription.length,
+          greaterThan(ScoringMode.standard.description.length));
+      expect(ScoringMode.vegas.fullDescription.length,
+          greaterThan(ScoringMode.vegas.description.length));
+      expect(ScoringMode.vegasCumulative.fullDescription.length,
+          greaterThan(ScoringMode.vegasCumulative.description.length));
     });
 
     test('fullDescription contains specific details', () {
@@ -188,19 +209,42 @@ void main() {
       expect(ScoringMode.vegas.fullDescription, contains('\$52'));
       expect(ScoringMode.vegas.fullDescription, contains('\$5'));
       expect(ScoringMode.vegas.fullDescription, contains('11 cards'));
+
+      expect(ScoringMode.vegasCumulative.fullDescription, contains('bankroll'));
     });
 
-    test('standard and vegas have different descriptions', () {
-      expect(ScoringMode.standard.description, isNot(ScoringMode.vegas.description));
-      expect(ScoringMode.standard.fullDescription, isNot(ScoringMode.vegas.fullDescription));
+    test('all scoring modes have different descriptions', () {
+      expect(ScoringMode.standard.description,
+          isNot(ScoringMode.vegas.description));
+      expect(ScoringMode.standard.description,
+          isNot(ScoringMode.vegasCumulative.description));
+      expect(ScoringMode.vegas.description,
+          isNot(ScoringMode.vegasCumulative.description));
+
+      expect(ScoringMode.standard.fullDescription,
+          isNot(ScoringMode.vegas.fullDescription));
+      expect(ScoringMode.standard.fullDescription,
+          isNot(ScoringMode.vegasCumulative.fullDescription));
+      expect(ScoringMode.vegas.fullDescription,
+          isNot(ScoringMode.vegasCumulative.fullDescription));
     });
 
-    test('standard and vegas have different displayNames', () {
-      expect(ScoringMode.standard.displayName, isNot(ScoringMode.vegas.displayName));
+    test('all scoring modes have different displayNames', () {
+      expect(ScoringMode.standard.displayName,
+          isNot(ScoringMode.vegas.displayName));
+      expect(ScoringMode.standard.displayName,
+          isNot(ScoringMode.vegasCumulative.displayName));
+      expect(ScoringMode.vegas.displayName,
+          isNot(ScoringMode.vegasCumulative.displayName));
     });
 
-    test('standard and vegas have different shortNames', () {
-      expect(ScoringMode.standard.shortName, isNot(ScoringMode.vegas.shortName));
+    test('all scoring modes have different shortNames', () {
+      expect(
+          ScoringMode.standard.shortName, isNot(ScoringMode.vegas.shortName));
+      expect(ScoringMode.standard.shortName,
+          isNot(ScoringMode.vegasCumulative.shortName));
+      expect(ScoringMode.vegas.shortName,
+          isNot(ScoringMode.vegasCumulative.shortName));
     });
 
     test('vegasGameCost is negative', () {

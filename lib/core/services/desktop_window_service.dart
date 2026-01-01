@@ -9,9 +9,9 @@ class DesktopWindowService {
   // Preferred aspect ratio (3:2)
   static const double preferredAspectRatio = 3 / 2;
 
-  // Minimum window dimensions
+  // Minimum window dimensions (maintaining 3:2 aspect ratio)
   static const double minWidth = 900.0;
-  static const double minHeight = 700.0;
+  static const double minHeight = 600.0;
 
   // Default window dimensions (3:2 aspect ratio)
   static const double defaultWidth = 1350.0;

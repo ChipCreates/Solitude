@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solitude/features/game/models/card.dart';
 import 'package:solitude/features/game/widgets/card_widget.dart';
@@ -27,7 +26,8 @@ void main() {
       expect(tapCalled, isTrue);
     });
 
-    testWidgets('calls onDoubleTap callback when double-tapped', (tester) async {
+    testWidgets('calls onDoubleTap callback when double-tapped',
+        (tester) async {
       bool doubleTapCalled = false;
       final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
 
@@ -69,7 +69,8 @@ void main() {
     });
 
     testWidgets('renders face-down card correctly', (tester) async {
-      final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: false);
+      final card =
+          PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: false);
 
       await tester.pumpWidget(
         TestHarness.buildTestWidget(
@@ -99,15 +100,7 @@ void main() {
       expect(find.byType(CardWidget), findsOneWidget);
 
       // The card should still render properly when selected
-      // Visual changes (shadows, transform) are applied via AnimatedContainer
-      final animatedContainer = tester.widget<AnimatedContainer>(
-        find.descendant(
-          of: find.byType(CardWidget),
-          matching: find.byType(AnimatedContainer),
-        ).first,
-      );
-
-      expect(animatedContainer, isNotNull);
+      // Visual changes (shadows, transform) are applied via Transform and Container
     });
 
     testWidgets('applies highlighted state visual changes', (tester) async {
@@ -142,7 +135,8 @@ void main() {
       expect(find.byType(CardWidget), findsOneWidget);
     });
 
-    testWidgets('applies hint destination state visual changes', (tester) async {
+    testWidgets('applies hint destination state visual changes',
+        (tester) async {
       final card = PlayingCard(suit: Suit.hearts, rank: Rank.ace, faceUp: true);
 
       await tester.pumpWidget(

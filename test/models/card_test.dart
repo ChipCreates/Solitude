@@ -245,7 +245,7 @@ void main() {
       expect(copy.suit, original.suit);
       expect(copy.rank, original.rank);
       expect(copy.isSameFace(original), isTrue); // Same face
-      expect(copy, isNot(equals(original))); // Different uniqueId
+      expect(copy, equals(original)); // Same suit and rank
       expect(identical(copy, original), isFalse); // Different instance
     });
 
@@ -283,34 +283,35 @@ void main() {
       expect(card, equals(card));
     });
 
-    test('equality operator - different cards are not equal', () {
+    test('equality operator - different cards with same suit/rank are equal',
+        () {
       final kingHearts1 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
       final kingHearts2 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
       final queenHearts = PlayingCard(suit: Suit.hearts, rank: Rank.queen);
       final kingSpades = PlayingCard(suit: Suit.spades, rank: Rank.king);
 
-      expect(kingHearts1, isNot(equals(kingHearts2)));
+      expect(kingHearts1, equals(kingHearts2));
       expect(kingHearts1, isNot(equals(queenHearts)));
       expect(kingHearts1, isNot(equals(kingSpades)));
     });
 
     test(
-        'equality operator - faceUp state affects equality since uniqueId differs',
+        'equality operator - faceUp state does not affect equality since uniqueId is removed',
         () {
       final faceUp =
           PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
       final faceDown =
           PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: false);
 
-      expect(faceUp, isNot(equals(faceDown)));
+      expect(faceUp, equals(faceDown));
     });
 
-    test('hashCode differs for different instances', () {
+    test('hashCode is same for cards with same suit and rank', () {
       final card1 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
       final card2 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
       final card3 = PlayingCard(suit: Suit.spades, rank: Rank.king);
 
-      expect(card1.hashCode, isNot(equals(card2.hashCode)));
+      expect(card1.hashCode, equals(card2.hashCode));
       expect(card1.hashCode, isNot(equals(card3.hashCode)));
     });
   });

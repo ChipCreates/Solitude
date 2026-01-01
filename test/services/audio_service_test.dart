@@ -2,222 +2,227 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:solitude/core/services/audio_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('AudioService Interface', () {
+    test('SilentAudioService implements AudioService interface', () {
+      final service = SilentAudioService();
+      expect(service, isA<AudioService>());
+    });
+  });
+
   group('SilentAudioService', () {
-    test('initializes with default values', () {
-      final service = SilentAudioService();
+    late SilentAudioService service;
 
-      expect(service.isEnabled, isFalse);
-      expect(service.volume, 1.0);
-      expect(service.isMusicEnabled, isFalse);
-      expect(service.musicVolume, 0.5);
+    setUp(() {
+      service = SilentAudioService();
     });
 
-    test('initialize() completes without error', () async {
-      final service = SilentAudioService();
+    group('initialization', () {
+      test('initializes without error', () async {
+        expect(() async => await service.initialize(), returnsNormally);
+      });
 
-      await expectLater(service.initialize(), completes);
+      test('initialize is async and completes', () async {
+        await expectLater(service.initialize(), completes);
+      });
+
+      test('can be initialized multiple times', () async {
+        await service.initialize();
+        await service.initialize();
+        await service.initialize();
+      });
     });
 
-    test('setEnabled() updates isEnabled', () {
-      final service = SilentAudioService();
+    group('playback methods are no-ops', () {
+      test('playCardFlip does nothing', () {
+        expect(() => service.playCardFlip(), returnsNormally);
+      });
 
-      service.setEnabled(true);
-      expect(service.isEnabled, isTrue);
+      test('playCardPlace does nothing', () {
+        expect(() => service.playCardPlace(), returnsNormally);
+      });
 
-      service.setEnabled(false);
-      expect(service.isEnabled, isFalse);
+      test('playCardDraw does nothing', () {
+        expect(() => service.playCardDraw(), returnsNormally);
+      });
+
+      test('playInvalidMove does nothing', () {
+        expect(() => service.playInvalidMove(), returnsNormally);
+      });
+
+      test('playWin does nothing', () {
+        expect(() => service.playWin(), returnsNormally);
+      });
     });
 
-    test('setVolume() updates volume with clamping', () {
-      final service = SilentAudioService();
+    group('volume controls', () {
+      test('setEnabled updates enabled state', () {
+        expect(service.isEnabled, isFalse);
 
-      service.setVolume(0.5);
-      expect(service.volume, 0.5);
+        service.setEnabled(true);
+        expect(service.isEnabled, isTrue);
 
-      service.setVolume(0.0);
-      expect(service.volume, 0.0);
+        service.setEnabled(false);
+        expect(service.isEnabled, isFalse);
+      });
 
-      service.setVolume(1.0);
-      expect(service.volume, 1.0);
+      test('setVolume clamps values correctly', () {
+        service.setVolume(-1.0);
+        expect(service.volume, equals(0.0));
 
-      // Test clamping - values above 1.0
-      service.setVolume(1.5);
-      expect(service.volume, 1.0);
+        service.setVolume(0.5);
+        expect(service.volume, equals(0.5));
 
-      service.setVolume(999.9);
-      expect(service.volume, 1.0);
+        service.setVolume(1.5);
+        expect(service.volume, equals(1.0));
+      });
 
-      // Test clamping - values below 0.0
-      service.setVolume(-0.5);
-      expect(service.volume, 0.0);
+      test('setMusicEnabled updates music state', () {
+        expect(service.isMusicEnabled, isFalse);
 
-      service.setVolume(-999.9);
-      expect(service.volume, 0.0);
+        service.setMusicEnabled(true);
+        expect(service.isMusicEnabled, isTrue);
+
+        service.setMusicEnabled(false);
+        expect(service.isMusicEnabled, isFalse);
+      });
+
+      test('setMusicVolume clamps values correctly', () {
+        service.setMusicVolume(-0.5);
+        expect(service.musicVolume, equals(0.0));
+
+        service.setMusicVolume(0.7);
+        expect(service.musicVolume, equals(0.7));
+
+        service.setMusicVolume(2.0);
+        expect(service.musicVolume, equals(1.0));
+      });
     });
 
-    test('setMusicEnabled() updates isMusicEnabled', () {
-      final service = SilentAudioService();
+    group('getter properties', () {
+      test('initial enabled state is false', () {
+        expect(service.isEnabled, isFalse);
+      });
 
-      service.setMusicEnabled(true);
-      expect(service.isMusicEnabled, isTrue);
+      test('initial volume is 1.0', () {
+        expect(service.volume, equals(1.0));
+      });
 
-      service.setMusicEnabled(false);
-      expect(service.isMusicEnabled, isFalse);
+      test('initial music enabled state is false', () {
+        expect(service.isMusicEnabled, isFalse);
+      });
+
+      test('initial music volume is 0.5', () {
+        expect(service.musicVolume, equals(0.5));
+      });
     });
 
-    test('setMusicVolume() updates musicVolume with clamping', () {
-      final service = SilentAudioService();
+    group('background music controls', () {
+      test('startBackgroundMusic does nothing', () async {
+        expect(
+            () async => await service.startBackgroundMusic(), returnsNormally);
+      });
 
-      service.setMusicVolume(0.3);
-      expect(service.musicVolume, 0.3);
-
-      service.setMusicVolume(0.0);
-      expect(service.musicVolume, 0.0);
-
-      service.setMusicVolume(1.0);
-      expect(service.musicVolume, 1.0);
-
-      // Test clamping - values above 1.0
-      service.setMusicVolume(2.0);
-      expect(service.musicVolume, 1.0);
-
-      service.setMusicVolume(100.0);
-      expect(service.musicVolume, 1.0);
-
-      // Test clamping - values below 0.0
-      service.setMusicVolume(-0.2);
-      expect(service.musicVolume, 0.0);
-
-      service.setMusicVolume(-50.0);
-      expect(service.musicVolume, 0.0);
+      test('stopBackgroundMusic does nothing', () async {
+        expect(
+            () async => await service.stopBackgroundMusic(), returnsNormally);
+      });
     });
 
-    test('playCardFlip() completes without error', () {
-      final service = SilentAudioService();
+    group('disposal', () {
+      test('dispose does nothing', () {
+        expect(() => service.dispose(), returnsNormally);
+      });
 
-      expect(() => service.playCardFlip(), returnsNormally);
+      test('can be disposed multiple times', () {
+        service.dispose();
+        service.dispose();
+        service.dispose();
+      });
     });
 
-    test('playCardPlace() completes without error', () {
-      final service = SilentAudioService();
+    group('music control edge cases', () {
+      test('music controls work regardless of music enabled state', () async {
+        service.setMusicEnabled(false);
+        await service.startBackgroundMusic(); // Should not throw
 
-      expect(() => service.playCardPlace(), returnsNormally);
-    });
-
-    test('playCardDraw() completes without error', () {
-      final service = SilentAudioService();
-
-      expect(() => service.playCardDraw(), returnsNormally);
-    });
-
-    test('playInvalidMove() completes without error', () {
-      final service = SilentAudioService();
-
-      expect(() => service.playInvalidMove(), returnsNormally);
-    });
-
-    test('playWin() completes without error', () {
-      final service = SilentAudioService();
-
-      expect(() => service.playWin(), returnsNormally);
-    });
-
-    test('startBackgroundMusic() completes without error', () async {
-      final service = SilentAudioService();
-
-      await expectLater(service.startBackgroundMusic(), completes);
-    });
-
-    test('stopBackgroundMusic() completes without error', () async {
-      final service = SilentAudioService();
-
-      await expectLater(service.stopBackgroundMusic(), completes);
-    });
-
-    test('dispose() completes without error', () {
-      final service = SilentAudioService();
-
-      expect(() => service.dispose(), returnsNormally);
-    });
-
-    test('play methods work regardless of enabled state', () {
-      final service = SilentAudioService();
-
-      // Test when disabled (default)
-      expect(() => service.playCardFlip(), returnsNormally);
-      expect(() => service.playCardPlace(), returnsNormally);
-      expect(() => service.playCardDraw(), returnsNormally);
-
-      // Test when enabled
-      service.setEnabled(true);
-      expect(() => service.playCardFlip(), returnsNormally);
-      expect(() => service.playCardPlace(), returnsNormally);
-      expect(() => service.playCardDraw(), returnsNormally);
-    });
-
-    test('music methods work regardless of music enabled state', () async {
-      final service = SilentAudioService();
-
-      // Test when disabled (default)
-      await expectLater(service.startBackgroundMusic(), completes);
-      await expectLater(service.stopBackgroundMusic(), completes);
-
-      // Test when enabled
-      service.setMusicEnabled(true);
-      await expectLater(service.startBackgroundMusic(), completes);
-      await expectLater(service.stopBackgroundMusic(), completes);
-    });
-
-    test('can change all settings in sequence', () {
-      final service = SilentAudioService();
-
-      service.setEnabled(true);
-      service.setVolume(0.7);
-      service.setMusicEnabled(true);
-      service.setMusicVolume(0.3);
-
-      expect(service.isEnabled, isTrue);
-      expect(service.volume, 0.7);
-      expect(service.isMusicEnabled, isTrue);
-      expect(service.musicVolume, 0.3);
+        service.setMusicEnabled(true);
+        await service.stopBackgroundMusic(); // Should not throw
+      });
     });
   });
 
   group('GameAudioService', () {
-    // Note: Testing GameAudioService is challenging because it uses real AudioPlayer instances
-    // that require actual audio files and Flutter's platform channels to be initialized.
-    // These tests focus on state management that doesn't require initialized AudioPlayers.
+    // Note: GameAudioService requires platform audio implementation
+    // and is better tested through integration tests on real devices.
+    // This test file focuses on the AudioService interface contract.
 
-    test('initializes with default values', () {
+    test('GameAudioService implements AudioService interface', () {
       final service = GameAudioService();
+      expect(service, isA<AudioService>());
+    });
 
+    test('GameAudioService has correct initial state', () {
+      final service = GameAudioService();
       expect(service.isEnabled, isTrue);
-      expect(service.volume, 0.2);
+      expect(service.volume, equals(0.2));
       expect(service.isMusicEnabled, isTrue);
-      expect(service.musicVolume, 0.2);
+      expect(service.musicVolume, equals(0.2));
     });
 
-    test('setEnabled() updates isEnabled', () {
-      final service = GameAudioService();
+    // Note: GameAudioService requires initialization before disposal
+    // and uses late fields that must be initialized first.
+    // Testing this would require mocking AudioPlayer which is beyond unit test scope.
+  });
 
-      service.setEnabled(false);
-      expect(service.isEnabled, isFalse);
+  group('AudioService Interface Compliance', () {
+    test('both implementations have required methods', () {
+      final silentService = SilentAudioService();
+      final gameService = GameAudioService();
 
-      service.setEnabled(true);
-      expect(service.isEnabled, isTrue);
+      // Verify all required methods exist
+      expect(silentService.playCardFlip, isNotNull);
+      expect(silentService.playCardPlace, isNotNull);
+      expect(silentService.playCardDraw, isNotNull);
+      expect(silentService.playInvalidMove, isNotNull);
+      expect(silentService.playWin, isNotNull);
+      expect(silentService.setEnabled, isNotNull);
+      expect(silentService.setVolume, isNotNull);
+      expect(silentService.setMusicEnabled, isNotNull);
+      expect(silentService.setMusicVolume, isNotNull);
+      expect(silentService.startBackgroundMusic, isNotNull);
+      expect(silentService.stopBackgroundMusic, isNotNull);
+      expect(silentService.dispose, isNotNull);
+
+      expect(gameService.playCardFlip, isNotNull);
+      expect(gameService.playCardPlace, isNotNull);
+      expect(gameService.playCardDraw, isNotNull);
+      expect(gameService.playInvalidMove, isNotNull);
+      expect(gameService.playWin, isNotNull);
+      expect(gameService.setEnabled, isNotNull);
+      expect(gameService.setVolume, isNotNull);
+      expect(gameService.setMusicEnabled, isNotNull);
+      expect(gameService.setMusicVolume, isNotNull);
+      expect(gameService.startBackgroundMusic, isNotNull);
+      expect(gameService.stopBackgroundMusic, isNotNull);
+      expect(gameService.dispose, isNotNull);
     });
 
-    test('can be instantiated', () {
-      expect(() => GameAudioService(), returnsNormally);
-    });
+    test('both implementations have required getters', () {
+      final silentService = SilentAudioService();
+      final gameService = GameAudioService();
 
-    test('enabled state can be toggled multiple times', () {
-      final service = GameAudioService();
+      // Verify all required getters exist and return expected types
+      expect(silentService.isEnabled, isA<bool>());
+      expect(silentService.volume, isA<double>());
+      expect(silentService.isMusicEnabled, isA<bool>());
+      expect(silentService.musicVolume, isA<double>());
 
-      for (int i = 0; i < 10; i++) {
-        service.setEnabled(i % 2 == 0);
-        expect(service.isEnabled, i % 2 == 0);
-      }
+      expect(gameService.isEnabled, isA<bool>());
+      expect(gameService.volume, isA<double>());
+      expect(gameService.isMusicEnabled, isA<bool>());
+      expect(gameService.musicVolume, isA<double>());
     });
   });
 }

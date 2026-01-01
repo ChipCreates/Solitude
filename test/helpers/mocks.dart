@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
 import 'package:solitude/features/statistics/services/statistics_service.dart';
-import 'package:solitude/core/services/audio_service.dart';
+import 'package:solitude/core/services/audio_service.dart' as core_audio;
+import 'package:solitude/features/game/services/audio_service.dart'
+    as game_audio;
 import 'package:solitude/features/game/models/draw_mode.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/models/theme_preset.dart';
@@ -187,7 +189,7 @@ class MockStatisticsService extends StatisticsService {
 /// Mock AudioService for testing
 ///
 /// Tracks audio method calls without playing actual sounds.
-class MockAudioService implements AudioService {
+class MockAudioService implements core_audio.AudioService {
   int cardFlipCount = 0;
   int cardPlaceCount = 0;
   int cardDrawCount = 0;
@@ -291,5 +293,33 @@ class MockAudioService implements AudioService {
     disposeCount = 0;
     startMusicCount = 0;
     stopMusicCount = 0;
+  }
+}
+
+/// Mock GameAudioService for testing
+///
+/// Tracks audio method calls without playing actual sounds.
+class MockGameAudioService {
+  int playSfxCount = 0;
+  int updateSettingsCount = 0;
+  int disposeCount = 0;
+
+  void playSfx(game_audio.SoundEffect effect) {
+    playSfxCount++;
+  }
+
+  void updateSettings(dynamic settings) {
+    updateSettingsCount++;
+  }
+
+  void dispose() {
+    disposeCount++;
+  }
+
+  /// Reset all tracked counts
+  void reset() {
+    playSfxCount = 0;
+    updateSettingsCount = 0;
+    disposeCount = 0;
   }
 }

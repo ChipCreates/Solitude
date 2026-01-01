@@ -126,9 +126,9 @@ class PlayingCard {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is PlayingCard && other.uniqueId == uniqueId;
+    return other is PlayingCard && other.suit == suit && other.rank == rank;
   }
 
   @override
-  int get hashCode => uniqueId.hashCode;
+  int get hashCode => Object.hash(suit, rank);
 }

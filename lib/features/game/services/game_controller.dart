@@ -49,7 +49,7 @@ class GameController extends ChangeNotifier {
   final TimerStateNotifier timerState;
 
   // Audio service
-  late final AudioService _audioService;
+  late final dynamic _audioService;
 
   // Solver service for AI hints
   late final SolverService _solverService;
@@ -86,6 +86,7 @@ class GameController extends ChangeNotifier {
     required this.timerState,
     required this.boardLayout,
     required GameType gameType,
+    dynamic audioService,
   }) {
     _game = GameFactory.createGame(gameType);
     _game.applyDifficulty(settingsProvider.difficulty);
@@ -105,7 +106,7 @@ class GameController extends ChangeNotifier {
         }
       },
     );
-    _audioService = AudioService(settingsProvider);
+    _audioService = audioService ?? AudioService(settingsProvider);
 
     // Initialize solver service
     _solverService = SolverService(
@@ -831,8 +832,8 @@ class GameController extends ChangeNotifier {
       // Cost scales with deck size: -$1 per card in deck
       final deckSize = _game.deckSize;
       final vegasGameCost = -deckSize; // -52 for Klondike, -104 for Spider
-      final vegasScore =
-          vegasGameCost + (cardsInFoundations * ScoringMode.vegas.vegasCardValue);
+      final vegasScore = vegasGameCost +
+          (cardsInFoundations * ScoringMode.vegas.vegasCardValue);
       statisticsService.recordVegasScore(vegasScore);
     }
 

@@ -45,7 +45,7 @@ extension GameTypeDisplay on GameType {
       case GameType.freecell:
         return 'A game of open information where almost every deal is winnable if you have the foresight to solve it. All cards are visible from the start, and you are given four temporary "free cells" to hold cards while you reorganize the tableau. It is less about luck and more about strategic sequencing, rewarding players who can think several moves ahead.';
       case GameType.triPeaks:
-        return 'A mathematical puzzle where the goal is not to build sequences, but to dismantle a pyramid of cards by pairing them up. You must find combinations that add up to 13 to remove them from the board. As you chip away at the structure, the challenge lies in uncovering the buried cards you need before the draw pile runs out.';
+        return 'A fast-paced game where you must clear three overlapping pyramids of cards. You can remove any card that is one rank higher or lower than the top card of the waste pile. Success depends on maintaining streaks while carefully managing when to draw from the stock, as every cleared card brings you closer to victory.';
       case GameType.yukon:
         return 'This variant allows for great freedom of movement, letting you move any group of face-up cards regardless of what is beneath them. The catch is that you must still place them on a card of the opposite color and next highest rank. This flexibility creates dynamic gameplay where you can tear apart large stacks to uncover the vital cards hidden underneath.';
       case GameType.fortyThieves:
