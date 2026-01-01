@@ -75,7 +75,7 @@ void main() {
     group('pattern identification', () {
       test('can identify each pattern uniquely', () {
         const patterns = VictoryPattern.values;
-        // final labels = patterns.map((p) => p.label).toList();
+        final labels = patterns.map((p) => p.label).toList();
 
         // Verify each pattern can be uniquely identified
         for (var i = 0; i < patterns.length; i++) {
