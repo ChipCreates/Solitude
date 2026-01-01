@@ -49,13 +49,13 @@ class AudioService {
         filename = 'card_place';
         break;
     }
-    final String path = '$filename.mp3';
+    final String path = 'audio/$filename.mp3';
     await _sfxPlayer.play(AssetSource(path));
   }
 
   Future<void> playMusic() async {
     if (!_settings.musicEnabled) return;
-    await _musicPlayer.play(AssetSource('background-music.mp3'));
+    await _musicPlayer.play(AssetSource('audio/background-music.mp3'));
     _musicPlayer.setReleaseMode(ReleaseMode.loop);
   }
 

@@ -48,14 +48,20 @@ void main() {
       expect(deck.cards, isNot(equals(originalOrder)));
     });
 
-    test('shuffle() with seeded Random produces deterministic results', () {
+    test('shuffle() with seeded Random produces deterministic card faces order',
+        () {
       final deck1 = Deck();
       final deck2 = Deck();
 
       deck1.shuffle(Random(42));
       deck2.shuffle(Random(42));
 
-      expect(deck1.cards, equals(deck2.cards));
+      // Cards have different uniqueIds but same suit/rank ordering when using same seed
+      expect(deck1.cards.length, equals(deck2.cards.length));
+      for (int i = 0; i < deck1.cards.length; i++) {
+        expect(deck1.cards[i].isSameFace(deck2.cards[i]), isTrue,
+            reason: 'Card at position $i should have same face');
+      }
     });
 
     test('shuffle() preserves all 52 cards (no duplication/loss)', () {
@@ -64,11 +70,12 @@ void main() {
 
       expect(deck.length, 52);
 
-      // Check all combinations still exist
+      // Check all combinations still exist (using isSameFace since cards have unique IDs)
       for (final suit in Suit.values) {
         for (final rank in Rank.values) {
-          final card = PlayingCard(suit: suit, rank: rank);
-          expect(deck.cards.contains(card), isTrue);
+          final hasCard =
+              deck.cards.any((c) => c.suit == suit && c.rank == rank);
+          expect(hasCard, isTrue, reason: 'Missing $suit $rank');
         }
       }
     });
@@ -114,7 +121,8 @@ void main() {
       expect(deck.length, 47);
     });
 
-    test('drawMultiple() returns fewer cards if deck has insufficient cards', () {
+    test('drawMultiple() returns fewer cards if deck has insufficient cards',
+        () {
       final deck = Deck();
 
       // Draw 50 cards, leaving 2
@@ -205,17 +213,16 @@ void main() {
       expect(deck.length, 104);
     });
 
-    test('deck with deckCount=2 has two of each card', () {
+    test('deck with deckCount=2 has two of each card face', () {
       final deck = Deck(deckCount: 2);
-      final cardCounts = <PlayingCard, int>{};
 
-      for (final card in deck.cards) {
-        cardCounts[card] = (cardCounts[card] ?? 0) + 1;
-      }
-
-      // Each unique card should appear exactly twice
-      for (final count in cardCounts.values) {
-        expect(count, 2);
+      // Count cards by suit and rank (not by identity, since each card has unique ID)
+      for (final suit in Suit.values) {
+        for (final rank in Rank.values) {
+          final count =
+              deck.cards.where((c) => c.suit == suit && c.rank == rank).length;
+          expect(count, 2, reason: 'Expected 2 copies of $suit $rank');
+        }
       }
     });
 

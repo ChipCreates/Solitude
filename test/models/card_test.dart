@@ -237,15 +237,16 @@ void main() {
   });
 
   group('PlayingCard copyWith', () {
-    test('copyWith() creates new instance with same suit/rank', () {
+    test('copyWith() creates new instance with same suit/rank/uniqueId', () {
       final original =
           PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
       final copy = original.copyWith();
 
       expect(copy.suit, original.suit);
       expect(copy.rank, original.rank);
+      expect(copy.uniqueId, original.uniqueId); // Preserves uniqueId
       expect(copy.isSameFace(original), isTrue); // Same face
-      expect(copy, equals(original)); // Same suit and rank
+      expect(copy, equals(original)); // Equal because same uniqueId
       expect(identical(copy, original), isFalse); // Different instance
     });
 
@@ -274,6 +275,7 @@ void main() {
       final card1 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
       final card2 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
 
+      // isSameFace checks visual appearance (suit + rank), not identity
       expect(card1.isSameFace(card2), isTrue);
     });
 
@@ -283,36 +285,58 @@ void main() {
       expect(card, equals(card));
     });
 
-    test('equality operator - different cards with same suit/rank are equal',
+    test(
+        'equality operator - different cards with same suit/rank are NOT equal (unique IDs)',
         () {
       final kingHearts1 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
       final kingHearts2 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
       final queenHearts = PlayingCard(suit: Suit.hearts, rank: Rank.queen);
       final kingSpades = PlayingCard(suit: Suit.spades, rank: Rank.king);
 
-      expect(kingHearts1, equals(kingHearts2));
+      // Different cards have different uniqueIds, so they're not equal
+      // This is important for Spider Solitaire which uses 2 decks (104 cards)
+      expect(kingHearts1, isNot(equals(kingHearts2)));
       expect(kingHearts1, isNot(equals(queenHearts)));
       expect(kingHearts1, isNot(equals(kingSpades)));
     });
 
-    test(
-        'equality operator - faceUp state does not affect equality since uniqueId is removed',
-        () {
-      final faceUp =
-          PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
-      final faceDown =
-          PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: false);
+    test('equality operator - cards with same uniqueId are equal', () {
+      final card1 =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, uniqueId: 'test-id');
+      final card2 =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, uniqueId: 'test-id');
+
+      expect(card1, equals(card2));
+    });
+
+    test('equality operator - faceUp state does not affect equality', () {
+      final faceUp = PlayingCard(
+          suit: Suit.hearts,
+          rank: Rank.king,
+          uniqueId: 'same-id',
+          faceUp: true);
+      final faceDown = PlayingCard(
+          suit: Suit.hearts,
+          rank: Rank.king,
+          uniqueId: 'same-id',
+          faceUp: false);
 
       expect(faceUp, equals(faceDown));
     });
 
-    test('hashCode is same for cards with same suit and rank', () {
-      final card1 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
-      final card2 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
-      final card3 = PlayingCard(suit: Suit.spades, rank: Rank.king);
+    test('hashCode is same for cards with same suit, rank and uniqueId', () {
+      final card1 =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, uniqueId: 'test-id');
+      final card2 =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, uniqueId: 'test-id');
+      final card3 =
+          PlayingCard(suit: Suit.spades, rank: Rank.king, uniqueId: 'test-id');
+      final card4 = PlayingCard(
+          suit: Suit.hearts, rank: Rank.king, uniqueId: 'different-id');
 
       expect(card1.hashCode, equals(card2.hashCode));
       expect(card1.hashCode, isNot(equals(card3.hashCode)));
+      expect(card1.hashCode, isNot(equals(card4.hashCode)));
     });
   });
 
