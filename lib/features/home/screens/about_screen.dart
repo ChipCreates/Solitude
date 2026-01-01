@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:solitude/core/theme/app_theme.dart';
 import 'package:solitude/core/widgets/game_button.dart';
 
@@ -26,6 +27,9 @@ class AboutScreen extends StatelessWidget {
                     _buildCreditsSection(context),
                     const SizedBox(height: 32),
                     _buildSourceSection(context),
+                    const SizedBox(height: 32),
+                    _buildPrivacySection(context),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -35,7 +39,7 @@ class AboutScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildHeader(BuildContext context) {
     return Container(
       height: 56,
@@ -44,7 +48,7 @@ class AboutScreen extends StatelessWidget {
         color: AppTheme.toolbarColor(context),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -62,7 +66,7 @@ class AboutScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildAppInfo(BuildContext context) {
     return Center(
       child: Column(
@@ -73,7 +77,8 @@ class AboutScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.feltMedium,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.gold.withValues(alpha:0.5), width: 2),
+              border: Border.all(
+                  color: AppColors.gold.withValues(alpha: 0.5), width: 2),
             ),
             child: const Center(
               child: Text(
@@ -102,7 +107,7 @@ class AboutScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildLicenseSection(BuildContext context) {
     return _buildSection(
       context,
@@ -127,7 +132,7 @@ class AboutScreen extends StatelessWidget {
           'Under the condition that you preserve the same freedoms for others.',
           style: AppTypography.body(context).copyWith(
             fontStyle: FontStyle.italic,
-            color: AppColors.cream.withValues(alpha:0.8),
+            color: AppColors.cream.withValues(alpha: 0.8),
           ),
         ),
         const SizedBox(height: 16),
@@ -140,7 +145,7 @@ class AboutScreen extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildCreditsSection(BuildContext context) {
     return _buildSection(
       context,
@@ -149,7 +154,8 @@ class AboutScreen extends StatelessWidget {
         _buildCreditItem(
           context,
           title: 'Card Graphics',
-          description: 'SVG Playing Cards by David Bellot, maintained by Huub de Beer',
+          description:
+              'SVG Playing Cards by David Bellot, maintained by Huub de Beer',
           license: 'Licensed under LGPL 2.1+',
           url: 'github.com/htdebeer/SVG-cards',
         ),
@@ -164,7 +170,7 @@ class AboutScreen extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildSourceSection(BuildContext context) {
     return _buildSection(
       context,
@@ -178,13 +184,14 @@ class AboutScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.feltDarkest.withValues(alpha:0.5),
+            color: AppColors.feltDarkest.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.cream.withValues(alpha:0.1)),
+            border: Border.all(color: AppColors.cream.withValues(alpha: 0.1)),
           ),
           child: Row(
             children: [
-              Icon(Icons.code, color: AppColors.cream.withValues(alpha:0.7), size: 20),
+              Icon(Icons.code,
+                  color: AppColors.cream.withValues(alpha: 0.7), size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -200,19 +207,99 @@ class AboutScreen extends StatelessWidget {
       ],
     );
   }
-  
-  Widget _buildSection(BuildContext context, {required String title, required List<Widget> children}) {
+
+  Widget _buildPrivacySection(BuildContext context) {
+    return _buildSection(
+      context,
+      title: 'Privacy & Data',
+      children: [
+        Text(
+          'Solitude respects your privacy. All game data is stored locally on your device.',
+          style: AppTypography.body(context),
+        ),
+        const SizedBox(height: 12),
+        _buildBulletPoint(context, 'No personal information is collected'),
+        _buildBulletPoint(context, 'No data is sent to external servers'),
+        _buildBulletPoint(context, 'No analytics or tracking'),
+        _buildBulletPoint(
+            context, 'Game stats and progress stay on your device'),
+        const SizedBox(height: 16),
+        Center(
+          child: TextButton.icon(
+            onPressed: () => _launchPrivacyPolicy(context),
+            icon: const Icon(Icons.privacy_tip_outlined, color: AppColors.gold),
+            label: Text(
+              'Privacy Policy',
+              style:
+                  AppTypography.label(context).copyWith(color: AppColors.gold),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(color: AppColors.gold.withValues(alpha: 0.3)),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _launchPrivacyPolicy(BuildContext context) async {
+    const url = 'https://github.com/plotworx/solitude/blob/main/PRIVACY.md';
+    final uri = Uri.parse(url);
+
+    try {
+      final canLaunch = await canLaunchUrl(uri);
+      if (canLaunch) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Privacy Policy: $url'),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Copy',
+                onPressed: () {
+                  // Could implement clipboard copy here
+                },
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open Privacy Policy. Visit: $url'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildSection(BuildContext context,
+      {required String title, required List<Widget> children}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Container(width: 40, height: 1, color: AppColors.cream.withValues(alpha:0.2)),
+            Container(
+                width: 40,
+                height: 1,
+                color: AppColors.cream.withValues(alpha: 0.2)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(title, style: AppTypography.subheading(context)),
             ),
-            Expanded(child: Container(height: 1, color: AppColors.cream.withValues(alpha:0.2))),
+            Expanded(
+                child: Container(
+                    height: 1, color: AppColors.cream.withValues(alpha: 0.2))),
           ],
         ),
         const SizedBox(height: 16),
@@ -220,7 +307,7 @@ class AboutScreen extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildBulletPoint(BuildContext context, String text) {
     return Padding(
       padding: const EdgeInsets.only(left: 16, bottom: 4),
@@ -233,8 +320,9 @@ class AboutScreen extends StatelessWidget {
       ),
     );
   }
-  
-  Widget _buildCreditItem(BuildContext context, {
+
+  Widget _buildCreditItem(
+    BuildContext context, {
     required String title,
     required String description,
     required String license,
@@ -243,9 +331,9 @@ class AboutScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.feltDarkest.withValues(alpha:0.3),
+        color: AppColors.feltDarkest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.cream.withValues(alpha:0.1)),
+        border: Border.all(color: AppColors.cream.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,7 +344,8 @@ class AboutScreen extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             license,
-            style: AppTypography.stat(context).copyWith(fontStyle: FontStyle.italic),
+            style: AppTypography.stat(context)
+                .copyWith(fontStyle: FontStyle.italic),
           ),
           const SizedBox(height: 4),
           Text(
@@ -267,7 +356,7 @@ class AboutScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   void _showLicenseText(BuildContext context) {
     showDialog(
       context: context,
@@ -276,9 +365,9 @@ class AboutScreen extends StatelessWidget {
         child: Container(
           constraints: const BoxConstraints(maxWidth: 600, maxHeight: 500),
           decoration: BoxDecoration(
-            color: AppColors.feltDarkest.withValues(alpha:0.98),
+            color: AppColors.feltDarkest.withValues(alpha: 0.98),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.gold.withValues(alpha:0.3)),
+            border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
           ),
           child: Column(
             children: [
@@ -287,7 +376,8 @@ class AboutScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('GNU GPL v3.0', style: AppTypography.subheading(context)),
+                    Text('GNU GPL v3.0',
+                        style: AppTypography.subheading(context)),
                     IconButton(
                       icon: const Icon(Icons.close, color: AppColors.cream),
                       onPressed: () => Navigator.pop(context),

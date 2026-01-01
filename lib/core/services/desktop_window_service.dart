@@ -5,7 +5,10 @@ import 'package:window_manager/window_manager.dart';
 
 /// Service to configure desktop window properties.
 /// Only active on desktop platforms (Windows, macOS, Linux).
-class DesktopWindowService {
+///
+/// This service respects OS-level maximize and snap features by only
+/// enforcing aspect ratio when the window is in normal (non-maximized) state.
+class DesktopWindowService with WindowListener {
   // Preferred aspect ratio (3:2)
   static const double preferredAspectRatio = 3 / 2;
 
@@ -16,6 +19,10 @@ class DesktopWindowService {
   // Default window dimensions (3:2 aspect ratio)
   static const double defaultWidth = 1350.0;
   static const double defaultHeight = 900.0;
+
+  static DesktopWindowService? _instance;
+
+  DesktopWindowService._();
 
   /// Check if we're running on a desktop platform
   static bool get isDesktop {
@@ -41,10 +48,39 @@ class DesktopWindowService {
     );
 
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
-      // Set aspect ratio immediately when ready, before showing
+      // Set aspect ratio for normal window state
+      // This will be temporarily disabled when maximized
       await windowManager.setAspectRatio(preferredAspectRatio);
       await windowManager.show();
       await windowManager.focus();
     });
+
+    // Create instance and listen for window state changes
+    _instance = DesktopWindowService._();
+    windowManager.addListener(_instance!);
+  }
+
+  @override
+  void onWindowMaximize() {
+    // Remove aspect ratio constraint when maximized to allow full screen usage
+    windowManager.setAspectRatio(0.0); // 0.0 = no aspect ratio constraint
+    debugPrint(
+        'DesktopWindowService: Window maximized - aspect ratio constraint removed');
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    // Restore aspect ratio constraint when returning to normal state
+    windowManager.setAspectRatio(preferredAspectRatio);
+    debugPrint(
+        'DesktopWindowService: Window restored - aspect ratio constraint applied');
+  }
+
+  /// Cleanup window listener
+  static void dispose() {
+    if (_instance != null && isDesktop) {
+      windowManager.removeListener(_instance!);
+      _instance = null;
+    }
   }
 }

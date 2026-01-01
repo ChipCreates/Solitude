@@ -10,8 +10,7 @@ class AchievementService {
   static const String _boxName = 'achievements';
   Box<Achievement>? _achievementBox;
 
-  // Track session data for achievements
-  int _sessionMoveCount = 0;
+  // Track session data for achievements (undo/hint usage for perfect game detection)
   bool _sessionUsedUndo = false;
   bool _sessionUsedHint = false;
 
@@ -50,7 +49,6 @@ class AchievementService {
 
   /// Reset session tracking when a new game starts
   void resetSessionTracking() {
-    _sessionMoveCount = 0;
     _sessionUsedUndo = false;
     _sessionUsedHint = false;
   }
@@ -232,11 +230,10 @@ class AchievementService {
   }
 
   /// Track move count for efficiency achievements
+  /// Move count is passed in gameData on win, so we don't need session tracking for it
   Future<void> incrementMoveCount() async {
-    _sessionMoveCount++;
-
-    // Update progress for move-based achievements
-    await _updateMoveProgress();
+    // Move count tracking is handled via game data on win event
+    // This method exists for event stream compatibility
   }
 
   /// Track undo usage for perfect game achievement
@@ -247,12 +244,6 @@ class AchievementService {
   /// Track hint usage for perfect game achievement
   void trackHintUsed() {
     _sessionUsedHint = true;
-  }
-
-  /// Update progress for move-based achievements
-  Future<void> _updateMoveProgress() async {
-    // Could be extended to track cumulative move counts across games
-    // For now, move tracking is per-session and checked on win
   }
 
   /// Update progress for an achievement (for gradual achievements)
