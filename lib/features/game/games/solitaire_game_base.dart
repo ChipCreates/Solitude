@@ -1,6 +1,7 @@
 import 'game_interface.dart';
 import '../models/card.dart';
 import '../models/pile.dart';
+import '../models/move.dart';
 
 /// Base class for solitaire games that provides common move-checking logic.
 /// Subclasses implement game-specific rules while inheriting reusable patterns.
@@ -38,7 +39,8 @@ abstract class SolitaireGameBase implements GameInterface {
   /// Check if a card can be placed on a foundation pile
   bool canMoveToFoundation(PlayingCard card, Pile foundation) {
     if (foundation.isEmpty) {
-      return card.rank == Rank.ace; // Most solitaire games start foundations with Aces
+      return card.rank ==
+          Rank.ace; // Most solitaire games start foundations with Aces
     }
     final topCard = foundation.topCard!;
     return card.suit == topCard.suit && card.value == topCard.value + 1;
@@ -56,7 +58,7 @@ abstract class SolitaireGameBase implements GameInterface {
     final topCard = toPile.topCard!;
     // Alternating colors, descending rank
     return firstCard.isRed != topCard.isRed &&
-           firstCard.value == topCard.value - 1;
+        firstCard.value == topCard.value - 1;
   }
 
   /// Check if a sequence of cards forms a valid run (for tableau moves)
@@ -71,4 +73,27 @@ abstract class SolitaireGameBase implements GameInterface {
     }
     return true;
   }
+
+  // ==========================================================================
+  // Default Implementations (GameInterface)
+  // ==========================================================================
+
+  /// Handle pile activation (Enter/Space key on focused pile).
+  /// Returns a Move if the game handled the activation internally (e.g., stock tap).
+  /// Returns null if the controller should use default behavior (select top card).
+  /// Default implementation delegates to handlePileTap for stock piles.
+  @override
+  Move? handlePileActivation(Pile pile) {
+    if (pile.type == PileType.stock) {
+      return handlePileTap(pile);
+    }
+    return null;
+  }
+
+  /// Get the selectable cards from a pile starting from a given card.
+  /// Returns null to use default behavior (all cards from card to top).
+  /// Games can override this to enforce selection rules (e.g., waste only allows top card).
+  /// Default implementation returns null.
+  @override
+  List<PlayingCard>? getSelectableCards(Pile pile, PlayingCard card) => null;
 }

@@ -144,6 +144,23 @@ abstract class GameInterface {
   /// Handle tap on a pile (game-specific behavior)
   Move? handlePileTap(Pile pile);
 
+  /// Handle pile activation (Enter/Space key on focused pile).
+  /// Returns a Move if the game handled the activation internally (e.g., stock tap).
+  /// Returns null if the controller should use default behavior (select top card).
+  /// Default implementation delegates to handlePileTap for stock piles.
+  Move? handlePileActivation(Pile pile) {
+    if (pile.type == PileType.stock) {
+      return handlePileTap(pile);
+    }
+    return null;
+  }
+
+  /// Get the selectable cards from a pile starting from a given card.
+  /// Returns null to use default behavior (all cards from card to top).
+  /// Games can override this to enforce selection rules (e.g., waste only allows top card).
+  /// Default implementation returns null.
+  List<PlayingCard>? getSelectableCards(Pile pile, PlayingCard card) => null;
+
   /// Game-specific layout configuration
   LayoutConfig get layoutConfig;
 }

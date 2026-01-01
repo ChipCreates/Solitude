@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../games/game_interface.dart';
@@ -19,13 +18,25 @@ import 'timer_state_notifier.dart';
 import 'board_layout_service.dart';
 import 'solitaire_bot.dart';
 import 'autocomplete_detector.dart';
-import '../ai/solver_engine.dart';
-import '../ai/games/klondike_solver_state.dart';
+import 'solver_service.dart';
+import 'game_timer_service.dart';
 import 'package:solitude/features/settings/models/hint_mode.dart';
 import 'audio_service.dart';
 
 enum GameState { playing, won, autoCompleting, autoplaying, lost }
 
+/// GameController manages the game state and orchestrates interactions
+/// between various services.
+///
+/// Responsibilities:
+/// - Game lifecycle (new game, win/loss detection)
+/// - UI state management (selection, focus)
+/// - Coordinating between services (SolverService, AudioService, etc.)
+///
+/// Delegates to:
+/// - SolverService: AI hints and auto-solve functionality
+/// - GameTimerService: Inactivity detection for auto-hints
+/// - GameInterface: Game rules and move validation
 class GameController extends ChangeNotifier {
   final SettingsProvider settingsProvider;
   final StatisticsService statisticsService;
@@ -40,6 +51,12 @@ class GameController extends ChangeNotifier {
   // Audio service
   late final AudioService _audioService;
 
+  // Solver service for AI hints
+  late final SolverService _solverService;
+
+  // Timer service for inactivity detection
+  late final GameTimerService _inactivityService;
+
   late GameInterface _game;
   GameState _state = GameState.playing;
 
@@ -49,18 +66,8 @@ class GameController extends ChangeNotifier {
   // Track if game has been started (first move made)
   bool _gameStarted = false;
 
-  // Inactivity timer for auto-hint
-  Timer? _inactivityTimer;
-  static const Duration _inactivityThreshold = Duration(seconds: 8);
-
   // Bot for autoplay and auto-complete
   late SolitaireBot _bot;
-
-  // Cached winning path for smart hints
-  List<KlondikeMove>? _cachedWinningPath;
-
-  // Debounce timer for background solving
-  Timer? _solveDebounceTimer;
 
   // Track if disposed
   bool _isDisposed = false;
@@ -99,6 +106,18 @@ class GameController extends ChangeNotifier {
       },
     );
     _audioService = AudioService(settingsProvider);
+
+    // Initialize solver service
+    _solverService = SolverService(
+      game: _game,
+      hintState: hintState,
+    );
+    _solverService.updateHintMode(settingsProvider.hintMode);
+
+    // Initialize inactivity timer service
+    _inactivityService = GameTimerService();
+    _inactivityService.setInactivityCallback(_onInactivityTimeout);
+
     // Listen to settings changes to respond to autoplay and audio toggles
     settingsProvider.addListener(_onSettingsChanged);
   }
@@ -163,6 +182,14 @@ class GameController extends ChangeNotifier {
         },
       );
 
+      // Reinitialize solver service with new game
+      _solverService.dispose();
+      _solverService = SolverService(
+        game: _game,
+        hintState: hintState,
+      );
+      _solverService.updateHintMode(settingsProvider.hintMode);
+
       // Reinitialize board layout
       initializePileKeys();
     }
@@ -174,7 +201,7 @@ class GameController extends ChangeNotifier {
   void newGame() {
     if (_isDisposed) return;
     _stopTimer();
-    _stopInactivityTimer();
+    _inactivityService.disable();
     timerState.reset();
     _gameStarted = false;
 
@@ -187,6 +214,10 @@ class GameController extends ChangeNotifier {
     _game.initialize();
     _state = GameState.playing;
     clearSelection();
+
+    // Clear solver cache
+    _solverService.clearCache();
+
     notifyListeners();
   }
 
@@ -205,20 +236,12 @@ class GameController extends ChangeNotifier {
       _gameStarted = true;
       _startTimer();
       statisticsService.recordGameStarted();
-      _resetInactivityTimer(); // Start inactivity timer when game begins
+      // Enable and reset inactivity timer when game begins
+      _inactivityService.enable();
+      _inactivityService.resetInactivityTimer();
       if (!_eventController.isClosed) {
         _eventController.add(const GameEvent(GameEventType.gameStarted));
       }
-    }
-  }
-
-  /// Reset the inactivity timer - call this on any user interaction
-  void _resetInactivityTimer() {
-    if (_isDisposed) return;
-    _inactivityTimer?.cancel();
-    _inactivityTimer = null;
-    if (_state == GameState.playing && _gameStarted) {
-      _inactivityTimer = Timer(_inactivityThreshold, _onInactivityTimeout);
     }
   }
 
@@ -229,21 +252,15 @@ class GameController extends ChangeNotifier {
         !hintState.isActive &&
         !selectionState.hasSelection) {
       showHint();
-      // Restart timer so hint shows again if still inactive
-      _resetInactivityTimer();
     }
-  }
-
-  /// Stop the inactivity timer
-  void _stopInactivityTimer() {
-    _inactivityTimer?.cancel();
-    _inactivityTimer = null;
   }
 
   void _onSettingsChanged() {
     if (_isDisposed) return;
     // Update audio settings
     _audioService.updateSettings(settingsProvider);
+    // Update solver hint mode
+    _solverService.updateHintMode(settingsProvider.hintMode);
     // If autoplay feature is disabled in settings, ensure we stop any running autoplay
     if (!settingsProvider.autoplay && _state == GameState.autoplaying) {
       stopAutoplay();
@@ -279,9 +296,10 @@ class GameController extends ChangeNotifier {
 
     final cards = pile.cards.sublist(cardIndex);
 
-    // For waste pile, can only select top card
-    if (pile.type == PileType.waste && cards.length > 1) {
-      selectionState.setSelection(pile: pile, cards: [pile.topCard!]);
+    // Delegate selection rules to game interface
+    final selectableCards = _game.getSelectableCards(pile, card);
+    if (selectableCards != null) {
+      selectionState.setSelection(pile: pile, cards: selectableCards);
     } else {
       selectionState.setSelection(pile: pile, cards: cards);
     }
@@ -344,27 +362,28 @@ class GameController extends ChangeNotifier {
   }
 
   /// Handle action on the currently focused pile (Enter/Space key)
+  /// Delegates pile-specific behavior to the GameInterface
   void activateFocusedPile() {
     if (_isDisposed || _state != GameState.playing || _focusedPile == null) {
       return;
     }
 
-    final stockPile = _game.stockPile;
-    final wastePile = _game.wastePile;
+    // Delegate activation logic to the game interface
+    final activationResult = _game.handlePileActivation(_focusedPile!);
 
-    // If focused pile is stock or waste, tap it
-    if (_focusedPile == stockPile || _focusedPile == wastePile) {
-      if (_focusedPile == stockPile && stockPile != null) {
-        tapPile(stockPile);
-      } else if (wastePile != null && !wastePile.isEmpty) {
-        // Select top card of waste
-        selectCard(wastePile, wastePile.topCard!);
-      }
-    } else {
-      // For tableau piles, select the top face-up card
-      if (!_focusedPile!.isEmpty && _focusedPile!.topCard!.faceUp) {
-        selectCard(_focusedPile!, _focusedPile!.topCard!);
-      }
+    if (activationResult != null) {
+      // Game handled the activation (e.g., stock tap)
+      _recordGameStart();
+      _emitMoveEvent(activationResult);
+      clearSelection();
+      _checkGameState();
+      notifyListeners();
+      return;
+    }
+
+    // Default behavior: select top face-up card
+    if (!_focusedPile!.isEmpty && _focusedPile!.topCard!.faceUp) {
+      selectCard(_focusedPile!, _focusedPile!.topCard!);
     }
   }
 
@@ -396,7 +415,7 @@ class GameController extends ChangeNotifier {
 
     final wastePile = waste;
     if (wastePile == null) {
-      // Game doesn't have a waste pile (e.g., Spider) - handle tap directly
+      // Game doesn't have a waste pile (e.g., Spider) - delegate to game
       tapPile(stockPile);
       return;
     }
@@ -526,24 +545,30 @@ class GameController extends ChangeNotifier {
     return _game.getValidDestinations(selectedPile, selectedCards);
   }
 
+  /// Handles a tap on a pile.
+  ///
+  /// This method delegates pile-specific behavior to the GameInterface,
+  /// following the "One Way In" principle - the controller doesn't know
+  /// about specific pile types.
   void tapPile(Pile pile) {
     if (_isDisposed || _state != GameState.playing) return;
-    _resetInactivityTimer();
+    _inactivityService.resetInactivityTimer();
     clearHint();
 
-    // Handle game-specific pile tap
+    // Delegate pile tap handling to the game interface
     final move = _game.handlePileTap(pile);
     if (move != null) {
       _recordGameStart();
       _emitMoveEvent(move);
-      _triggerHaptic(); // Haptic feedback for drawing cards
-      if (pile.type == PileType.stock) {
+      _triggerHaptic();
+      // Play sound based on move type (game-agnostic)
+      if (move.drewFromStock) {
         _audioService.playSfx(SoundEffect.deal);
       }
       clearSelection();
       _checkGameState();
       notifyListeners();
-      _invalidateCacheAndDebounceSolve();
+      _solverService.invalidateCacheAndDebounceSolve();
       return;
     }
 
@@ -555,7 +580,7 @@ class GameController extends ChangeNotifier {
         _recordGameStart();
         final move = _game.executeMove(selectedPile, pile, selectedCards);
         _emitMoveEvent(move);
-        _triggerHaptic(); // Haptic feedback for card drops
+        _triggerHaptic();
         clearSelection();
         _checkGameState();
         notifyListeners();
@@ -577,7 +602,7 @@ class GameController extends ChangeNotifier {
 
   void tapCard(Pile pile, PlayingCard card) {
     if (_isDisposed || _state != GameState.playing) return;
-    _resetInactivityTimer();
+    _inactivityService.resetInactivityTimer();
     clearHint();
 
     // If we have a selection, try to move to this pile
@@ -588,7 +613,7 @@ class GameController extends ChangeNotifier {
         _recordGameStart();
         final move = _game.executeMove(selectedPile, pile, selectedCards);
         _emitMoveEvent(move);
-        _triggerHaptic(); // Haptic feedback for card drops
+        _triggerHaptic();
         clearSelection();
         _checkGameState();
         notifyListeners();
@@ -606,7 +631,7 @@ class GameController extends ChangeNotifier {
       Pile pile, PlayingCard card, double cardWidth, double stackOffset) async {
     if (_isDisposed || _state != GameState.playing) return false;
     if (!card.faceUp) return false;
-    _resetInactivityTimer();
+    _inactivityService.resetInactivityTimer();
     clearHint();
 
     // Only allow double-tap on top card of pile (or waste)
@@ -684,7 +709,7 @@ class GameController extends ChangeNotifier {
   bool doubleTapCard(Pile pile, PlayingCard card) {
     if (_isDisposed || _state != GameState.playing) return false;
     if (!card.faceUp) return false;
-    _resetInactivityTimer();
+    _inactivityService.resetInactivityTimer();
     clearHint();
 
     // Only allow double-tap on top card of pile (or waste)
@@ -717,7 +742,7 @@ class GameController extends ChangeNotifier {
 
   bool tryMove(Pile from, Pile to, List<PlayingCard> cards) {
     if (_isDisposed || _state != GameState.playing) return false;
-    _resetInactivityTimer();
+    _inactivityService.resetInactivityTimer();
     clearHint();
 
     if (_game.isValidMove(from, to, cards)) {
@@ -728,7 +753,7 @@ class GameController extends ChangeNotifier {
       clearSelection();
       _checkGameState();
       notifyListeners();
-      _invalidateCacheAndDebounceSolve();
+      _solverService.invalidateCacheAndDebounceSolve();
       return true;
     }
 
@@ -758,7 +783,7 @@ class GameController extends ChangeNotifier {
         _startTimer(); // Resume timer
       }
       notifyListeners();
-      _invalidateCacheAndDebounceSolve();
+      _solverService.invalidateCacheAndDebounceSolve();
     }
   }
 
@@ -775,7 +800,7 @@ class GameController extends ChangeNotifier {
       // Check game state after redo
       _checkGameState();
       notifyListeners();
-      _invalidateCacheAndDebounceSolve();
+      _solverService.invalidateCacheAndDebounceSolve();
     }
   }
 
@@ -888,6 +913,9 @@ class GameController extends ChangeNotifier {
     }
   }
 
+  /// Shows a hint using the appropriate strategy based on settings.
+  ///
+  /// Delegates to SolverService for smart hints, falls back to fast hints.
   void showHint() {
     if (_isDisposed) return;
     clearHint();
@@ -902,75 +930,28 @@ class GameController extends ChangeNotifier {
         _showFastHint();
         return;
       case HintMode.smart:
-        // Use AI solver (existing logic)
+        // Try smart hint from solver, fall back to fast hint
+        final shown = _solverService.showSmartHint(
+          onHintUsed: () {
+            if (!_eventController.isClosed) {
+              _eventController.add(const GameEvent(GameEventType.hintUsed));
+            }
+          },
+          clearHintAfterDelay: () {
+            // Auto-clear hint after delay
+            Future.delayed(const Duration(seconds: 2), () {
+              if (!_isDisposed && hintState.isActive) {
+                clearHint();
+              }
+            });
+          },
+        );
+        if (!shown) {
+          // Fall back to fast hints if smart hint cache is empty
+          _showFastHint();
+        }
         break;
     }
-
-    // Check smart hint from solver cache
-    if (_cachedWinningPath != null && _cachedWinningPath!.isNotEmpty) {
-      final firstMove = _cachedWinningPath!.first;
-      Pile? sourcePile, destinationPile;
-      List<PlayingCard>? cards;
-
-      switch (firstMove.type) {
-        case KlondikeMoveType.tableauToTableau:
-          sourcePile = _game.tableauPiles[firstMove.fromPile];
-          destinationPile = _game.tableauPiles[firstMove.toPile];
-          cards = !sourcePile.isEmpty ? [sourcePile.topCard!] : null;
-          break;
-        case KlondikeMoveType.tableauToFoundation:
-          sourcePile = _game.tableauPiles[firstMove.fromPile];
-          destinationPile = _game.foundationPiles[firstMove.toPile];
-          cards = !sourcePile.isEmpty ? [sourcePile.topCard!] : null;
-          break;
-        case KlondikeMoveType.wasteToTableau:
-          sourcePile = _game.wastePile;
-          destinationPile = _game.tableauPiles[firstMove.toPile];
-          cards = sourcePile != null && !sourcePile.isEmpty
-              ? [sourcePile.topCard!]
-              : null;
-          break;
-        case KlondikeMoveType.wasteToFoundation:
-          sourcePile = _game.wastePile;
-          destinationPile = _game.foundationPiles[firstMove.toPile];
-          cards = sourcePile != null && !sourcePile.isEmpty
-              ? [sourcePile.topCard!]
-              : null;
-          break;
-        case KlondikeMoveType.drawCard:
-          sourcePile = _game.stockPile;
-          destinationPile = _game.stockPile;
-          cards = null;
-          break;
-        case KlondikeMoveType.flipTableauCard:
-          // Skip flip hints
-          break;
-      }
-
-      if (sourcePile != null && destinationPile != null) {
-        hintState.setHint(
-          sourcePile: sourcePile,
-          cards: cards,
-          destinationPile: destinationPile,
-        );
-        if (!_eventController.isClosed) {
-          _eventController.add(const GameEvent(GameEventType.hintUsed));
-        }
-
-        // Auto-clear hint after delay
-        Future.delayed(const Duration(seconds: 2), () {
-          if (!_isDisposed &&
-              hintState.sourcePile == sourcePile &&
-              hintState.destinationPile == destinationPile) {
-            clearHint();
-          }
-        });
-        return;
-      }
-    }
-
-    // If smart hint cache is empty, fallback to fast hints
-    _showFastHint();
   }
 
   /// Triggers haptic feedback if enabled
@@ -982,17 +963,19 @@ class GameController extends ChangeNotifier {
 
   /// Shows fast hint using greedy heuristic
   void _showFastHint() {
-    // Fallback to traditional hints (greedy heuristic)
-    // Check for stock draw/recycle
-    if (_game.getPile(PileType.stock) != null &&
-        _game.getPile(PileType.stock)!.isEmpty &&
-        _game.getPile(PileType.waste) != null &&
-        !_game.getPile(PileType.waste)!.isEmpty) {
+    // Check for stock draw/recycle (game-agnostic check via getPile)
+    final stockPile = _game.getPile(PileType.stock);
+    final wastePile = _game.getPile(PileType.waste);
+
+    if (stockPile != null &&
+        stockPile.isEmpty &&
+        wastePile != null &&
+        !wastePile.isEmpty) {
       // Recycle suggestion - hint source and destination are both stock
       hintState.setHint(
-        sourcePile: _game.getPile(PileType.stock)!,
+        sourcePile: stockPile,
         cards: null,
-        destinationPile: _game.getPile(PileType.stock)!,
+        destinationPile: stockPile,
       );
       if (!_eventController.isClosed) {
         _eventController.add(const GameEvent(GameEventType.hintUsed));
@@ -1021,16 +1004,14 @@ class GameController extends ChangeNotifier {
       });
     } else {
       // No moves available, try suggesting drawing from stock
-      if (_game.getPile(PileType.stock) != null &&
-          !_game.getPile(PileType.stock)!.isEmpty) {
+      if (stockPile != null && !stockPile.isEmpty) {
         hintState.setHint(
-          sourcePile: _game.getPile(PileType.stock)!,
+          sourcePile: stockPile,
           cards: null,
-          destinationPile: _game.getPile(PileType.stock)!,
+          destinationPile: stockPile,
         );
         Future.delayed(const Duration(seconds: 2), () {
-          if (!_isDisposed &&
-              hintState.sourcePile == _game.getPile(PileType.stock)) {
+          if (!_isDisposed && hintState.sourcePile == stockPile) {
             clearHint();
           }
         });
@@ -1045,119 +1026,22 @@ class GameController extends ChangeNotifier {
 
   /// Solves the current game using the AI solver in a background isolate.
   /// Returns null if the game doesn't support solving (e.g., Spider).
-  Future<List<KlondikeMove>?> solveGame() async {
-    if (_isDisposed) return null;
-
-    // Get solver state from the game interface
-    final solverState = _game.getSolverState();
-
-    // If the game doesn't support solving, return null
-    if (solverState == null) return null;
-
-    // Currently only KlondikeSolverState is supported
-    if (solverState is! KlondikeSolverState) return null;
-
-    // Run the solver in a background isolate
-    return await Isolate.run(() async {
-      final engine = SolverEngine();
-      return await engine.solve(solverState);
-    });
-  }
-
-  /// Executes a single solver move using existing game logic.
-  Future<void> executeSolverMove(KlondikeMove move) async {
-    if (_isDisposed || _state != GameState.playing) return;
-
-    try {
-      switch (move.type) {
-        case KlondikeMoveType.tableauToTableau:
-          final fromPile = _game.tableauPiles[move.fromPile];
-          final toPile = _game.tableauPiles[move.toPile];
-          if (fromPile.isEmpty) throw Exception('Source tableau pile is empty');
-          final card = fromPile.topCard!;
-          tryMove(fromPile, toPile, [card]);
-          break;
-
-        case KlondikeMoveType.tableauToFoundation:
-          final fromPile = _game.tableauPiles[move.fromPile];
-          final toPile = _game.foundationPiles[move.toPile];
-          if (fromPile.isEmpty) throw Exception('Source tableau pile is empty');
-          final card = fromPile.topCard!;
-          tryMove(fromPile, toPile, [card]);
-          break;
-
-        case KlondikeMoveType.wasteToTableau:
-          final fromPile = _game.wastePile!;
-          final toPile = _game.tableauPiles[move.toPile];
-          if (fromPile.isEmpty) throw Exception('Waste pile is empty');
-          final card = fromPile.topCard!;
-          tryMove(fromPile, toPile, [card]);
-          break;
-
-        case KlondikeMoveType.wasteToFoundation:
-          final fromPile = _game.wastePile!;
-          final toPile = _game.foundationPiles[move.toPile];
-          if (fromPile.isEmpty) throw Exception('Waste pile is empty');
-          final card = fromPile.topCard!;
-          tryMove(fromPile, toPile, [card]);
-          break;
-
-        case KlondikeMoveType.drawCard:
-          if (_game.stockPile != null && !_game.stockPile!.isEmpty) {
-            tapPile(_game.stockPile!);
-          }
-          break;
-
-        case KlondikeMoveType.flipTableauCard:
-          // Face-down tracking not implemented, skip
-          break;
-      }
-    } catch (e) {
-      // Gracefully handle execution errors (sync issues)
-      debugPrint('Solver move execution failed: $e');
-    }
-  }
-
-  /// Auto-plays a sequence of solver moves with visual pacing.
-  Future<void> autoPlaySolution(List<KlondikeMove> moves) async {
-    if (_isDisposed) return;
-
-    for (var move in moves) {
-      await Future.delayed(const Duration(milliseconds: 200));
-      if (_isDisposed || _state != GameState.playing) break;
-      await executeSolverMove(move);
-    }
+  ///
+  /// This is a convenience method that delegates to [SolverService].
+  Future<List<dynamic>?> solveGame() async {
+    return _solverService.solveGame();
   }
 
   /// Solves and auto-plays the current game (debug/power user tool).
+  ///
+  /// This is a convenience method that delegates to [SolverService].
   Future<void> solveAndAutoPlay() async {
     if (_isDisposed) return;
-    final path = await solveGame();
-    if (path != null && !_isDisposed) {
-      await autoPlaySolution(path);
-    }
-  }
-
-  /// Invalidates cache and starts debounce timer for background solving.
-  void _invalidateCacheAndDebounceSolve() {
-    _cachedWinningPath = null;
-    _solveDebounceTimer?.cancel();
-    // Check settings.hintMode: if smart, proceed with debounce; if fast or off, do not run solver
-    // Also check if the game supports solving
-    if (settingsProvider.hintMode == HintMode.smart &&
-        _game.getSolverState() != null) {
-      _solveDebounceTimer =
-          Timer(const Duration(milliseconds: 500), _backgroundSolve);
-    }
-  }
-
-  /// Background solver execution.
-  void _backgroundSolve() async {
-    if (_isDisposed) return;
-    final path = await solveGame();
-    if (!_isDisposed) {
-      _cachedWinningPath = path;
-    }
+    await _solverService.solveAndAutoPlay(
+      isPlaying: () => _state == GameState.playing && !_isDisposed,
+      tryMove: tryMove,
+      tapPile: tapPile,
+    );
   }
 
   /// Triggers the auto-finish mode for the game.
@@ -1183,10 +1067,10 @@ class GameController extends ChangeNotifier {
   void dispose() {
     _isDisposed = true;
     _stopTimer();
-    _stopInactivityTimer();
+    _inactivityService.dispose();
     _bot.stopAutoplay();
     _bot.stopAutoComplete();
-    _solveDebounceTimer?.cancel();
+    _solverService.dispose();
     _eventController.close();
     _audioService.dispose();
     settingsProvider.removeListener(_onSettingsChanged);

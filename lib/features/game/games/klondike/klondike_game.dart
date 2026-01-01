@@ -808,4 +808,17 @@ class KlondikeGame extends SolitaireGameBase {
     }
     return null;
   }
+
+  @override
+  List<PlayingCard>? getSelectableCards(Pile pile, PlayingCard card) {
+    // For waste pile, can only select top card
+    if (pile.type == PileType.waste) {
+      if (pile.topCard == card) {
+        return [card];
+      }
+      return null; // Can't select non-top cards from waste
+    }
+    // For other piles, use default behavior
+    return null;
+  }
 }

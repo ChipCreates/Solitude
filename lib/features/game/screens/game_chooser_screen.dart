@@ -131,73 +131,57 @@ class _GameOption extends StatelessWidget {
   const _GameOption({
     required this.gameType,
     required this.onSelected,
-    this.disabled = false,
   });
 
   final GameType gameType;
   final VoidCallback onSelected;
-  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: disabled ? 0.5 : 1.0,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.toolbarColor(context).withValues(alpha: 0.95),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.accentColor(context)
-                .withValues(alpha: disabled ? 0.3 : 0.5),
-            width: 2,
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.toolbarColor(context).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.accentColor(context).withValues(alpha: 0.5),
+          width: 2,
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: disabled ? null : onSelected,
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          gameType.displayName,
-                          style: AppTypography.subheading(context),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onSelected,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        gameType.displayName,
+                        style: AppTypography.subheading(context),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        gameType.description,
+                        style: AppTypography.body(context).copyWith(
+                          color: AppTheme.textColor(context)
+                              .withValues(alpha: 0.7),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          gameType.description,
-                          style: AppTypography.body(context).copyWith(
-                            color: AppTheme.textColor(context)
-                                .withValues(alpha: 0.7),
-                          ),
-                        ),
-                        if (disabled) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Coming Soon',
-                            style: AppTypography.caption(context).copyWith(
-                              color: AppTheme.accentColor(context),
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Icon(
-                    disabled ? Icons.lock : Icons.play_arrow,
-                    color: AppTheme.accentColor(context),
-                    size: 32,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 16),
+                Icon(
+                  Icons.play_arrow,
+                  color: AppTheme.accentColor(context),
+                  size: 32,
+                ),
+              ],
             ),
           ),
         ),
