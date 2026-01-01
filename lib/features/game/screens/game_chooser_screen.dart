@@ -14,6 +14,8 @@ import 'package:solitude/core/services/audio_service.dart';
 import '../services/game_audio_observer.dart';
 import 'game_screen.dart';
 
+/// Initial game chooser screen displayed on app launch.
+/// Shows all 10 solitaire variants in a responsive grid of cards.
 class GameChooserScreen extends StatefulWidget {
   const GameChooserScreen({super.key});
 
@@ -24,6 +26,10 @@ class GameChooserScreen extends StatefulWidget {
 class _GameChooserScreenState extends State<GameChooserScreen> {
   @override
   Widget build(BuildContext context) {
+    // Determine grid columns based on screen width for responsiveness
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = screenWidth > 900 ? 5 : (screenWidth > 600 ? 4 : 2);
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -41,7 +47,7 @@ class _GameChooserScreenState extends State<GameChooserScreen> {
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
                 Text(
                   'Choose Your Game',
                   style: AppTypography.heading(context),
@@ -55,20 +61,22 @@ class _GameChooserScreenState extends State<GameChooserScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 32),
                 Expanded(
-                  child: ListView.builder(
+                  child: GridView.builder(
+                    physics: const BouncingScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 0.72, // Taller cards for image + text
+                    ),
                     itemCount: GameType.values.length,
                     itemBuilder: (context, index) {
                       final gameType = GameType.values[index];
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom: index < GameType.values.length - 1 ? 16.0 : 0,
-                        ),
-                        child: _GameOption(
-                          gameType: gameType,
-                          onSelected: () => _selectGame(context, gameType),
-                        ),
+                      return _GameCard(
+                        gameType: gameType,
+                        onSelected: () => _selectGame(context, gameType),
                       );
                     },
                   ),
@@ -124,12 +132,11 @@ class _GameChooserScreenState extends State<GameChooserScreen> {
       ),
     );
   }
-
-  // _buildGameProvider method removed as logic is now inline in _selectGame
 }
 
-class _GameOption extends StatelessWidget {
-  const _GameOption({
+/// Individual game card widget with Title → Image → Description layout
+class _GameCard extends StatefulWidget {
+  const _GameCard({
     required this.gameType,
     required this.onSelected,
   });
@@ -138,49 +145,94 @@ class _GameOption extends StatelessWidget {
   final VoidCallback onSelected;
 
   @override
+  State<_GameCard> createState() => _GameCardState();
+}
+
+class _GameCardState extends State<_GameCard> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.toolbarColor(context).withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.accentColor(context).withValues(alpha: 0.5),
-          width: 2,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onSelected,
-          borderRadius: BorderRadius.circular(16),
+    final accentColor = AppTheme.accentColor(context);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onSelected,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            color: _isHovered
+                ? accentColor.withValues(alpha: 0.15)
+                : AppTheme.toolbarColor(context).withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _isHovered
+                  ? accentColor.withValues(alpha: 0.7)
+                  : accentColor.withValues(alpha: 0.3),
+              width: _isHovered ? 2.5 : 1.5,
+            ),
+            boxShadow: _isHovered
+                ? [
+                    BoxShadow(
+                      color: accentColor.withValues(alpha: 0.25),
+                      blurRadius: 16,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+          ),
+          transform: _isHovered
+              ? (Matrix4.identity()..setTranslationRaw(0.0, -4.0, 0.0))
+              : Matrix4.identity(),
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Row(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        gameType.displayName,
-                        style: AppTypography.subheading(context),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        gameType.description,
-                        style: AppTypography.body(context).copyWith(
-                          color: AppTheme.textColor(context)
-                              .withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
+                // 1. TITLE at top
+                Text(
+                  widget.gameType.displayName,
+                  style: AppTypography.subheading(context).copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: _isHovered ? accentColor : null,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+
+                // 2. IMAGE in center (with icon fallback) - 16:9 aspect ratio
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: _GamePreviewImage(
+                    gameType: widget.gameType,
+                    isHovered: _isHovered,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Icon(
-                  Icons.play_arrow,
-                  color: AppTheme.accentColor(context),
-                  size: 32,
+                const SizedBox(height: 12),
+
+                // 3. DESCRIPTION at bottom - shows full text
+                Expanded(
+                  child: Text(
+                    widget.gameType.description,
+                    style: AppTypography.body(context).copyWith(
+                      fontSize: 12,
+                      height: 1.3,
+                      color: AppTheme.textColor(context).withValues(alpha: 0.7),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ],
             ),
@@ -188,5 +240,116 @@ class _GameOption extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Game preview image widget with icon fallback
+/// Attempts to load image from assets/games/{game_type}.png
+/// Falls back to icon if image not found
+class _GamePreviewImage extends StatelessWidget {
+  final GameType gameType;
+  final bool isHovered;
+
+  const _GamePreviewImage({
+    required this.gameType,
+    required this.isHovered,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accentColor = AppTheme.accentColor(context);
+
+    // Image path follows pattern: assets/games/klondike.png
+    final imagePath = 'assets/games/${gameType.name}.png';
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: isHovered
+            ? accentColor.withValues(alpha: 0.1)
+            : AppTheme.backgroundColor(context).withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: accentColor.withValues(alpha: 0.15),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(11),
+        child: Image.asset(
+          imagePath,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            // Fallback to icon when image not found
+            return _IconFallback(
+              gameType: gameType,
+              isHovered: isHovered,
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Icon fallback widget when game preview image is not available
+class _IconFallback extends StatelessWidget {
+  final GameType gameType;
+  final bool isHovered;
+
+  const _IconFallback({
+    required this.gameType,
+    required this.isHovered,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accentColor = AppTheme.accentColor(context);
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: isHovered ? 0.2 : 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _getGameIcon(gameType),
+              color:
+                  isHovered ? accentColor : accentColor.withValues(alpha: 0.7),
+              size: 40,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Returns an appropriate icon for each game type
+  IconData _getGameIcon(GameType gameType) {
+    switch (gameType) {
+      case GameType.klondike:
+        return Icons.style; // Classic card stack
+      case GameType.spider:
+        return Icons.pest_control; // Spider icon
+      case GameType.freecell:
+        return Icons.grid_view; // Grid for free cells
+      case GameType.pyramid:
+        return Icons.change_history; // Triangle/pyramid
+      case GameType.triPeaks:
+        return Icons.landscape; // Mountains/peaks
+      case GameType.golf:
+        return Icons.golf_course; // Golf course
+      case GameType.yukon:
+        return Icons.terrain; // Mountain terrain
+      case GameType.fortyThieves:
+        return Icons.shield; // Thieves theme
+      case GameType.canfield:
+        return Icons.casino; // Casino origin
+      case GameType.scorpion:
+        return Icons.flare; // Scorpion stinger
+    }
   }
 }

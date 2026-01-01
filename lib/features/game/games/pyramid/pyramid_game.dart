@@ -7,7 +7,6 @@ import '../../models/pile.dart';
 import '../../models/move.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
-import '../../ai/abstract_solver.dart';
 import '../../ai/games/pyramid_solver_state.dart';
 
 /// Pyramid Solitaire implementation.

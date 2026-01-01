@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../services/settings_provider.dart';
-import 'package:solitude/features/game/services/game_controller.dart';
 import 'package:solitude/features/game/games/game_factory.dart';
 import 'package:solitude/core/theme/app_theme.dart';
 import '../models/difficulty.dart';
@@ -21,7 +20,10 @@ import 'package:solitude/features/home/screens/help_screen.dart';
 
 /// Full-screen tabbed settings interface
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  /// The currently active game type (passed from game screen)
+  final GameType? gameType;
+
+  const SettingsScreen({super.key, this.gameType});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -219,11 +221,11 @@ class _SettingsScreenState extends State<SettingsScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          _AppearanceTab(),
-          _CardsTab(),
-          _GameplayTab(),
-          _SoundTab(),
+        children: [
+          const _AppearanceTab(),
+          const _CardsTab(),
+          _GameplayTab(gameType: widget.gameType),
+          const _SoundTab(),
         ],
       ),
     );
@@ -868,7 +870,9 @@ class _CardBackCustomization extends StatelessWidget {
 // ============================================================================
 
 class _GameplayTab extends StatelessWidget {
-  const _GameplayTab();
+  final GameType? gameType;
+
+  const _GameplayTab({this.gameType});
 
   // ---------------------------------------------------------------------------
   // VISIBILITY MATRIX - Determines which settings show for each game type
@@ -928,6 +932,30 @@ class _GameplayTab extends StatelessWidget {
     }
   }
 
+  /// Get scoring description for a specific game type
+  static String _getScoringDescription(GameType? gameType) {
+    if (gameType == null) return 'Track your progress';
+    switch (gameType) {
+      case GameType.klondike:
+      case GameType.canfield:
+        return 'Standard or Vegas-style scoring';
+      case GameType.spider:
+        return 'Start: 500 • -1/move • +100/suit completed';
+      case GameType.triPeaks:
+        return 'Streak bonus: +1 per consecutive card';
+      case GameType.golf:
+        return '+1 per card cleared from tableau';
+      case GameType.pyramid:
+        return '+2 per pair matched, bonus for clearing';
+      case GameType.freecell:
+        return '+10 per card to foundation';
+      case GameType.yukon:
+      case GameType.fortyThieves:
+      case GameType.scorpion:
+        return '+5 per card to foundation';
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // SNACKBAR FEEDBACK - For gameplay-impacting setting changes
   // ---------------------------------------------------------------------------
@@ -951,9 +979,8 @@ class _GameplayTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Watch GameController for game type changes
-    final gameController = context.watch<GameController?>();
-    final activeGameType = gameController?.game.gameType;
+    // Use the gameType passed as a parameter from the parent widget
+    final activeGameType = gameType;
 
     return Consumer<SettingsProvider>(
       builder: (context, settings, _) {
@@ -1012,59 +1039,111 @@ class _GameplayTab extends StatelessWidget {
     final isSpider = _isSpiderGame(activeGameType);
 
     // ---------------------------------------------------------------------------
-    // RULE SETTINGS SECTION - Draw Mode and Scoring Mode
+    // GAME CONTEXT HEADER - Show current game name
     // ---------------------------------------------------------------------------
-    if (showDrawMode || showScoringMode) {
+    if (activeGameType != null) {
       widgets.addAll([
-        _buildSectionHeader(context, 'RULE SETTINGS'),
+        _buildGameContextCard(context, activeGameType, settings),
+        const SizedBox(height: 24),
+      ]);
+    }
+
+    // ---------------------------------------------------------------------------
+    // SCORING INFO SECTION - Per-game scoring rules (always shown)
+    // ---------------------------------------------------------------------------
+    widgets.addAll([
+      _buildSectionHeader(context, 'SCORING'),
+      const SizedBox(height: 20),
+      _buildScoringInfoCard(context, activeGameType, settings),
+      const SizedBox(height: 20),
+    ]);
+
+    // Scoring Mode dropdown - Only for Klondike and Canfield (Vegas mode)
+    if (showScoringMode) {
+      widgets.addAll([
+        _buildSettingRow(
+          context,
+          label: 'Scoring Mode',
+          subtitle: settings.scoringMode.description,
+          child: _buildScoringDropdown(context, settings),
+        ),
         const SizedBox(height: 20),
       ]);
 
-      // Draw Mode - Only for Klondike and Canfield
-      if (showDrawMode) {
+      // Vegas cumulative toggle (only show when Vegas mode is selected)
+      if (settings.scoringMode == ScoringMode.vegasCumulative) {
         widgets.addAll([
           _buildSettingRow(
             context,
-            label: 'Draw Mode',
-            subtitle: settings.drawMode == DrawMode.one
-                ? 'Draw 1 card'
-                : 'Draw 3 cards',
-            child: GameToggle<DrawMode>(
-              value: settings.drawMode,
-              options: [
-                GameToggleOption(
-                    value: DrawMode.one,
-                    label: '1',
-                    color: settings.currentTheme.accentColor),
-                GameToggleOption(
-                    value: DrawMode.three,
-                    label: '3',
-                    color: settings.currentTheme.accentColor),
-              ],
-              onChanged: (mode) {
-                settings.setDrawMode(mode);
-                _showSettingsChangedSnackBar(context);
+            label: 'Current Bankroll',
+            subtitle: 'Carries across games',
+            child: Text(
+              '\$${settings.vegasBankroll}',
+              style: AppTypography.heading(context).copyWith(
+                color: settings.vegasBankroll >= 0
+                    ? Colors.green
+                    : AppColors.invalidMove,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: GameButton(
+              label: 'Reset Bankroll',
+              width: 140,
+              onPressed: () {
+                settings.resetVegasBankroll();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Vegas bankroll reset to \$0'),
+                    duration: const Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: AppTheme.toolbarColor(context),
+                  ),
+                );
               },
             ),
           ),
           const SizedBox(height: 20),
         ]);
       }
+    }
 
-      // Scoring Mode - Only for Klondike and Canfield
-      if (showScoringMode) {
-        widgets.addAll([
-          _buildSettingRow(
-            context,
-            label: 'Scoring',
-            subtitle: settings.scoringMode.shortName,
-            child: _buildScoringDropdown(context, settings),
+    widgets.add(const SizedBox(height: 8));
+
+    // ---------------------------------------------------------------------------
+    // RULE SETTINGS SECTION - Draw Mode
+    // ---------------------------------------------------------------------------
+    if (showDrawMode) {
+      widgets.addAll([
+        _buildSectionHeader(context, 'DRAW RULES'),
+        const SizedBox(height: 20),
+        _buildSettingRow(
+          context,
+          label: 'Draw Mode',
+          subtitle: settings.drawMode == DrawMode.one
+              ? 'Draw 1 card - Easier'
+              : 'Draw 3 cards - Classic',
+          child: GameToggle<DrawMode>(
+            value: settings.drawMode,
+            options: [
+              GameToggleOption(
+                  value: DrawMode.one,
+                  label: '1',
+                  color: settings.currentTheme.accentColor),
+              GameToggleOption(
+                  value: DrawMode.three,
+                  label: '3',
+                  color: settings.currentTheme.accentColor),
+            ],
+            onChanged: (mode) {
+              settings.setDrawMode(mode);
+              _showSettingsChangedSnackBar(context);
+            },
           ),
-          const SizedBox(height: 20),
-        ]);
-      }
-
-      widgets.add(const SizedBox(height: 8));
+        ),
+        const SizedBox(height: 28),
+      ]);
     }
 
     // ---------------------------------------------------------------------------
@@ -1123,6 +1202,250 @@ class _GameplayTab extends StatelessWidget {
     }
 
     return widgets;
+  }
+
+  // ---------------------------------------------------------------------------
+  // HELPER: Build game context card showing current game
+  // ---------------------------------------------------------------------------
+
+  Widget _buildGameContextCard(
+    BuildContext context,
+    GameType gameType,
+    SettingsProvider settings,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: settings.currentTheme.accentColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: settings.currentTheme.accentColor.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.sports_esports,
+            color: settings.currentTheme.accentColor,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Currently Playing',
+                  style: AppTypography.body(context).copyWith(
+                    color: AppColors.cream.withValues(alpha: 0.6),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _getGameDisplayName(gameType),
+                  style: AppTypography.heading(context).copyWith(
+                    color: settings.currentTheme.accentColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // HELPER: Build scoring info card with per-game scoring rules
+  // ---------------------------------------------------------------------------
+
+  Widget _buildScoringInfoCard(
+    BuildContext context,
+    GameType? gameType,
+    SettingsProvider settings,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.feltDark.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.cream.withValues(alpha: 0.1),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.scoreboard_outlined,
+                color: AppColors.gold,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                gameType != null
+                    ? '${_getGameDisplayName(gameType)} Scoring'
+                    : 'Scoring System',
+                style: AppTypography.label(context).copyWith(
+                  color: AppColors.gold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _getScoringDescription(gameType),
+            style: AppTypography.body(context).copyWith(
+              color: AppColors.cream.withValues(alpha: 0.8),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ..._buildScoringDetails(context, gameType, settings),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // HELPER: Build per-game scoring detail bullets
+  // ---------------------------------------------------------------------------
+
+  List<Widget> _buildScoringDetails(
+    BuildContext context,
+    GameType? gameType,
+    SettingsProvider settings,
+  ) {
+    final List<String> details = _getScoringDetailsList(gameType, settings);
+
+    return details.map((detail) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '•  ',
+              style: TextStyle(
+                color: AppColors.cream.withValues(alpha: 0.6),
+                fontSize: 12,
+              ),
+            ),
+            Expanded(
+              child: Text(
+                detail,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                  color: AppColors.cream.withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
+  /// Get detailed scoring breakdown per game type
+  List<String> _getScoringDetailsList(
+      GameType? gameType, SettingsProvider settings) {
+    if (gameType == null) {
+      return ['Select a game to see scoring rules'];
+    }
+
+    switch (gameType) {
+      case GameType.klondike:
+      case GameType.canfield:
+        if (settings.scoringMode == ScoringMode.vegas ||
+            settings.scoringMode == ScoringMode.vegasCumulative) {
+          return [
+            'Pay \$52 to start each game',
+            'Earn \$5 for each card moved to foundation',
+            'Break even at 11 cards (11 × \$5 = \$55)',
+            'Maximum payout: \$260 (52 × \$5)',
+          ];
+        }
+        return [
+          '+10 points per card to foundation',
+          '+5 points for tableau face-up flip',
+          '+5 points for waste to tableau move',
+          '-15 points for foundation to tableau move',
+          '-100 points per deck recycle (after first)',
+        ];
+      case GameType.spider:
+        return [
+          'Start with 500 points',
+          '-1 point per move',
+          '+100 points per completed suit (K→A)',
+          'Win bonus: remaining points',
+        ];
+      case GameType.triPeaks:
+        return [
+          'Base: +1 point per card cleared',
+          'Streak bonus: +1, +2, +3... for consecutive clears',
+          'Peak bonus: +15 points per peak top cleared',
+          'Perfect game bonus: +100 for clearing all cards',
+        ];
+      case GameType.golf:
+        return [
+          '+1 point per card cleared from tableau',
+          'Goal: clear as many cards as possible',
+          'Lower remaining cards = better score',
+          'Perfect score: 35 points (all cards cleared)',
+        ];
+      case GameType.pyramid:
+        return [
+          '+2 points per matched pair',
+          '+5 points for pairing with stock card',
+          'Pyramid clear bonus: +50 points',
+          'Perfect game: 104 points (all pairs + bonus)',
+        ];
+      case GameType.freecell:
+        return [
+          '+10 points per card to foundation',
+          'Win bonus: +100 points',
+          'Time bonus available for quick wins',
+        ];
+      case GameType.yukon:
+      case GameType.fortyThieves:
+      case GameType.scorpion:
+        return [
+          '+5 points per card to foundation',
+          'Win bonus: +100 points',
+          'Efficiency bonus for fewer moves',
+        ];
+    }
+  }
+
+  /// Get display name for a game type
+  String _getGameDisplayName(GameType gameType) {
+    switch (gameType) {
+      case GameType.klondike:
+        return 'Klondike';
+      case GameType.spider:
+        return 'Spider';
+      case GameType.freecell:
+        return 'FreeCell';
+      case GameType.pyramid:
+        return 'Pyramid';
+      case GameType.triPeaks:
+        return 'TriPeaks';
+      case GameType.golf:
+        return 'Golf';
+      case GameType.yukon:
+        return 'Yukon';
+      case GameType.fortyThieves:
+        return 'Forty Thieves';
+      case GameType.canfield:
+        return 'Canfield';
+      case GameType.scorpion:
+        return 'Scorpion';
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1209,7 +1532,6 @@ class _GameplayTab extends StatelessWidget {
     BuildContext context,
     SettingsProvider settings,
   ) {
-    final gameController = context.read<GameController?>();
     final accent = settings.currentTheme.accentColor;
 
     return GameToggle<Difficulty>(
@@ -1224,9 +1546,7 @@ class _GameplayTab extends StatelessWidget {
       ],
       onChanged: (difficulty) {
         settings.setDifficulty(difficulty);
-        if (gameController != null) {
-          gameController.game.applyDifficulty(difficulty);
-        }
+        // Difficulty will be applied when a new game starts
         _showSettingsChangedSnackBar(context);
       },
     );

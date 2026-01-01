@@ -244,9 +244,12 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _showSettings(BuildContext context) {
+    final controller = context.read<GameController>();
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+      MaterialPageRoute(
+        builder: (_) => SettingsScreen(gameType: controller.game.gameType),
+      ),
     );
   }
 
