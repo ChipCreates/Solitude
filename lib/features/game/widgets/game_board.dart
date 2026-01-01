@@ -19,8 +19,10 @@ class _GameBoardState extends State<GameBoard> {
   BoxConstraints? _lastConstraints;
   BoardLayoutData? _cachedLayout;
 
-  // Layout strategy
-  final GameLayoutDelegate _layoutDelegate = const KlondikeLayoutDelegate();
+  // Get the appropriate layout delegate for the current game
+  GameLayoutDelegate _getLayoutDelegate(GameController controller) {
+    return createLayoutDelegate(controller);
+  }
 
   @override
   void initState() {
@@ -29,38 +31,39 @@ class _GameBoardState extends State<GameBoard> {
 
   @override
   Widget build(BuildContext context) {
-    // Get controller without listening - child widgets use Selector for granular updates
-    final controller = Provider.of<GameController>(context, listen: false);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final layout = _calculateLayout(constraints);
-        return Container(
-          decoration: _buildFeltBackground(context),
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              layout.padding + 24, // Left padding
-              layout.padding,
-              layout.padding + 24, // Right padding (equal to left)
-              layout.padding,
-            ),
-            child: Column(
-              children: [
-                // Top row: Delegated to strategy (listen to settings changes for leftHandMode)
-                Consumer<SettingsProvider>(
-                  builder: (context, settings, _) {
-                    return _layoutDelegate.buildTopRow(
-                        context, controller, layout);
-                  },
+    return Consumer<GameController>(
+      builder: (context, controller, _) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final layout = _calculateLayout(constraints, controller);
+            return Container(
+              decoration: _buildFeltBackground(context),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  layout.padding + 24, // Left padding
+                  layout.padding,
+                  layout.padding + 24, // Right padding (equal to left)
+                  layout.padding,
                 ),
-                SizedBox(height: layout.rowSpacing),
-                // Tableau - uses Selectors for granular rebuilds
-                Expanded(
-                  child: _buildTableau(context, controller, layout),
+                child: Column(
+                  children: [
+                    // Top row: Delegated to strategy (listen to settings changes for leftHandMode)
+                    Consumer<SettingsProvider>(
+                      builder: (context, settings, _) {
+                        return _getLayoutDelegate(controller)
+                            .buildTopRow(context, controller, layout);
+                      },
+                    ),
+                    SizedBox(height: layout.rowSpacing),
+                    // Tableau - uses Selectors for granular rebuilds
+                    Expanded(
+                      child: _buildTableau(context, controller, layout),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -123,7 +126,8 @@ class _GameBoardState extends State<GameBoard> {
     );
   }
 
-  BoardLayoutData _calculateLayout(BoxConstraints constraints) {
+  BoardLayoutData _calculateLayout(
+      BoxConstraints constraints, GameController controller) {
     // Return cached layout if constraints haven't changed
     if (_lastConstraints == constraints && _cachedLayout != null) {
       return _cachedLayout!;
@@ -140,7 +144,7 @@ class _GameBoardState extends State<GameBoard> {
     final availableWidth = constraints.maxWidth - ((padding + 24) * 2);
 
     // Dynamic column count from delegate
-    final int columns = _layoutDelegate.columnCount;
+    final int columns = _getLayoutDelegate(controller).columnCount;
     final int gaps = columns - 1;
 
     // availableWidth = columns * cardWidth + gaps * spacing

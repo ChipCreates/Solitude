@@ -388,12 +388,24 @@ class GameController extends ChangeNotifier {
   }
 
   /// Animate drawing the top card from stock to waste with a mid-flight flip.
-  /// Animate drawing the top card from stock to waste with a mid-flight flip.
+  /// For games without waste piles (like Spider), handle stock tap directly.
   Future<void> animateStockDraw(double cardWidth) async {
     if (_isDisposed || _state != GameState.playing) return;
     final stockPile = stock;
+    if (stockPile == null) return;
+
     final wastePile = waste;
-    if (stockPile == null || wastePile == null || stockPile.isEmpty) return;
+    if (wastePile == null) {
+      // Game doesn't have a waste pile (e.g., Spider) - handle tap directly
+      tapPile(stockPile);
+      return;
+    }
+
+    // If stock is empty, handle recycling without animation
+    if (stockPile.isEmpty) {
+      tapPile(stockPile);
+      return;
+    }
 
     final startPosition = boardLayout.getCardPosition(stockPile);
     final endPosition = boardLayout.getCardPosition(wastePile);

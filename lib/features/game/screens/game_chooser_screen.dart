@@ -61,13 +61,13 @@ class _GameChooserScreenState extends State<GameChooserScreen> {
                     children: [
                       _GameOption(
                         gameType: GameType.klondike,
-                        onSelected: () => _selectGame(context, GameType.klondike),
+                        onSelected: () =>
+                            _selectGame(context, GameType.klondike),
                       ),
                       const SizedBox(height: 16),
                       _GameOption(
                         gameType: GameType.spider,
                         onSelected: () => _selectGame(context, GameType.spider),
-                        disabled: true,
                       ),
                     ],
                   ),
@@ -81,8 +81,6 @@ class _GameChooserScreenState extends State<GameChooserScreen> {
   }
 
   void _selectGame(BuildContext context, GameType gameType) {
-    if (gameType == GameType.spider) return; // Spider is disabled for now
-
     // Capture required providers BEFORE navigating to avoid "deactivated widget" errors
     final settings = context.read<SettingsProvider>();
     final statistics = context.read<StatisticsService>();
@@ -149,7 +147,8 @@ class _GameOption extends StatelessWidget {
           color: AppTheme.toolbarColor(context).withValues(alpha: 0.95),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppTheme.accentColor(context).withValues(alpha: disabled ? 0.3 : 0.5),
+            color: AppTheme.accentColor(context)
+                .withValues(alpha: disabled ? 0.3 : 0.5),
             width: 2,
           ),
         ),
@@ -174,7 +173,8 @@ class _GameOption extends StatelessWidget {
                         Text(
                           gameType.description,
                           style: AppTypography.body(context).copyWith(
-                            color: AppTheme.textColor(context).withValues(alpha: 0.7),
+                            color: AppTheme.textColor(context)
+                                .withValues(alpha: 0.7),
                           ),
                         ),
                         if (disabled) ...[

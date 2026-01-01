@@ -30,13 +30,32 @@ class AudioService {
 
   Future<void> playSfx(SoundEffect effect) async {
     if (!_settings.soundEnabled) return;
-    final String path = 'assets/audio/${effect.name}.mp3';
+    // Map SoundEffect enum to actual audio file names
+    String filename;
+    switch (effect) {
+      case SoundEffect.cardFlip:
+        filename = 'card_flip';
+        break;
+      case SoundEffect.deal:
+        filename = 'card_shuffle';
+        break;
+      case SoundEffect.win:
+        filename = 'success';
+        break;
+      case SoundEffect.error:
+        filename = 'error';
+        break;
+      case SoundEffect.click:
+        filename = 'card_place';
+        break;
+    }
+    final String path = '$filename.mp3';
     await _sfxPlayer.play(AssetSource(path));
   }
 
   Future<void> playMusic() async {
     if (!_settings.musicEnabled) return;
-    await _musicPlayer.play(AssetSource('assets/audio/music_background.mp3'));
+    await _musicPlayer.play(AssetSource('background-music.mp3'));
     _musicPlayer.setReleaseMode(ReleaseMode.loop);
   }
 

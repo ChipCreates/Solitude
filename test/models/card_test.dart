@@ -64,7 +64,8 @@ void main() {
   group('PlayingCard suitName', () {
     test('suitName returns correct strings', () {
       expect(PlayingCard(suit: Suit.hearts, rank: Rank.ace).suitName, 'heart');
-      expect(PlayingCard(suit: Suit.diamonds, rank: Rank.ace).suitName, 'diamond');
+      expect(
+          PlayingCard(suit: Suit.diamonds, rank: Rank.ace).suitName, 'diamond');
       expect(PlayingCard(suit: Suit.clubs, rank: Rank.ace).suitName, 'club');
       expect(PlayingCard(suit: Suit.spades, rank: Rank.ace).suitName, 'spade');
     });
@@ -76,7 +77,8 @@ void main() {
       expect(PlayingCard(suit: Suit.hearts, rank: Rank.two).rankName, '2');
       expect(PlayingCard(suit: Suit.hearts, rank: Rank.three).rankName, '3');
       expect(PlayingCard(suit: Suit.hearts, rank: Rank.jack).rankName, 'jack');
-      expect(PlayingCard(suit: Suit.hearts, rank: Rank.queen).rankName, 'queen');
+      expect(
+          PlayingCard(suit: Suit.hearts, rank: Rank.queen).rankName, 'queen');
       expect(PlayingCard(suit: Suit.hearts, rank: Rank.king).rankName, 'king');
     });
   });
@@ -84,9 +86,12 @@ void main() {
   group('PlayingCard svgId', () {
     test('svgId formats correctly', () {
       expect(PlayingCard(suit: Suit.hearts, rank: Rank.ace).svgId, 'heart_1');
-      expect(PlayingCard(suit: Suit.spades, rank: Rank.king).svgId, 'spade_king');
-      expect(PlayingCard(suit: Suit.diamonds, rank: Rank.five).svgId, 'diamond_5');
-      expect(PlayingCard(suit: Suit.clubs, rank: Rank.queen).svgId, 'club_queen');
+      expect(
+          PlayingCard(suit: Suit.spades, rank: Rank.king).svgId, 'spade_king');
+      expect(
+          PlayingCard(suit: Suit.diamonds, rank: Rank.five).svgId, 'diamond_5');
+      expect(
+          PlayingCard(suit: Suit.clubs, rank: Rank.queen).svgId, 'club_queen');
     });
   });
 
@@ -116,26 +121,39 @@ void main() {
       final blackSix = PlayingCard(suit: Suit.spades, rank: Rank.six);
       final redFive = PlayingCard(suit: Suit.hearts, rank: Rank.five);
 
-      expect(redFive.canStackOn(blackSix, alternatingColors: true, descending: true), isTrue);
+      expect(
+          redFive.canStackOn(blackSix,
+              alternatingColors: true, descending: true),
+          isTrue);
     });
 
     test('canStackOn() with alternating colors - black on red', () {
       final redSix = PlayingCard(suit: Suit.hearts, rank: Rank.six);
       final blackFive = PlayingCard(suit: Suit.clubs, rank: Rank.five);
 
-      expect(blackFive.canStackOn(redSix, alternatingColors: true, descending: true), isTrue);
+      expect(
+          blackFive.canStackOn(redSix,
+              alternatingColors: true, descending: true),
+          isTrue);
     });
 
-    test('canStackOn() with same color returns false when alternatingColors=true', () {
+    test(
+        'canStackOn() with same color returns false when alternatingColors=true',
+        () {
       final redSix = PlayingCard(suit: Suit.hearts, rank: Rank.six);
       final redFive = PlayingCard(suit: Suit.diamonds, rank: Rank.five);
 
-      expect(redFive.canStackOn(redSix, alternatingColors: true, descending: true), isFalse);
+      expect(
+          redFive.canStackOn(redSix, alternatingColors: true, descending: true),
+          isFalse);
 
       final blackSix = PlayingCard(suit: Suit.spades, rank: Rank.six);
       final blackFive = PlayingCard(suit: Suit.clubs, rank: Rank.five);
 
-      expect(blackFive.canStackOn(blackSix, alternatingColors: true, descending: true), isFalse);
+      expect(
+          blackFive.canStackOn(blackSix,
+              alternatingColors: true, descending: true),
+          isFalse);
     });
   });
 
@@ -144,7 +162,8 @@ void main() {
       final six = PlayingCard(suit: Suit.spades, rank: Rank.six);
       final five = PlayingCard(suit: Suit.hearts, rank: Rank.five);
 
-      expect(five.canStackOn(six, alternatingColors: true, descending: true), isTrue);
+      expect(five.canStackOn(six, alternatingColors: true, descending: true),
+          isTrue);
     });
 
     test('canStackOn() descending - cards with wrong values return false', () {
@@ -152,8 +171,10 @@ void main() {
       final four = PlayingCard(suit: Suit.hearts, rank: Rank.four);
       final seven = PlayingCard(suit: Suit.hearts, rank: Rank.seven);
 
-      expect(four.canStackOn(six, alternatingColors: true, descending: true), isFalse);
-      expect(seven.canStackOn(six, alternatingColors: true, descending: true), isFalse);
+      expect(four.canStackOn(six, alternatingColors: true, descending: true),
+          isFalse);
+      expect(seven.canStackOn(six, alternatingColors: true, descending: true),
+          isFalse);
     });
   });
 
@@ -162,14 +183,16 @@ void main() {
       final five = PlayingCard(suit: Suit.hearts, rank: Rank.five);
       final six = PlayingCard(suit: Suit.spades, rank: Rank.six);
 
-      expect(six.canStackOn(five, alternatingColors: true, descending: false), isTrue);
+      expect(six.canStackOn(five, alternatingColors: true, descending: false),
+          isTrue);
     });
 
     test('canStackOn() ascending - wrong values return false', () {
       final five = PlayingCard(suit: Suit.hearts, rank: Rank.five);
       final seven = PlayingCard(suit: Suit.spades, rank: Rank.seven);
 
-      expect(seven.canStackOn(five, alternatingColors: true, descending: false), isFalse);
+      expect(seven.canStackOn(five, alternatingColors: true, descending: false),
+          isFalse);
     });
   });
 
@@ -180,7 +203,8 @@ void main() {
       expect(ace.canStackOnFoundation(null), isTrue);
     });
 
-    test('canStackOnFoundation() - non-ace on empty foundation returns false', () {
+    test('canStackOnFoundation() - non-ace on empty foundation returns false',
+        () {
       final two = PlayingCard(suit: Suit.hearts, rank: Rank.two);
       final king = PlayingCard(suit: Suit.hearts, rank: Rank.king);
 
@@ -214,17 +238,20 @@ void main() {
 
   group('PlayingCard copyWith', () {
     test('copyWith() creates new instance with same suit/rank', () {
-      final original = PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
+      final original =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
       final copy = original.copyWith();
 
       expect(copy.suit, original.suit);
       expect(copy.rank, original.rank);
-      expect(copy, equals(original)); // Same card
+      expect(copy.isSameFace(original), isTrue); // Same face
+      expect(copy, isNot(equals(original))); // Different uniqueId
       expect(identical(copy, original), isFalse); // Different instance
     });
 
     test('copyWith() can change faceUp state', () {
-      final original = PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
+      final original =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
       final copy = original.copyWith(faceUp: false);
 
       expect(original.faceUp, isTrue);
@@ -232,8 +259,10 @@ void main() {
     });
 
     test('copyWith() preserves faceUp when not specified', () {
-      final faceUpCard = PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
-      final faceDownCard = PlayingCard(suit: Suit.hearts, rank: Rank.queen, faceUp: false);
+      final faceUpCard =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
+      final faceDownCard =
+          PlayingCard(suit: Suit.hearts, rank: Rank.queen, faceUp: false);
 
       expect(faceUpCard.copyWith().faceUp, isTrue);
       expect(faceDownCard.copyWith().faceUp, isFalse);
@@ -241,35 +270,47 @@ void main() {
   });
 
   group('PlayingCard Equality', () {
-    test('equality operator - same suit and rank are equal', () {
+    test('isSameFace - same suit and rank are same face', () {
       final card1 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
       final card2 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
 
-      expect(card1, equals(card2));
+      expect(card1.isSameFace(card2), isTrue);
+    });
+
+    test('equality operator - same instance is equal', () {
+      final card = PlayingCard(suit: Suit.hearts, rank: Rank.king);
+
+      expect(card, equals(card));
     });
 
     test('equality operator - different cards are not equal', () {
-      final kingHearts = PlayingCard(suit: Suit.hearts, rank: Rank.king);
+      final kingHearts1 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
+      final kingHearts2 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
       final queenHearts = PlayingCard(suit: Suit.hearts, rank: Rank.queen);
       final kingSpades = PlayingCard(suit: Suit.spades, rank: Rank.king);
 
-      expect(kingHearts, isNot(equals(queenHearts)));
-      expect(kingHearts, isNot(equals(kingSpades)));
+      expect(kingHearts1, isNot(equals(kingHearts2)));
+      expect(kingHearts1, isNot(equals(queenHearts)));
+      expect(kingHearts1, isNot(equals(kingSpades)));
     });
 
-    test('equality operator - faceUp state doesn\'t affect equality', () {
-      final faceUp = PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
-      final faceDown = PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: false);
+    test(
+        'equality operator - faceUp state affects equality since uniqueId differs',
+        () {
+      final faceUp =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: true);
+      final faceDown =
+          PlayingCard(suit: Suit.hearts, rank: Rank.king, faceUp: false);
 
-      expect(faceUp, equals(faceDown));
+      expect(faceUp, isNot(equals(faceDown)));
     });
 
-    test('hashCode consistency with equality', () {
+    test('hashCode differs for different instances', () {
       final card1 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
       final card2 = PlayingCard(suit: Suit.hearts, rank: Rank.king);
       final card3 = PlayingCard(suit: Suit.spades, rank: Rank.king);
 
-      expect(card1.hashCode, equals(card2.hashCode));
+      expect(card1.hashCode, isNot(equals(card2.hashCode)));
       expect(card1.hashCode, isNot(equals(card3.hashCode)));
     });
   });
@@ -278,7 +319,8 @@ void main() {
     test('toString() formats correctly', () {
       expect(PlayingCard(suit: Suit.hearts, rank: Rank.ace).toString(), 'A♥');
       expect(PlayingCard(suit: Suit.spades, rank: Rank.king).toString(), 'K♠');
-      expect(PlayingCard(suit: Suit.diamonds, rank: Rank.ten).toString(), '10♦');
+      expect(
+          PlayingCard(suit: Suit.diamonds, rank: Rank.ten).toString(), '10♦');
       expect(PlayingCard(suit: Suit.clubs, rank: Rank.jack).toString(), 'J♣');
     });
   });
