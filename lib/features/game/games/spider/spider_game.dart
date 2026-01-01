@@ -142,12 +142,41 @@ class SpiderGame extends SolitaireGameBase {
   bool get canRedo => _redoStack.isNotEmpty;
 
   @override
+  GameType get gameType => GameType.spider;
+
+  @override
+  int get deckSize => 104; // 2 decks
+
+  @override
   LayoutConfig get layoutConfig => const LayoutConfig(
         tableauCount: 10,
         foundationCount: 8,
         hasStock: true,
         hasWaste: false,
+        layoutType: LayoutType.grid,
       );
+
+  // ==========================================================================
+  // Layout Helpers
+  // ==========================================================================
+
+  /// Spider foundations are not suit-specific - any complete sequence goes there.
+  /// Returns null to indicate no specific suit for the foundation.
+  @override
+  Suit? getFoundationSuit(int foundationIndex) => null;
+
+  // ==========================================================================
+  // Hint System
+  // ==========================================================================
+
+  /// Spider doesn't have waste pile, so stock hints only suggest drawing.
+  @override
+  ({Pile source, Pile destination})? getStockHint() {
+    if (!stock.isEmpty && canDrawFromStock()) {
+      return (source: stock, destination: stock);
+    }
+    return null;
+  }
 
   // ==========================================================================
   // Pile Accessors (GameInterface)

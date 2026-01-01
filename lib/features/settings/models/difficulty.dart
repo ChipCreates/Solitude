@@ -48,6 +48,16 @@ enum DifficultyLevel {
         return _klondikeDescription;
       case GameType.spider:
         return _spiderDescription;
+      // Future games - use generic description until implemented
+      case GameType.pyramid:
+      case GameType.golf:
+      case GameType.freecell:
+      case GameType.triPeaks:
+      case GameType.yukon:
+      case GameType.fortyThieves:
+      case GameType.canfield:
+      case GameType.scorpion:
+        return displayName;
     }
   }
 
@@ -80,6 +90,16 @@ enum DifficultyLevel {
         return _klondikeFullDescription;
       case GameType.spider:
         return _spiderFullDescription;
+      // Future games - use display name until implemented
+      case GameType.pyramid:
+      case GameType.golf:
+      case GameType.freecell:
+      case GameType.triPeaks:
+      case GameType.yukon:
+      case GameType.fortyThieves:
+      case GameType.canfield:
+      case GameType.scorpion:
+        return '$displayName difficulty for ${gameType.name}';
     }
   }
 

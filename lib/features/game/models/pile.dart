@@ -1,6 +1,29 @@
 import 'card.dart';
 
-enum PileType { stock, waste, foundation, tableau }
+/// Types of piles that can exist in card games.
+///
+/// Core types used by most solitaire variants:
+/// - [stock] - Draw pile (face-down cards to draw from)
+/// - [waste] - Discard/talon pile (drawn cards, face-up)
+/// - [foundation] - Build piles (goal piles, usually by suit)
+/// - [tableau] - Playing area columns
+///
+/// Extended types for specialized games:
+/// - [cell] - Free cells (temporary single-card storage, e.g., FreeCell)
+/// - [reserve] - Reserve piles (restricted access piles)
+/// - [pyramid] - Pyramid structure cards (e.g., Pyramid solitaire)
+/// - [discard] - General discard pile (different from waste semantics)
+enum PileType {
+  stock,
+  waste,
+  foundation,
+  tableau,
+  // Extended types for future games
+  cell,      // FreeCell's free cells
+  reserve,   // Reserve piles (Canfield, etc.)
+  pyramid,   // Pyramid layout cards
+  discard,   // General discard (Golf, etc.)
+}
 
 class Pile {
   final PileType type;

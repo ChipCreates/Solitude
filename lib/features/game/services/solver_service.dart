@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import '../games/game_interface.dart';
 import '../models/card.dart';
 import '../models/pile.dart';
-import '../ai/solver_engine.dart';
-import '../ai/games/klondike_solver_state.dart';
+import '../ai/solver_strategy.dart';
 import 'package:solitude/features/settings/models/hint_mode.dart';
 import 'hint_state_notifier.dart';
 
@@ -21,14 +19,14 @@ typedef PileTapper = void Function(Pile pile);
 /// - Smart hints using cached winning paths
 /// - Auto-play of solver solutions
 ///
-/// This service decouples solver logic from the GameController,
-/// following the Single Responsibility Principle.
+/// This service is now game-agnostic through the SolverStrategyFactory.
+/// Each game type that supports solving has its own SolverStrategy.
 class SolverService {
   final GameInterface _game;
   final HintStateNotifier _hintState;
 
-  // Cached winning path for smart hints
-  List<KlondikeMove>? _cachedWinningPath;
+  // Cached winning path for smart hints (typed as dynamic list for game-agnostic storage)
+  List<dynamic>? _cachedWinningPath;
 
   // Debounce timer for background solving
   Timer? _solveDebounceTimer;
@@ -51,97 +49,47 @@ class SolverService {
   }
 
   /// Returns the cached winning path (for debugging/testing)
-  List<KlondikeMove>? get cachedWinningPath => _cachedWinningPath;
+  List<dynamic>? get cachedWinningPath => _cachedWinningPath;
 
-  /// Solves the current game using the AI solver in a background isolate.
-  /// Returns null if the game doesn't support solving (e.g., Spider).
-  Future<List<KlondikeMove>?> solveGame() async {
+  /// Solves the current game using the appropriate solver strategy.
+  /// Returns null if the game doesn't support solving.
+  Future<List<dynamic>?> solveGame() async {
     if (_isDisposed) return null;
 
-    // Get solver state from the game interface
-    final solverState = _game.getSolverState();
+    // Get the appropriate solver strategy for this game type
+    final strategy = SolverStrategyFactory.getStrategy(_game.gameType);
+    if (strategy == null) return null;
 
-    // If the game doesn't support solving, return null
-    if (solverState == null) return null;
-
-    // Currently only KlondikeSolverState is supported
-    if (solverState is! KlondikeSolverState) return null;
-
-    // Run the solver in a background isolate
-    return await Isolate.run(() async {
-      final engine = SolverEngine();
-      return await engine.solve(solverState);
-    });
+    return await strategy.solve(_game);
   }
 
   /// Executes a single solver move using the provided callbacks.
-  ///
-  /// [tryMove] - Callback to attempt a card move
-  /// [tapPile] - Callback to tap a pile (for stock draws)
   Future<void> executeSolverMove(
-    KlondikeMove move, {
+    dynamic move, {
     required MoveExecutor tryMove,
     required PileTapper tapPile,
   }) async {
     if (_isDisposed) return;
 
+    final strategy = SolverStrategyFactory.getStrategy(_game.gameType);
+    if (strategy == null) return;
+
     try {
-      switch (move.type) {
-        case KlondikeMoveType.tableauToTableau:
-          final fromPile = _game.tableauPiles[move.fromPile];
-          final toPile = _game.tableauPiles[move.toPile];
-          if (fromPile.isEmpty) throw Exception('Source tableau pile is empty');
-          final card = fromPile.topCard!;
-          tryMove(fromPile, toPile, [card]);
-          break;
-
-        case KlondikeMoveType.tableauToFoundation:
-          final fromPile = _game.tableauPiles[move.fromPile];
-          final toPile = _game.foundationPiles[move.toPile];
-          if (fromPile.isEmpty) throw Exception('Source tableau pile is empty');
-          final card = fromPile.topCard!;
-          tryMove(fromPile, toPile, [card]);
-          break;
-
-        case KlondikeMoveType.wasteToTableau:
-          final fromPile = _game.wastePile!;
-          final toPile = _game.tableauPiles[move.toPile];
-          if (fromPile.isEmpty) throw Exception('Waste pile is empty');
-          final card = fromPile.topCard!;
-          tryMove(fromPile, toPile, [card]);
-          break;
-
-        case KlondikeMoveType.wasteToFoundation:
-          final fromPile = _game.wastePile!;
-          final toPile = _game.foundationPiles[move.toPile];
-          if (fromPile.isEmpty) throw Exception('Waste pile is empty');
-          final card = fromPile.topCard!;
-          tryMove(fromPile, toPile, [card]);
-          break;
-
-        case KlondikeMoveType.drawCard:
-          if (_game.stockPile != null && !_game.stockPile!.isEmpty) {
-            tapPile(_game.stockPile!);
-          }
-          break;
-
-        case KlondikeMoveType.flipTableauCard:
-          // Face-down tracking not implemented, skip
-          break;
-      }
+      // Wrap the callbacks to match SolverStrategy's expected types
+      strategy.executeMove(
+        _game,
+        move,
+        tryMove: (from, to, cards) => tryMove(from, to, cards),
+        tapPile: (pile) => tapPile(pile),
+      );
     } catch (e) {
-      // Gracefully handle execution errors (sync issues)
       debugPrint('Solver move execution failed: $e');
     }
   }
 
   /// Auto-plays a sequence of solver moves with visual pacing.
-  ///
-  /// [isPlaying] - Callback to check if we should continue playing
-  /// [tryMove] - Callback to attempt a card move
-  /// [tapPile] - Callback to tap a pile (for stock draws)
   Future<void> autoPlaySolution(
-    List<KlondikeMove> moves, {
+    List<dynamic> moves, {
     required bool Function() isPlaying,
     required MoveExecutor tryMove,
     required PileTapper tapPile,
@@ -176,62 +124,28 @@ class SolverService {
   /// Shows a smart hint from the cached solver path, or falls back to fast hints.
   ///
   /// Returns true if a smart hint was shown, false otherwise.
-  /// When false is returned, the caller should fall back to fast hints.
   bool showSmartHint({
     required void Function() onHintUsed,
     required void Function() clearHintAfterDelay,
   }) {
-    // Check hint mode setting
-    if (_hintMode != HintMode.smart) {
-      return false;
-    }
+    if (_hintMode != HintMode.smart) return false;
+
+    // Get the solver strategy for this game
+    final strategy = SolverStrategyFactory.getStrategy(_game.gameType);
+    if (strategy == null) return false;
 
     // Check smart hint from solver cache
     if (_cachedWinningPath != null && _cachedWinningPath!.isNotEmpty) {
       final firstMove = _cachedWinningPath!.first;
-      Pile? sourcePile, destinationPile;
-      List<PlayingCard>? cards;
+      final hintData = strategy.getHintFromMove(_game, firstMove);
 
-      switch (firstMove.type) {
-        case KlondikeMoveType.tableauToTableau:
-          sourcePile = _game.tableauPiles[firstMove.fromPile];
-          destinationPile = _game.tableauPiles[firstMove.toPile];
-          cards = !sourcePile.isEmpty ? [sourcePile.topCard!] : null;
-          break;
-        case KlondikeMoveType.tableauToFoundation:
-          sourcePile = _game.tableauPiles[firstMove.fromPile];
-          destinationPile = _game.foundationPiles[firstMove.toPile];
-          cards = !sourcePile.isEmpty ? [sourcePile.topCard!] : null;
-          break;
-        case KlondikeMoveType.wasteToTableau:
-          sourcePile = _game.wastePile;
-          destinationPile = _game.tableauPiles[firstMove.toPile];
-          cards = sourcePile != null && !sourcePile.isEmpty
-              ? [sourcePile.topCard!]
-              : null;
-          break;
-        case KlondikeMoveType.wasteToFoundation:
-          sourcePile = _game.wastePile;
-          destinationPile = _game.foundationPiles[firstMove.toPile];
-          cards = sourcePile != null && !sourcePile.isEmpty
-              ? [sourcePile.topCard!]
-              : null;
-          break;
-        case KlondikeMoveType.drawCard:
-          sourcePile = _game.stockPile;
-          destinationPile = _game.stockPile;
-          cards = null;
-          break;
-        case KlondikeMoveType.flipTableauCard:
-          // Skip flip hints
-          break;
-      }
-
-      if (sourcePile != null && destinationPile != null) {
+      if (hintData != null &&
+          hintData.sourcePile != null &&
+          hintData.destinationPile != null) {
         _hintState.setHint(
-          sourcePile: sourcePile,
-          cards: cards,
-          destinationPile: destinationPile,
+          sourcePile: hintData.sourcePile!,
+          cards: hintData.cards,
+          destinationPile: hintData.destinationPile!,
         );
         onHintUsed();
         clearHintAfterDelay();
@@ -239,19 +153,17 @@ class SolverService {
       }
     }
 
-    // No smart hint available
     return false;
   }
 
   /// Invalidates cache and starts debounce timer for background solving.
-  ///
-  /// This should be called after any move that changes the game state.
   void invalidateCacheAndDebounceSolve() {
     _cachedWinningPath = null;
     _solveDebounceTimer?.cancel();
 
     // Only run solver if smart hint mode is enabled and game supports solving
-    if (_hintMode == HintMode.smart && _game.getSolverState() != null) {
+    if (_hintMode == HintMode.smart &&
+        SolverStrategyFactory.supportsSolving(_game.gameType)) {
       _solveDebounceTimer = Timer(
         const Duration(milliseconds: 500),
         _backgroundSolve,

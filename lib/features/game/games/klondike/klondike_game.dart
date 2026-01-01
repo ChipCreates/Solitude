@@ -93,11 +93,18 @@ class KlondikeGame extends SolitaireGameBase {
   }
 
   @override
+  GameType get gameType => GameType.klondike;
+
+  @override
+  int get deckSize => 52;
+
+  @override
   LayoutConfig get layoutConfig => const LayoutConfig(
         tableauCount: 7,
         foundationCount: 4,
         hasStock: true,
         hasWaste: true,
+        layoutType: LayoutType.grid,
       );
 
   // ==========================================================================

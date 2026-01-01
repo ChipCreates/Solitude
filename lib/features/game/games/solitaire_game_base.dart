@@ -96,4 +96,66 @@ abstract class SolitaireGameBase implements GameInterface {
   /// Default implementation returns null.
   @override
   List<PlayingCard>? getSelectableCards(Pile pile, PlayingCard card) => null;
+
+  // ==========================================================================
+  // Auto-Move Defaults (GameInterface)
+  // ==========================================================================
+
+  /// Whether double-tap auto-move is allowed for this card in this pile.
+  /// Default: only allow auto-move on top card.
+  @override
+  bool canAutoMove(Pile pile, PlayingCard card) {
+    return pile.topCard == card;
+  }
+
+  /// Get cards that would be moved in an auto-move operation.
+  /// Default returns the full run from card to top.
+  @override
+  List<PlayingCard> getAutoMoveCards(Pile pile, PlayingCard card) {
+    final cardIndex = pile.indexOfCard(card);
+    if (cardIndex < 0) return [card];
+    return pile.cards.sublist(cardIndex);
+  }
+
+  // ==========================================================================
+  // Layout Helpers Defaults (GameInterface)
+  // ==========================================================================
+
+  /// Get the suit for a foundation pile (for display purposes).
+  /// Default maps foundation index to Suit.values order.
+  @override
+  Suit? getFoundationSuit(int foundationIndex) {
+    if (foundationIndex < 0 || foundationIndex >= foundationPiles.length) {
+      return null;
+    }
+    return Suit.values[foundationIndex % Suit.values.length];
+  }
+
+  // ==========================================================================
+  // Hint System Defaults (GameInterface)
+  // ==========================================================================
+
+  /// Get a stock-related hint (draw or recycle).
+  /// Default checks for stock draw or waste recycle.
+  @override
+  ({Pile source, Pile destination})? getStockHint() {
+    final stock = stockPile;
+    final waste = wastePile;
+
+    // Suggest recycling waste back to stock
+    if (stock != null && stock.isEmpty && waste != null && !waste.isEmpty) {
+      return (source: stock, destination: stock);
+    }
+
+    // Suggest drawing from stock
+    if (stock != null && !stock.isEmpty) {
+      return (source: stock, destination: stock);
+    }
+
+    return null;
+  }
+
+  /// Whether the game supports stock/waste hint suggestions.
+  @override
+  bool get supportsStockHints => stockPile != null;
 }

@@ -2128,11 +2128,18 @@ class KlondikeGame extends SolitaireGameBase {
   }
 
   @override
+  GameType get gameType => GameType.klondike;
+
+  @override
+  int get deckSize => 52;
+
+  @override
   LayoutConfig get layoutConfig => const LayoutConfig(
         tableauCount: 7,
         foundationCount: 4,
         hasStock: true,
         hasWaste: true,
+        layoutType: LayoutType.grid,
       );
 
   // ==========================================================================
@@ -2859,334 +2866,6 @@ class KlondikeGame extends SolitaireGameBase {
 }
 
 
-// --- FILE: lib/features/game/games/solitaire_game_base.dart ---
-import 'game_interface.dart';
-import '../models/card.dart';
-import '../models/pile.dart';
-import '../models/move.dart';
-
-/// Base class for solitaire games that provides common move-checking logic.
-/// Subclasses implement game-specific rules while inheriting reusable patterns.
-abstract class SolitaireGameBase implements GameInterface {
-  // ==========================================================================
-  // Common hasAnyMove() Implementation
-  // ==========================================================================
-
-  @override
-  bool hasAnyMove() {
-    // Early exits for performance - check most common moves first
-    if (canDrawFromStock()) return true;
-    if (hasValidWasteMoves()) return true;
-    if (hasValidTableauMoves()) return true;
-    return false;
-  }
-
-  // ==========================================================================
-  // Abstract Methods for Game-Specific Logic
-  // ==========================================================================
-
-  /// Check if drawing from stock is possible
-  bool canDrawFromStock();
-
-  /// Check if the waste pile has any valid moves
-  bool hasValidWasteMoves();
-
-  /// Check if tableau piles have any valid moves
-  bool hasValidTableauMoves();
-
-  // ==========================================================================
-  // Common Helper Methods (Optional Overrides)
-  // ==========================================================================
-
-  /// Check if a card can be placed on a foundation pile
-  bool canMoveToFoundation(PlayingCard card, Pile foundation) {
-    if (foundation.isEmpty) {
-      return card.rank ==
-          Rank.ace; // Most solitaire games start foundations with Aces
-    }
-    final topCard = foundation.topCard!;
-    return card.suit == topCard.suit && card.value == topCard.value + 1;
-  }
-
-  /// Check if cards can be moved to a tableau pile (basic alternating color rule)
-  bool canMoveToTableau(List<PlayingCard> cards, Pile toPile) {
-    if (cards.isEmpty) return false;
-    final firstCard = cards.first;
-
-    if (toPile.isEmpty) {
-      return firstCard.rank == Rank.king; // Kings can go on empty tableau
-    }
-
-    final topCard = toPile.topCard!;
-    // Alternating colors, descending rank
-    return firstCard.isRed != topCard.isRed &&
-        firstCard.value == topCard.value - 1;
-  }
-
-  /// Check if a sequence of cards forms a valid run (for tableau moves)
-  bool isValidRun(List<PlayingCard> cards) {
-    if (cards.length <= 1) return true;
-    for (int i = 1; i < cards.length; i++) {
-      final prev = cards[i - 1];
-      final curr = cards[i];
-      if (curr.isRed == prev.isRed || curr.value != prev.value - 1) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  // ==========================================================================
-  // Default Implementations (GameInterface)
-  // ==========================================================================
-
-  /// Handle pile activation (Enter/Space key on focused pile).
-  /// Returns a Move if the game handled the activation internally (e.g., stock tap).
-  /// Returns null if the controller should use default behavior (select top card).
-  /// Default implementation delegates to handlePileTap for stock piles.
-  @override
-  Move? handlePileActivation(Pile pile) {
-    if (pile.type == PileType.stock) {
-      return handlePileTap(pile);
-    }
-    return null;
-  }
-
-  /// Get the selectable cards from a pile starting from a given card.
-  /// Returns null to use default behavior (all cards from card to top).
-  /// Games can override this to enforce selection rules (e.g., waste only allows top card).
-  /// Default implementation returns null.
-  @override
-  List<PlayingCard>? getSelectableCards(Pile pile, PlayingCard card) => null;
-}
-
-
-// --- FILE: lib/features/game/games/game_factory.dart ---
-import 'game_interface.dart';
-import 'klondike/klondike_game.dart';
-import 'spider/spider_game.dart';
-
-/// Supported game types
-enum GameType {
-  klondike,
-  spider;
-
-  String get displayName {
-    switch (this) {
-      case GameType.klondike:
-        return 'Klondike';
-      case GameType.spider:
-        return 'Spider';
-    }
-  }
-
-  String get description {
-    switch (this) {
-      case GameType.klondike:
-        return 'Classic solitaire with 7 tableau piles';
-      case GameType.spider:
-        return 'Advanced solitaire with 10 tableau piles';
-    }
-  }
-}
-
-/// Factory for creating game instances
-class GameFactory {
-  /// Create a new game instance for the given type
-  static GameInterface createGame(GameType type) {
-    switch (type) {
-      case GameType.klondike:
-        return KlondikeGame();
-      case GameType.spider:
-        return SpiderGame();
-    }
-  }
-}
-
-
-// --- FILE: lib/features/game/games/game_interface.dart ---
-import 'dart:math';
-import '../models/card.dart';
-import '../models/pile.dart';
-import '../models/move.dart';
-import 'package:solitude/features/settings/models/difficulty.dart';
-import 'package:solitude/features/settings/services/settings_provider.dart';
-import '../ai/abstract_solver.dart';
-
-/// Abstract interface that all solitaire game types must implement.
-/// This allows for future expansion to Spider, FreeCell, etc.
-abstract class GameInterface {
-  // ==========================================================================
-  // Pile Accessors
-  // ==========================================================================
-
-  /// Get the stock pile (if any). Returns null for games without stock.
-  Pile? get stockPile;
-
-  /// Get the waste pile (if any). Returns null for games without waste.
-  Pile? get wastePile;
-
-  /// Get foundation piles. Empty list for games without foundations.
-  List<Pile> get foundationPiles;
-
-  /// Get tableau piles.
-  List<Pile> get tableauPiles;
-
-  // ==========================================================================
-  // Lifecycle
-  // ==========================================================================
-
-  /// Initialize a new game with shuffled deck.
-  /// Optionally accepts a [Random] instance for deterministic testing.
-  void initialize({Random? random});
-
-  /// Reset the current game to its initial state
-  void reset();
-
-  /// Get all piles in the game
-  List<Pile> get allPiles;
-
-  /// Check if moving cards from one pile to another is valid
-  bool isValidMove(Pile from, Pile to, List<PlayingCard> cards);
-
-  /// Execute a move (assumes validity already checked)
-  Move? executeMove(Pile from, Pile to, List<PlayingCard> cards);
-
-  /// Undo the last move
-  bool undo();
-
-  /// Check if the game is won
-  bool checkWin();
-
-  /// Check if auto-complete is possible (all cards face-up)
-  bool canAutoComplete();
-
-  /// Perform one step of auto-complete, returns true if a move was made
-  bool autoCompleteStep();
-
-  /// Get the current move count
-  int get moveCount;
-
-  /// Get the move history for undo
-  List<Move> get moveHistory;
-
-  /// Handle tap on stock pile (draw cards)
-  Move? tapStock();
-
-  /// Find valid moves for a given card selection
-  List<Pile> getValidDestinations(Pile from, List<PlayingCard> cards);
-
-  /// Get hint for next possible move
-  ({Pile from, Pile to, List<PlayingCard> cards})? getHint();
-
-  /// Returns true if any legal move or draw is possible (used for loss detection)
-  bool hasAnyMove();
-
-  // ==========================================================================
-  // Redo Support
-  // ==========================================================================
-
-  /// Redo the last undone move. Returns true if successful.
-  /// Default implementation returns false (no redo support).
-  bool redo() => false;
-
-  /// Get the redo stack for UI display.
-  /// Default implementation returns empty list.
-  List<Move> get redoStack => const [];
-
-  /// Whether redo is available.
-  bool get canRedo => redoStack.isNotEmpty;
-
-  // ==========================================================================
-  // Loss Detection
-  // ==========================================================================
-
-  /// Check if the game is in an unwinnable state (no progress possible).
-  /// Returns false if unknown or if the game can continue.
-  /// Default implementation returns false (no loss detection).
-  bool get isLost => false;
-
-  // ==========================================================================
-  // Auto-Move (Double-Tap)
-  // ==========================================================================
-
-  /// Find the best destination for auto-moving cards (double-tap behavior).
-  /// Returns null if no auto-move is appropriate.
-  /// Each game implements its own priority logic.
-  Pile? findBestAutoMoveDestination(Pile fromPile, List<PlayingCard> cards);
-
-  // ==========================================================================
-  // Configuration
-  // ==========================================================================
-
-  /// Apply game-specific difficulty settings.
-  /// Each game type interprets difficulty differently.
-  /// Default implementation does nothing.
-  void applyDifficulty(Difficulty difficulty) {}
-
-  /// Configure the game based on current settings.
-  /// This allows the game to adapt to Draw Mode, Vegas Mode, etc.
-  /// Called after game creation in newGame().
-  /// Default implementation does nothing.
-  void configure(SettingsProvider settings) {}
-
-  // ==========================================================================
-  // Solver Support
-  // ==========================================================================
-
-  /// Returns a solver state snapshot for AI analysis.
-  /// Returns null if the game doesn't support solving (e.g., Spider in V1.0).
-  /// Each game type implements its own solver state conversion.
-  SolverState? getSolverState();
-
-  /// Get a specific pile by type (for single piles like stock/waste)
-  Pile? getPile(PileType type);
-
-  /// Get the next pile to focus on from the current pile
-  Pile? getNextFocus(Pile current);
-
-  /// Get all piles that can be focused (for keyboard navigation)
-  List<Pile> get focusablePiles;
-
-  /// Handle tap on a pile (game-specific behavior)
-  Move? handlePileTap(Pile pile);
-
-  /// Handle pile activation (Enter/Space key on focused pile).
-  /// Returns a Move if the game handled the activation internally (e.g., stock tap).
-  /// Returns null if the controller should use default behavior (select top card).
-  /// Default implementation delegates to handlePileTap for stock piles.
-  Move? handlePileActivation(Pile pile) {
-    if (pile.type == PileType.stock) {
-      return handlePileTap(pile);
-    }
-    return null;
-  }
-
-  /// Get the selectable cards from a pile starting from a given card.
-  /// Returns null to use default behavior (all cards from card to top).
-  /// Games can override this to enforce selection rules (e.g., waste only allows top card).
-  /// Default implementation returns null.
-  List<PlayingCard>? getSelectableCards(Pile pile, PlayingCard card) => null;
-
-  /// Game-specific layout configuration
-  LayoutConfig get layoutConfig;
-}
-
-class LayoutConfig {
-  final int tableauCount;
-  final int foundationCount;
-  final bool hasStock;
-  final bool hasWaste;
-
-  const LayoutConfig({
-    required this.tableauCount,
-    required this.foundationCount,
-    this.hasStock = true,
-    this.hasWaste = true,
-  });
-}
-
-
 // --- FILE: lib/features/game/games/spider/spider_game.dart ---
 import 'dart:math';
 import '../solitaire_game_base.dart';
@@ -3332,12 +3011,41 @@ class SpiderGame extends SolitaireGameBase {
   bool get canRedo => _redoStack.isNotEmpty;
 
   @override
+  GameType get gameType => GameType.spider;
+
+  @override
+  int get deckSize => 104; // 2 decks
+
+  @override
   LayoutConfig get layoutConfig => const LayoutConfig(
         tableauCount: 10,
         foundationCount: 8,
         hasStock: true,
         hasWaste: false,
+        layoutType: LayoutType.grid,
       );
+
+  // ==========================================================================
+  // Layout Helpers
+  // ==========================================================================
+
+  /// Spider foundations are not suit-specific - any complete sequence goes there.
+  /// Returns null to indicate no specific suit for the foundation.
+  @override
+  Suit? getFoundationSuit(int foundationIndex) => null;
+
+  // ==========================================================================
+  // Hint System
+  // ==========================================================================
+
+  /// Spider doesn't have waste pile, so stock hints only suggest drawing.
+  @override
+  ({Pile source, Pile destination})? getStockHint() {
+    if (!stock.isEmpty && canDrawFromStock()) {
+      return (source: stock, destination: stock);
+    }
+    return null;
+  }
 
   // ==========================================================================
   // Pile Accessors (GameInterface)
@@ -3884,6 +3592,560 @@ class SpiderGame extends SolitaireGameBase {
 }
 
 
+// --- FILE: lib/features/game/games/game_factory.dart ---
+import 'game_interface.dart';
+import 'klondike/klondike_game.dart';
+import 'spider/spider_game.dart';
+
+// Re-export GameType for convenience
+export 'game_interface.dart' show GameType;
+
+/// Extension on GameType to provide display information
+extension GameTypeDisplay on GameType {
+  String get displayName {
+    switch (this) {
+      case GameType.klondike:
+        return 'Klondike';
+      case GameType.spider:
+        return 'Spider';
+      case GameType.pyramid:
+        return 'Pyramid';
+      case GameType.golf:
+        return 'Golf';
+      case GameType.freecell:
+        return 'FreeCell';
+      case GameType.triPeaks:
+        return 'TriPeaks';
+      case GameType.yukon:
+        return 'Yukon';
+      case GameType.fortyThieves:
+        return 'Forty Thieves';
+      case GameType.canfield:
+        return 'Canfield';
+      case GameType.scorpion:
+        return 'Scorpion';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case GameType.klondike:
+        return 'The quintessential version of Solitaire that most players know simply as "the game." Your goal is to build four foundations from Ace to King by maneuvering cards through a tableau of descending, alternating colors. It strikes a classic balance between luck and strategy, offering a familiar rhythm of revealing hidden cards and managing your waste pile.';
+      case GameType.spider:
+        return 'This challenging variant requires you to assemble complete suits within the tableau itself before they can be removed. Dealing two decks of cards, you must weave complex sequences to clear the board. It is a true test of patience and planning, where managing your empty columns is often the key to untangling the web.';
+      case GameType.pyramid:
+        return 'A mathematical puzzle where the goal is not to build sequences, but to dismantle a pyramid of cards by pairing them up. You must find combinations that add up to 13 to remove them from the board. As you chip away at the structure, the challenge lies in uncovering the buried cards you need before the draw pile runs out.';
+      case GameType.golf:
+        return 'Named for the desire to earn the lowest score possible, this game demands that you clear a tableau of cards into a single waste pile. You can play any card that is one rank higher or lower than the top card on the pile, regardless of suit. With no redrawing allowed, every move is critical, forcing you to plan your runs carefully to make par.';
+      case GameType.freecell:
+        return 'A game of open information where almost every deal is winnable if you have the foresight to solve it. All cards are visible from the start, and you are given four temporary "free cells" to hold cards while you reorganize the tableau. It is less about luck and more about strategic sequencing, rewarding players who can think several moves ahead.';
+      case GameType.triPeaks:
+        return 'A mathematical puzzle where the goal is not to build sequences, but to dismantle a pyramid of cards by pairing them up. You must find combinations that add up to 13 to remove them from the board. As you chip away at the structure, the challenge lies in uncovering the buried cards you need before the draw pile runs out.';
+      case GameType.yukon:
+        return 'This variant allows for great freedom of movement, letting you move any group of face-up cards regardless of what is beneath them. The catch is that you must still place them on a card of the opposite color and next highest rank. This flexibility creates dynamic gameplay where you can tear apart large stacks to uncover the vital cards hidden underneath.';
+      case GameType.fortyThieves:
+        return 'Widely considered one of the most difficult solitaire games, this variant uses two decks and strict rules. You face a wide tableau where you can only move the top card of each stack, and you must build sequences by suit. Victories here are rare and hard-earned, making it a favorite for players seeking a rigorous mental workout.';
+      case GameType.canfield:
+        return 'Originally a casino game, Canfield offers a high-difficulty challenge with a unique reserve pile that acts as a ticking clock. You must move cards to the foundation while managing a small tableau and a difficult draw pile. It is a compact, tight game where resources are scarce, and turning the tide requires sharp tactical decisions.';
+      case GameType.scorpion:
+        return 'A hybrid that borrows the movement rules of Yukon and the objective of Spider. You must build complete suits from King down to Ace within the tableau, and you can move large groups of cards even if they aren\'t in order. It is an intense puzzle of exposure, where you must fight to flip face-down cards while keeping your stacks organized.';
+    }
+  }
+}
+
+/// Factory for creating game instances
+class GameFactory {
+  /// Create a new game instance for the given type
+  static GameInterface createGame(GameType type) {
+    switch (type) {
+      case GameType.klondike:
+        return KlondikeGame();
+      case GameType.spider:
+        return SpiderGame();
+      case GameType.pyramid:
+        throw UnimplementedError('Pyramid game is not yet implemented.');
+      case GameType.golf:
+        throw UnimplementedError('Golf game is not yet implemented.');
+      case GameType.freecell:
+        throw UnimplementedError('FreeCell game is not yet implemented.');
+      case GameType.triPeaks:
+        throw UnimplementedError('TriPeaks game is not yet implemented.');
+      case GameType.yukon:
+        throw UnimplementedError('Yukon game is not yet implemented.');
+      case GameType.fortyThieves:
+        throw UnimplementedError('Forty Thieves game is not yet implemented.');
+      case GameType.canfield:
+        throw UnimplementedError('Canfield game is not yet implemented.');
+      case GameType.scorpion:
+        throw UnimplementedError('Scorpion game is not yet implemented.');
+    }
+  }
+}
+
+
+// --- FILE: lib/features/game/games/game_interface.dart ---
+import 'dart:math';
+import '../models/card.dart';
+import '../models/pile.dart';
+import '../models/move.dart';
+import 'package:solitude/features/settings/models/difficulty.dart';
+import 'package:solitude/features/settings/services/settings_provider.dart';
+import '../ai/abstract_solver.dart';
+
+/// Supported game types - used for routing to correct layout strategies
+enum GameType {
+  klondike,
+  spider,
+  pyramid,
+  golf,
+  freecell,
+  triPeaks,
+  yukon,
+  fortyThieves,
+  canfield,
+  scorpion,
+  // Future games: pyramid, golf, freecell, triPeaks, yukon, etc.
+}
+
+/// Abstract interface that all solitaire game types must implement.
+/// This allows for future expansion to Spider, FreeCell, etc.
+abstract class GameInterface {
+  // ==========================================================================
+  // Game Identity
+  // ==========================================================================
+
+  /// The type of game - used for layout strategy routing.
+  /// This replaces pile-count based detection with explicit type identification.
+  GameType get gameType;
+
+  /// Number of cards in the deck(s) used by this game.
+  /// Standard deck = 52, Spider (2 decks) = 104, Pyramid = 28 in play, etc.
+  /// Used for game-agnostic scoring calculations.
+  int get deckSize;
+  // ==========================================================================
+  // Pile Accessors
+  // ==========================================================================
+
+  /// Get the stock pile (if any). Returns null for games without stock.
+  Pile? get stockPile;
+
+  /// Get the waste pile (if any). Returns null for games without waste.
+  Pile? get wastePile;
+
+  /// Get foundation piles. Empty list for games without foundations.
+  List<Pile> get foundationPiles;
+
+  /// Get tableau piles.
+  List<Pile> get tableauPiles;
+
+  // ==========================================================================
+  // Lifecycle
+  // ==========================================================================
+
+  /// Initialize a new game with shuffled deck.
+  /// Optionally accepts a [Random] instance for deterministic testing.
+  void initialize({Random? random});
+
+  /// Reset the current game to its initial state
+  void reset();
+
+  /// Get all piles in the game
+  List<Pile> get allPiles;
+
+  /// Check if moving cards from one pile to another is valid
+  bool isValidMove(Pile from, Pile to, List<PlayingCard> cards);
+
+  /// Execute a move (assumes validity already checked)
+  Move? executeMove(Pile from, Pile to, List<PlayingCard> cards);
+
+  /// Undo the last move
+  bool undo();
+
+  /// Check if the game is won
+  bool checkWin();
+
+  /// Check if auto-complete is possible (all cards face-up)
+  bool canAutoComplete();
+
+  /// Perform one step of auto-complete, returns true if a move was made
+  bool autoCompleteStep();
+
+  /// Get the current move count
+  int get moveCount;
+
+  /// Get the move history for undo
+  List<Move> get moveHistory;
+
+  /// Handle tap on stock pile (draw cards)
+  Move? tapStock();
+
+  /// Find valid moves for a given card selection
+  List<Pile> getValidDestinations(Pile from, List<PlayingCard> cards);
+
+  /// Get hint for next possible move
+  ({Pile from, Pile to, List<PlayingCard> cards})? getHint();
+
+  /// Returns true if any legal move or draw is possible (used for loss detection)
+  bool hasAnyMove();
+
+  // ==========================================================================
+  // Redo Support
+  // ==========================================================================
+
+  /// Redo the last undone move. Returns true if successful.
+  /// Default implementation returns false (no redo support).
+  bool redo() => false;
+
+  /// Get the redo stack for UI display.
+  /// Default implementation returns empty list.
+  List<Move> get redoStack => const [];
+
+  /// Whether redo is available.
+  bool get canRedo => redoStack.isNotEmpty;
+
+  // ==========================================================================
+  // Loss Detection
+  // ==========================================================================
+
+  /// Check if the game is in an unwinnable state (no progress possible).
+  /// Returns false if unknown or if the game can continue.
+  /// Default implementation returns false (no loss detection).
+  bool get isLost => false;
+
+  // ==========================================================================
+  // Auto-Move (Double-Tap)
+  // ==========================================================================
+
+  /// Find the best destination for auto-moving cards (double-tap behavior).
+  /// Returns null if no auto-move is appropriate.
+  /// Each game implements its own priority logic.
+  Pile? findBestAutoMoveDestination(Pile fromPile, List<PlayingCard> cards);
+
+  /// Whether double-tap auto-move is allowed for this card in this pile.
+  /// Games with different selection rules can override this.
+  ///
+  /// Default implementation:
+  /// - Waste: only top card
+  /// - Tableau: only top card (single-card auto-move)
+  /// - Other piles: only top card
+  ///
+  /// Games like Pyramid can override to allow any exposed card.
+  bool canAutoMove(Pile pile, PlayingCard card) {
+    // Default: only allow auto-move on top card
+    return pile.topCard == card;
+  }
+
+  /// Get cards that would be moved in an auto-move operation.
+  /// Default returns just the single card for most piles,
+  /// or the full run from card to top for tableau.
+  ///
+  /// Games can override for different stack selection behavior.
+  List<PlayingCard> getAutoMoveCards(Pile pile, PlayingCard card) {
+    final cardIndex = pile.indexOfCard(card);
+    if (cardIndex < 0) return [card];
+    return pile.cards.sublist(cardIndex);
+  }
+
+  // ==========================================================================
+  // Configuration
+  // ==========================================================================
+
+  /// Apply game-specific difficulty settings.
+  /// Each game type interprets difficulty differently.
+  /// Default implementation does nothing.
+  void applyDifficulty(Difficulty difficulty) {}
+
+  /// Configure the game based on current settings.
+  /// This allows the game to adapt to Draw Mode, Vegas Mode, etc.
+  /// Called after game creation in newGame().
+  /// Default implementation does nothing.
+  void configure(SettingsProvider settings) {}
+
+  // ==========================================================================
+  // Solver Support
+  // ==========================================================================
+
+  /// Returns a solver state snapshot for AI analysis.
+  /// Returns null if the game doesn't support solving (e.g., Spider in V1.0).
+  /// Each game type implements its own solver state conversion.
+  SolverState? getSolverState();
+
+  /// Get a specific pile by type (for single piles like stock/waste)
+  Pile? getPile(PileType type);
+
+  /// Get the next pile to focus on from the current pile
+  Pile? getNextFocus(Pile current);
+
+  /// Get all piles that can be focused (for keyboard navigation)
+  List<Pile> get focusablePiles;
+
+  /// Handle tap on a pile (game-specific behavior)
+  Move? handlePileTap(Pile pile);
+
+  /// Handle pile activation (Enter/Space key on focused pile).
+  /// Returns a Move if the game handled the activation internally (e.g., stock tap).
+  /// Returns null if the controller should use default behavior (select top card).
+  /// Default implementation delegates to handlePileTap for stock piles.
+  Move? handlePileActivation(Pile pile) {
+    if (pile.type == PileType.stock) {
+      return handlePileTap(pile);
+    }
+    return null;
+  }
+
+  /// Get the selectable cards from a pile starting from a given card.
+  /// Returns null to use default behavior (all cards from card to top).
+  /// Games can override this to enforce selection rules (e.g., waste only allows top card).
+  /// Default implementation returns null.
+  List<PlayingCard>? getSelectableCards(Pile pile, PlayingCard card) => null;
+
+  /// Game-specific layout configuration
+  LayoutConfig get layoutConfig;
+
+  // ==========================================================================
+  // Layout Helpers
+  // ==========================================================================
+
+  /// Get the suit for a foundation pile (for display purposes).
+  /// Returns null if foundations are not suit-specific (e.g., Spider).
+  ///
+  /// Default implementation maps foundation index to Suit.values order.
+  /// Games with different foundation semantics should override.
+  Suit? getFoundationSuit(int foundationIndex) {
+    if (foundationIndex < 0 || foundationIndex >= foundationPiles.length) {
+      return null;
+    }
+    return Suit.values[foundationIndex % Suit.values.length];
+  }
+
+  // ==========================================================================
+  // Hint System
+  // ==========================================================================
+
+  /// Get a stock-related hint (draw or recycle).
+  /// Returns a record with source and destination piles if a stock hint is available.
+  /// Returns null if no stock hint is applicable.
+  ///
+  /// Default implementation checks for stock draw or waste recycle.
+  /// Games without stock/waste can override to return null.
+  ({Pile source, Pile destination})? getStockHint() {
+    final stock = stockPile;
+    final waste = wastePile;
+
+    // Suggest recycling waste back to stock
+    if (stock != null && stock.isEmpty && waste != null && !waste.isEmpty) {
+      return (source: stock, destination: stock);
+    }
+
+    // Suggest drawing from stock
+    if (stock != null && !stock.isEmpty) {
+      return (source: stock, destination: stock);
+    }
+
+    return null;
+  }
+
+  /// Whether the game supports stock/waste hint suggestions.
+  /// Games without stock (like some Pyramid variants) return false.
+  bool get supportsStockHints => stockPile != null;
+}
+
+/// Layout type determines how cards are positioned on the board.
+enum LayoutType {
+  /// Grid-based layout with rows and columns (Klondike, Spider, Freecell)
+  grid,
+
+  /// Stack-based layout with absolute (x,y) positioning (Pyramid, TriPeaks, Golf)
+  stack,
+
+  // Future: spiral, tree, etc.
+}
+
+class LayoutConfig {
+  final int tableauCount;
+  final int foundationCount;
+  final bool hasStock;
+  final bool hasWaste;
+
+  /// The type of layout this game uses.
+  /// Grid layouts use Row/Column widgets.
+  /// Stack layouts use Stack/Positioned widgets with absolute coordinates.
+  final LayoutType layoutType;
+
+  const LayoutConfig({
+    required this.tableauCount,
+    required this.foundationCount,
+    this.hasStock = true,
+    this.hasWaste = true,
+    this.layoutType = LayoutType.grid,
+  });
+}
+
+
+// --- FILE: lib/features/game/games/solitaire_game_base.dart ---
+import 'game_interface.dart';
+import '../models/card.dart';
+import '../models/pile.dart';
+import '../models/move.dart';
+
+/// Base class for solitaire games that provides common move-checking logic.
+/// Subclasses implement game-specific rules while inheriting reusable patterns.
+abstract class SolitaireGameBase implements GameInterface {
+  // ==========================================================================
+  // Common hasAnyMove() Implementation
+  // ==========================================================================
+
+  @override
+  bool hasAnyMove() {
+    // Early exits for performance - check most common moves first
+    if (canDrawFromStock()) return true;
+    if (hasValidWasteMoves()) return true;
+    if (hasValidTableauMoves()) return true;
+    return false;
+  }
+
+  // ==========================================================================
+  // Abstract Methods for Game-Specific Logic
+  // ==========================================================================
+
+  /// Check if drawing from stock is possible
+  bool canDrawFromStock();
+
+  /// Check if the waste pile has any valid moves
+  bool hasValidWasteMoves();
+
+  /// Check if tableau piles have any valid moves
+  bool hasValidTableauMoves();
+
+  // ==========================================================================
+  // Common Helper Methods (Optional Overrides)
+  // ==========================================================================
+
+  /// Check if a card can be placed on a foundation pile
+  bool canMoveToFoundation(PlayingCard card, Pile foundation) {
+    if (foundation.isEmpty) {
+      return card.rank ==
+          Rank.ace; // Most solitaire games start foundations with Aces
+    }
+    final topCard = foundation.topCard!;
+    return card.suit == topCard.suit && card.value == topCard.value + 1;
+  }
+
+  /// Check if cards can be moved to a tableau pile (basic alternating color rule)
+  bool canMoveToTableau(List<PlayingCard> cards, Pile toPile) {
+    if (cards.isEmpty) return false;
+    final firstCard = cards.first;
+
+    if (toPile.isEmpty) {
+      return firstCard.rank == Rank.king; // Kings can go on empty tableau
+    }
+
+    final topCard = toPile.topCard!;
+    // Alternating colors, descending rank
+    return firstCard.isRed != topCard.isRed &&
+        firstCard.value == topCard.value - 1;
+  }
+
+  /// Check if a sequence of cards forms a valid run (for tableau moves)
+  bool isValidRun(List<PlayingCard> cards) {
+    if (cards.length <= 1) return true;
+    for (int i = 1; i < cards.length; i++) {
+      final prev = cards[i - 1];
+      final curr = cards[i];
+      if (curr.isRed == prev.isRed || curr.value != prev.value - 1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // ==========================================================================
+  // Default Implementations (GameInterface)
+  // ==========================================================================
+
+  /// Handle pile activation (Enter/Space key on focused pile).
+  /// Returns a Move if the game handled the activation internally (e.g., stock tap).
+  /// Returns null if the controller should use default behavior (select top card).
+  /// Default implementation delegates to handlePileTap for stock piles.
+  @override
+  Move? handlePileActivation(Pile pile) {
+    if (pile.type == PileType.stock) {
+      return handlePileTap(pile);
+    }
+    return null;
+  }
+
+  /// Get the selectable cards from a pile starting from a given card.
+  /// Returns null to use default behavior (all cards from card to top).
+  /// Games can override this to enforce selection rules (e.g., waste only allows top card).
+  /// Default implementation returns null.
+  @override
+  List<PlayingCard>? getSelectableCards(Pile pile, PlayingCard card) => null;
+
+  // ==========================================================================
+  // Auto-Move Defaults (GameInterface)
+  // ==========================================================================
+
+  /// Whether double-tap auto-move is allowed for this card in this pile.
+  /// Default: only allow auto-move on top card.
+  @override
+  bool canAutoMove(Pile pile, PlayingCard card) {
+    return pile.topCard == card;
+  }
+
+  /// Get cards that would be moved in an auto-move operation.
+  /// Default returns the full run from card to top.
+  @override
+  List<PlayingCard> getAutoMoveCards(Pile pile, PlayingCard card) {
+    final cardIndex = pile.indexOfCard(card);
+    if (cardIndex < 0) return [card];
+    return pile.cards.sublist(cardIndex);
+  }
+
+  // ==========================================================================
+  // Layout Helpers Defaults (GameInterface)
+  // ==========================================================================
+
+  /// Get the suit for a foundation pile (for display purposes).
+  /// Default maps foundation index to Suit.values order.
+  @override
+  Suit? getFoundationSuit(int foundationIndex) {
+    if (foundationIndex < 0 || foundationIndex >= foundationPiles.length) {
+      return null;
+    }
+    return Suit.values[foundationIndex % Suit.values.length];
+  }
+
+  // ==========================================================================
+  // Hint System Defaults (GameInterface)
+  // ==========================================================================
+
+  /// Get a stock-related hint (draw or recycle).
+  /// Default checks for stock draw or waste recycle.
+  @override
+  ({Pile source, Pile destination})? getStockHint() {
+    final stock = stockPile;
+    final waste = wastePile;
+
+    // Suggest recycling waste back to stock
+    if (stock != null && stock.isEmpty && waste != null && !waste.isEmpty) {
+      return (source: stock, destination: stock);
+    }
+
+    // Suggest drawing from stock
+    if (stock != null && !stock.isEmpty) {
+      return (source: stock, destination: stock);
+    }
+
+    return null;
+  }
+
+  /// Whether the game supports stock/waste hint suggestions.
+  @override
+  bool get supportsStockHints => stockPile != null;
+}
+
+
 // --- FILE: lib/features/game/models/deck.dart ---
 import 'dart:math';
 import 'card.dart';
@@ -3954,169 +4216,6 @@ enum DrawMode {
         return 3;
     }
   }
-}
-
-
-// --- FILE: lib/features/game/models/move.dart ---
-import 'card.dart';
-import 'pile.dart';
-
-class Move {
-  final Pile fromPile;
-  final Pile toPile;
-  final List<PlayingCard> cards;
-  final bool flippedCard; // Did this move reveal a face-down card?
-  final bool drewFromStock; // Was this a stock draw?
-  final int stockRecycleCount; // Track stock recycles for undo
-  
-  Move({
-    required this.fromPile,
-    required this.toPile,
-    required this.cards,
-    this.flippedCard = false,
-    this.drewFromStock = false,
-    this.stockRecycleCount = 0,
-  });
-  
-  /// Get a human-readable description of this move
-  String get description {
-    // Handle stock draw/recycle
-    if (drewFromStock) {
-      if (toPile.type == PileType.stock) {
-        return 'Recycled waste to stock';
-      }
-      final count = cards.length;
-      return 'Drew ${count == 1 ? '1 card' : '$count cards'} from stock';
-    }
-
-    // Get card description
-    String cardDesc;
-    if (cards.length == 1) {
-      cardDesc = cards.first.toString();
-    } else {
-      cardDesc = '${cards.first.toString()} + ${cards.length - 1} more';
-    }
-
-    // Get pile names
-    final fromName = _getPileName(fromPile);
-    final toName = _getPileName(toPile);
-
-    return 'Moved $cardDesc from $fromName to $toName';
-  }
-
-  String _getPileName(Pile pile) {
-    switch (pile.type) {
-      case PileType.stock:
-        return 'Stock';
-      case PileType.waste:
-        return 'Waste';
-      case PileType.foundation:
-        return 'Foundation ${pile.index + 1}';
-      case PileType.tableau:
-        return 'Tableau ${pile.index + 1}';
-    }
-  }
-
-  @override
-  String toString() =>
-    'Move: ${cards.length} card(s) from ${fromPile.type.name}[${fromPile.index}] '
-    'to ${toPile.type.name}[${toPile.index}]${flippedCard ? " (flipped)" : ""}';
-}
-
-
-// --- FILE: lib/features/game/models/pile.dart ---
-import 'card.dart';
-
-enum PileType { stock, waste, foundation, tableau }
-
-class Pile {
-  final PileType type;
-  final int index;
-  final List<PlayingCard> _cards = [];
-
-  /// Version counter that increments on any mutation.
-  /// Used by Selector to detect when pile contents change.
-  int _version = 0;
-
-  Pile({required this.type, this.index = 0});
-
-  /// Unique ID for this pile, used for UI mapping
-  String get id => '${type.name}_$index';
-
-  /// Current version of this pile - changes on any mutation.
-  int get version => _version;
-
-  List<PlayingCard> get cards => List.unmodifiable(_cards);
-
-  bool get isEmpty => _cards.isEmpty;
-  int get length => _cards.length;
-
-  PlayingCard? get topCard => _cards.isEmpty ? null : _cards.last;
-
-  List<PlayingCard> get faceUpCards =>
-    _cards.where((c) => c.faceUp).toList();
-
-  int get faceUpCount => _cards.where((c) => c.faceUp).length;
-
-  void addCard(PlayingCard card) {
-    _cards.add(card);
-    _version++;
-  }
-
-  void addCards(List<PlayingCard> cards) {
-    _cards.addAll(cards);
-    _version++;
-  }
-
-  PlayingCard? removeTop() {
-    if (_cards.isEmpty) return null;
-    _version++;
-    return _cards.removeLast();
-  }
-
-  List<PlayingCard> removeFrom(int index) {
-    if (index < 0 || index >= _cards.length) return [];
-    final removed = _cards.sublist(index);
-    _cards.removeRange(index, _cards.length);
-    _version++;
-    return removed;
-  }
-
-  List<PlayingCard> removeAll() {
-    final all = List<PlayingCard>.from(_cards);
-    _cards.clear();
-    _version++;
-    return all;
-  }
-
-  void clear() {
-    _cards.clear();
-    _version++;
-  }
-
-  int indexOfCard(PlayingCard card) {
-    for (int i = 0; i < _cards.length; i++) {
-      if (_cards[i] == card) return i;
-    }
-    return -1;
-  }
-
-  bool containsCard(PlayingCard card) => indexOfCard(card) != -1;
-
-  PlayingCard? cardAt(int index) {
-    if (index < 0 || index >= _cards.length) return null;
-    return _cards[index];
-  }
-
-  void flipTopCard() {
-    if (_cards.isNotEmpty && !_cards.last.faceUp) {
-      _cards.last.faceUp = true;
-      _version++;
-    }
-  }
-  
-  @override
-  String toString() => '${type.name}[$index]: ${_cards.map((c) => c.toString()).join(", ")}';
 }
 
 
@@ -4459,6 +4558,200 @@ extension VictoryPatternExtension on VictoryPattern {
 }
 
 
+// --- FILE: lib/features/game/models/pile.dart ---
+import 'card.dart';
+
+/// Types of piles that can exist in card games.
+///
+/// Core types used by most solitaire variants:
+/// - [stock] - Draw pile (face-down cards to draw from)
+/// - [waste] - Discard/talon pile (drawn cards, face-up)
+/// - [foundation] - Build piles (goal piles, usually by suit)
+/// - [tableau] - Playing area columns
+///
+/// Extended types for specialized games:
+/// - [cell] - Free cells (temporary single-card storage, e.g., FreeCell)
+/// - [reserve] - Reserve piles (restricted access piles)
+/// - [pyramid] - Pyramid structure cards (e.g., Pyramid solitaire)
+/// - [discard] - General discard pile (different from waste semantics)
+enum PileType {
+  stock,
+  waste,
+  foundation,
+  tableau,
+  // Extended types for future games
+  cell,      // FreeCell's free cells
+  reserve,   // Reserve piles (Canfield, etc.)
+  pyramid,   // Pyramid layout cards
+  discard,   // General discard (Golf, etc.)
+}
+
+class Pile {
+  final PileType type;
+  final int index;
+  final List<PlayingCard> _cards = [];
+
+  /// Version counter that increments on any mutation.
+  /// Used by Selector to detect when pile contents change.
+  int _version = 0;
+
+  Pile({required this.type, this.index = 0});
+
+  /// Unique ID for this pile, used for UI mapping
+  String get id => '${type.name}_$index';
+
+  /// Current version of this pile - changes on any mutation.
+  int get version => _version;
+
+  List<PlayingCard> get cards => List.unmodifiable(_cards);
+
+  bool get isEmpty => _cards.isEmpty;
+  int get length => _cards.length;
+
+  PlayingCard? get topCard => _cards.isEmpty ? null : _cards.last;
+
+  List<PlayingCard> get faceUpCards =>
+    _cards.where((c) => c.faceUp).toList();
+
+  int get faceUpCount => _cards.where((c) => c.faceUp).length;
+
+  void addCard(PlayingCard card) {
+    _cards.add(card);
+    _version++;
+  }
+
+  void addCards(List<PlayingCard> cards) {
+    _cards.addAll(cards);
+    _version++;
+  }
+
+  PlayingCard? removeTop() {
+    if (_cards.isEmpty) return null;
+    _version++;
+    return _cards.removeLast();
+  }
+
+  List<PlayingCard> removeFrom(int index) {
+    if (index < 0 || index >= _cards.length) return [];
+    final removed = _cards.sublist(index);
+    _cards.removeRange(index, _cards.length);
+    _version++;
+    return removed;
+  }
+
+  List<PlayingCard> removeAll() {
+    final all = List<PlayingCard>.from(_cards);
+    _cards.clear();
+    _version++;
+    return all;
+  }
+
+  void clear() {
+    _cards.clear();
+    _version++;
+  }
+
+  int indexOfCard(PlayingCard card) {
+    for (int i = 0; i < _cards.length; i++) {
+      if (_cards[i] == card) return i;
+    }
+    return -1;
+  }
+
+  bool containsCard(PlayingCard card) => indexOfCard(card) != -1;
+
+  PlayingCard? cardAt(int index) {
+    if (index < 0 || index >= _cards.length) return null;
+    return _cards[index];
+  }
+
+  void flipTopCard() {
+    if (_cards.isNotEmpty && !_cards.last.faceUp) {
+      _cards.last.faceUp = true;
+      _version++;
+    }
+  }
+  
+  @override
+  String toString() => '${type.name}[$index]: ${_cards.map((c) => c.toString()).join(", ")}';
+}
+
+
+// --- FILE: lib/features/game/models/move.dart ---
+import 'card.dart';
+import 'pile.dart';
+
+class Move {
+  final Pile fromPile;
+  final Pile toPile;
+  final List<PlayingCard> cards;
+  final bool flippedCard; // Did this move reveal a face-down card?
+  final bool drewFromStock; // Was this a stock draw?
+  final int stockRecycleCount; // Track stock recycles for undo
+  
+  Move({
+    required this.fromPile,
+    required this.toPile,
+    required this.cards,
+    this.flippedCard = false,
+    this.drewFromStock = false,
+    this.stockRecycleCount = 0,
+  });
+  
+  /// Get a human-readable description of this move
+  String get description {
+    // Handle stock draw/recycle
+    if (drewFromStock) {
+      if (toPile.type == PileType.stock) {
+        return 'Recycled waste to stock';
+      }
+      final count = cards.length;
+      return 'Drew ${count == 1 ? '1 card' : '$count cards'} from stock';
+    }
+
+    // Get card description
+    String cardDesc;
+    if (cards.length == 1) {
+      cardDesc = cards.first.toString();
+    } else {
+      cardDesc = '${cards.first.toString()} + ${cards.length - 1} more';
+    }
+
+    // Get pile names
+    final fromName = _getPileName(fromPile);
+    final toName = _getPileName(toPile);
+
+    return 'Moved $cardDesc from $fromName to $toName';
+  }
+
+  String _getPileName(Pile pile) {
+    switch (pile.type) {
+      case PileType.stock:
+        return 'Stock';
+      case PileType.waste:
+        return 'Waste';
+      case PileType.foundation:
+        return 'Foundation ${pile.index + 1}';
+      case PileType.tableau:
+        return 'Tableau ${pile.index + 1}';
+      case PileType.cell:
+        return 'Cell ${pile.index + 1}';
+      case PileType.reserve:
+        return 'Reserve ${pile.index + 1}';
+      case PileType.pyramid:
+        return 'Pyramid ${pile.index + 1}';
+      case PileType.discard:
+        return 'Discard';
+    }
+  }
+
+  @override
+  String toString() =>
+    'Move: ${cards.length} card(s) from ${fromPile.type.name}[${fromPile.index}] '
+    'to ${toPile.type.name}[${toPile.index}]${flippedCard ? " (flipped)" : ""}';
+}
+
+
 // --- FILE: lib/features/game/screens/game_chooser_screen.dart ---
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -4593,73 +4886,57 @@ class _GameOption extends StatelessWidget {
   const _GameOption({
     required this.gameType,
     required this.onSelected,
-    this.disabled = false,
   });
 
   final GameType gameType;
   final VoidCallback onSelected;
-  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: disabled ? 0.5 : 1.0,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.toolbarColor(context).withValues(alpha: 0.95),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.accentColor(context)
-                .withValues(alpha: disabled ? 0.3 : 0.5),
-            width: 2,
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.toolbarColor(context).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.accentColor(context).withValues(alpha: 0.5),
+          width: 2,
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: disabled ? null : onSelected,
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          gameType.displayName,
-                          style: AppTypography.subheading(context),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onSelected,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        gameType.displayName,
+                        style: AppTypography.subheading(context),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        gameType.description,
+                        style: AppTypography.body(context).copyWith(
+                          color: AppTheme.textColor(context)
+                              .withValues(alpha: 0.7),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          gameType.description,
-                          style: AppTypography.body(context).copyWith(
-                            color: AppTheme.textColor(context)
-                                .withValues(alpha: 0.7),
-                          ),
-                        ),
-                        if (disabled) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Coming Soon',
-                            style: AppTypography.caption(context).copyWith(
-                              color: AppTheme.accentColor(context),
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Icon(
-                    disabled ? Icons.lock : Icons.play_arrow,
-                    color: AppTheme.accentColor(context),
-                    size: 32,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 16),
+                Icon(
+                  Icons.play_arrow,
+                  color: AppTheme.accentColor(context),
+                  size: 32,
+                ),
+              ],
             ),
           ),
         ),
@@ -5526,41 +5803,6 @@ class TimerStateNotifier extends ChangeNotifier {
 }
 
 
-// --- FILE: lib/features/game/services/autocomplete_detector.dart ---
-import '../games/game_interface.dart';
-
-/// Service for detecting when a game is in a state that can be auto-completed.
-/// Auto-complete is possible when all cards that need to move are visible and
-/// no further draws are needed.
-class AutoCompleteDetector {
-  /// Determines if the game can be auto-completed.
-  ///
-  /// The game is auto-complete capable when:
-  /// - The stock pile is empty (no more cards to draw)
-  /// - The waste pile is empty (no cards left to play from waste)
-  /// - All cards in tableau piles are face up (no hidden cards)
-  ///
-  /// When these conditions are met, the player can simply click cards to move
-  /// them to foundations with zero risk.
-  static bool canAutoComplete(GameInterface game) {
-    // Stock must be empty
-    if (!(game.stockPile?.isEmpty ?? true)) return false;
-
-    // Waste must be empty
-    if (!(game.wastePile?.isEmpty ?? true)) return false;
-
-    // All tableau cards must be face up
-    for (final pile in game.tableauPiles) {
-      for (final card in pile.cards) {
-        if (!card.faceUp) return false;
-      }
-    }
-
-    return true;
-  }
-}
-
-
 // --- FILE: lib/features/game/services/audio_service.dart ---
 import 'package:audioplayers/audioplayers.dart';
 import '../../settings/services/settings_provider.dart';
@@ -5630,6 +5872,111 @@ class AudioService {
   void dispose() {
     _sfxPlayer.dispose();
     _musicPlayer.dispose();
+  }
+}
+
+
+// --- FILE: lib/features/game/services/game_timer_service.dart ---
+import 'dart:async';
+
+/// Callback type for inactivity timeout
+typedef InactivityCallback = void Function();
+
+/// GameTimerService manages inactivity timing for auto-hints.
+///
+/// This service encapsulates the inactivity detection logic,
+/// decoupling it from the GameController for better separation of concerns.
+class GameTimerService {
+  /// Default inactivity threshold before showing a hint
+  static const Duration defaultInactivityThreshold = Duration(seconds: 8);
+
+  Timer? _inactivityTimer;
+  final Duration _inactivityThreshold;
+  InactivityCallback? _onInactivityTimeout;
+  bool _isDisposed = false;
+  bool _isEnabled = false;
+
+  /// Creates a GameTimerService with an optional custom threshold.
+  GameTimerService({
+    Duration? inactivityThreshold,
+  }) : _inactivityThreshold = inactivityThreshold ?? defaultInactivityThreshold;
+
+  /// Sets the callback to invoke when inactivity timeout is reached.
+  void setInactivityCallback(InactivityCallback callback) {
+    _onInactivityTimeout = callback;
+  }
+
+  /// Enables inactivity tracking (call when game starts)
+  void enable() {
+    _isEnabled = true;
+  }
+
+  /// Disables inactivity tracking (call when game ends/pauses)
+  void disable() {
+    _isEnabled = false;
+    stop();
+  }
+
+  /// Resets the inactivity timer.
+  ///
+  /// Call this on any user interaction to restart the countdown.
+  void resetInactivityTimer() {
+    if (_isDisposed) return;
+
+    _inactivityTimer?.cancel();
+    _inactivityTimer = null;
+
+    if (_isEnabled) {
+      _inactivityTimer = Timer(_inactivityThreshold, _handleTimeout);
+    }
+  }
+
+  void _handleTimeout() {
+    if (_isDisposed || !_isEnabled) return;
+    _onInactivityTimeout?.call();
+    // Restart timer so hint shows again if still inactive
+    resetInactivityTimer();
+  }
+
+  /// Stops the inactivity timer without disabling the service.
+  void stop() {
+    _inactivityTimer?.cancel();
+    _inactivityTimer = null;
+  }
+
+  /// Disposes of the service and cancels any pending timers.
+  void dispose() {
+    _isDisposed = true;
+    _inactivityTimer?.cancel();
+    _inactivityTimer = null;
+    _onInactivityTimeout = null;
+  }
+}
+
+
+// --- FILE: lib/features/game/services/autocomplete_detector.dart ---
+import '../games/game_interface.dart';
+
+/// Service for detecting when a game is in a state that can be auto-completed.
+///
+/// This service is now game-agnostic - it delegates the actual detection logic
+/// to the game's [GameInterface.canAutoComplete] method.
+///
+/// The default implementation in [GameInterface] checks:
+/// - Stock pile is empty (no more cards to draw)
+/// - Waste pile is empty (no cards left to play from waste)
+/// - All cards in tableau piles are face up (no hidden cards)
+///
+/// Games can override [GameInterface.canAutoComplete] for custom logic:
+/// - Spider returns false (no auto-complete support)
+/// - Pyramid might check if all exposed cards can be paired
+class AutoCompleteDetector {
+  /// Determines if the game can be auto-completed.
+  ///
+  /// Delegates to [GameInterface.canAutoComplete] for game-specific logic.
+  /// This allows each game type to define its own auto-complete conditions.
+  static bool canAutoComplete(GameInterface game) {
+    return game.canAutoComplete();
   }
 }
 
@@ -6271,17 +6618,13 @@ class GameController extends ChangeNotifier {
     _inactivityService.resetInactivityTimer();
     clearHint();
 
-    // Only allow double-tap on top card of pile (or waste)
-    if (pile.topCard != card && pile.type != PileType.tableau) return false;
-
-    // For tableau, only allow if it's the top card
-    if (pile.type == PileType.tableau && pile.topCard != card) return false;
+    // Delegate auto-move validation to the game (game-agnostic)
+    if (!_game.canAutoMove(pile, card)) return false;
 
     _recordGameStart();
 
-    // Get cards to move (for tableau, may be a stack)
-    final cardIndex = pile.indexOfCard(card);
-    final cardsToMove = cardIndex >= 0 ? pile.cards.sublist(cardIndex) : [card];
+    // Get cards to move - delegate to game for proper selection
+    final cardsToMove = _game.getAutoMoveCards(pile, card);
 
     // Ask the game for the best destination
     final destinationPile =
@@ -6349,17 +6692,13 @@ class GameController extends ChangeNotifier {
     _inactivityService.resetInactivityTimer();
     clearHint();
 
-    // Only allow double-tap on top card of pile (or waste)
-    if (pile.topCard != card && pile.type != PileType.tableau) return false;
-
-    // For tableau, only allow if it's the top card
-    if (pile.type == PileType.tableau && pile.topCard != card) return false;
+    // Delegate auto-move validation to the game (game-agnostic)
+    if (!_game.canAutoMove(pile, card)) return false;
 
     _recordGameStart();
 
-    // Get cards to move (for tableau, may be a stack)
-    final cardIndex = pile.indexOfCard(card);
-    final cardsToMove = cardIndex >= 0 ? pile.cards.sublist(cardIndex) : [card];
+    // Get cards to move - delegate to game for proper selection
+    final cardsToMove = _game.getAutoMoveCards(pile, card);
 
     // Ask the game for the best destination
     final destinationPile =
@@ -6472,9 +6811,12 @@ class GameController extends ChangeNotifier {
       for (final foundation in _game.foundationPiles) {
         cardsInFoundations += foundation.length;
       }
-      // Calculate Vegas score: -52 to start + $5 per card
-      final vegasScore = ScoringMode.vegas.vegasGameCost +
-          (cardsInFoundations * ScoringMode.vegas.vegasCardValue);
+      // Calculate Vegas score using game's deck size (game-agnostic)
+      // Cost scales with deck size: -$1 per card in deck
+      final deckSize = _game.deckSize;
+      final vegasGameCost = -deckSize; // -52 for Klondike, -104 for Spider
+      final vegasScore =
+          vegasGameCost + (cardsInFoundations * ScoringMode.vegas.vegasCardValue);
       statisticsService.recordVegasScore(vegasScore);
     }
 
@@ -6492,11 +6834,15 @@ class GameController extends ChangeNotifier {
       _eventController.add(const GameEvent(GameEventType.gameWon));
     }
 
-    // Record Vegas scoring if in Vegas mode (winning = all 52 cards in foundations)
+    // Record Vegas scoring if in Vegas mode (winning = all cards in foundations)
     if (settingsProvider.scoringMode == ScoringMode.vegas) {
-      // Vegas win score: -52 + (52 * 5) = 208
-      final vegasScore = ScoringMode.vegas.vegasGameCost +
-          (52 * ScoringMode.vegas.vegasCardValue);
+      // Vegas win score uses game's deck size (game-agnostic)
+      // For Klondike: -52 + (52 * 5) = 208
+      // For Spider: -104 + (104 * 5) = 416
+      final deckSize = _game.deckSize;
+      final vegasGameCost = -deckSize;
+      final vegasScore =
+          vegasGameCost + (deckSize * ScoringMode.vegas.vegasCardValue);
       statisticsService.recordVegasScore(vegasScore);
     }
 
@@ -6600,26 +6946,7 @@ class GameController extends ChangeNotifier {
 
   /// Shows fast hint using greedy heuristic
   void _showFastHint() {
-    // Check for stock draw/recycle (game-agnostic check via getPile)
-    final stockPile = _game.getPile(PileType.stock);
-    final wastePile = _game.getPile(PileType.waste);
-
-    if (stockPile != null &&
-        stockPile.isEmpty &&
-        wastePile != null &&
-        !wastePile.isEmpty) {
-      // Recycle suggestion - hint source and destination are both stock
-      hintState.setHint(
-        sourcePile: stockPile,
-        cards: null,
-        destinationPile: stockPile,
-      );
-      if (!_eventController.isClosed) {
-        _eventController.add(const GameEvent(GameEventType.hintUsed));
-      }
-      return;
-    }
-
+    // First try to get a regular move hint from the game
     final hint = _game.getHint();
     if (hint != null) {
       hintState.setHint(
@@ -6639,25 +6966,33 @@ class GameController extends ChangeNotifier {
           clearHint();
         }
       });
-    } else {
-      // No moves available, try suggesting drawing from stock
-      if (stockPile != null && !stockPile.isEmpty) {
+      return;
+    }
+
+    // No card moves available - try stock hint (game-agnostic delegation)
+    if (_game.supportsStockHints) {
+      final stockHint = _game.getStockHint();
+      if (stockHint != null) {
         hintState.setHint(
-          sourcePile: stockPile,
+          sourcePile: stockHint.source,
           cards: null,
-          destinationPile: stockPile,
+          destinationPile: stockHint.destination,
         );
+        if (!_eventController.isClosed) {
+          _eventController.add(const GameEvent(GameEventType.hintUsed));
+        }
         Future.delayed(const Duration(seconds: 2), () {
-          if (!_isDisposed && hintState.sourcePile == stockPile) {
+          if (!_isDisposed && hintState.sourcePile == stockHint.source) {
             clearHint();
           }
         });
-      } else {
-        // Absolutely no moves
-        if (!_eventController.isClosed) {
-          _eventController.add(const GameEvent(GameEventType.invalidMove));
-        }
+        return;
       }
+    }
+
+    // Absolutely no moves available
+    if (!_eventController.isClosed) {
+      _eventController.add(const GameEvent(GameEventType.invalidMove));
     }
   }
 
@@ -6718,13 +7053,11 @@ class GameController extends ChangeNotifier {
 
 // --- FILE: lib/features/game/services/solver_service.dart ---
 import 'dart:async';
-import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import '../games/game_interface.dart';
 import '../models/card.dart';
 import '../models/pile.dart';
-import '../ai/solver_engine.dart';
-import '../ai/games/klondike_solver_state.dart';
+import '../ai/solver_strategy.dart';
 import 'package:solitude/features/settings/models/hint_mode.dart';
 import 'hint_state_notifier.dart';
 
@@ -6740,14 +7073,14 @@ typedef PileTapper = void Function(Pile pile);
 /// - Smart hints using cached winning paths
 /// - Auto-play of solver solutions
 ///
-/// This service decouples solver logic from the GameController,
-/// following the Single Responsibility Principle.
+/// This service is now game-agnostic through the SolverStrategyFactory.
+/// Each game type that supports solving has its own SolverStrategy.
 class SolverService {
   final GameInterface _game;
   final HintStateNotifier _hintState;
 
-  // Cached winning path for smart hints
-  List<KlondikeMove>? _cachedWinningPath;
+  // Cached winning path for smart hints (typed as dynamic list for game-agnostic storage)
+  List<dynamic>? _cachedWinningPath;
 
   // Debounce timer for background solving
   Timer? _solveDebounceTimer;
@@ -6770,97 +7103,47 @@ class SolverService {
   }
 
   /// Returns the cached winning path (for debugging/testing)
-  List<KlondikeMove>? get cachedWinningPath => _cachedWinningPath;
+  List<dynamic>? get cachedWinningPath => _cachedWinningPath;
 
-  /// Solves the current game using the AI solver in a background isolate.
-  /// Returns null if the game doesn't support solving (e.g., Spider).
-  Future<List<KlondikeMove>?> solveGame() async {
+  /// Solves the current game using the appropriate solver strategy.
+  /// Returns null if the game doesn't support solving.
+  Future<List<dynamic>?> solveGame() async {
     if (_isDisposed) return null;
 
-    // Get solver state from the game interface
-    final solverState = _game.getSolverState();
+    // Get the appropriate solver strategy for this game type
+    final strategy = SolverStrategyFactory.getStrategy(_game.gameType);
+    if (strategy == null) return null;
 
-    // If the game doesn't support solving, return null
-    if (solverState == null) return null;
-
-    // Currently only KlondikeSolverState is supported
-    if (solverState is! KlondikeSolverState) return null;
-
-    // Run the solver in a background isolate
-    return await Isolate.run(() async {
-      final engine = SolverEngine();
-      return await engine.solve(solverState);
-    });
+    return await strategy.solve(_game);
   }
 
   /// Executes a single solver move using the provided callbacks.
-  ///
-  /// [tryMove] - Callback to attempt a card move
-  /// [tapPile] - Callback to tap a pile (for stock draws)
   Future<void> executeSolverMove(
-    KlondikeMove move, {
+    dynamic move, {
     required MoveExecutor tryMove,
     required PileTapper tapPile,
   }) async {
     if (_isDisposed) return;
 
+    final strategy = SolverStrategyFactory.getStrategy(_game.gameType);
+    if (strategy == null) return;
+
     try {
-      switch (move.type) {
-        case KlondikeMoveType.tableauToTableau:
-          final fromPile = _game.tableauPiles[move.fromPile];
-          final toPile = _game.tableauPiles[move.toPile];
-          if (fromPile.isEmpty) throw Exception('Source tableau pile is empty');
-          final card = fromPile.topCard!;
-          tryMove(fromPile, toPile, [card]);
-          break;
-
-        case KlondikeMoveType.tableauToFoundation:
-          final fromPile = _game.tableauPiles[move.fromPile];
-          final toPile = _game.foundationPiles[move.toPile];
-          if (fromPile.isEmpty) throw Exception('Source tableau pile is empty');
-          final card = fromPile.topCard!;
-          tryMove(fromPile, toPile, [card]);
-          break;
-
-        case KlondikeMoveType.wasteToTableau:
-          final fromPile = _game.wastePile!;
-          final toPile = _game.tableauPiles[move.toPile];
-          if (fromPile.isEmpty) throw Exception('Waste pile is empty');
-          final card = fromPile.topCard!;
-          tryMove(fromPile, toPile, [card]);
-          break;
-
-        case KlondikeMoveType.wasteToFoundation:
-          final fromPile = _game.wastePile!;
-          final toPile = _game.foundationPiles[move.toPile];
-          if (fromPile.isEmpty) throw Exception('Waste pile is empty');
-          final card = fromPile.topCard!;
-          tryMove(fromPile, toPile, [card]);
-          break;
-
-        case KlondikeMoveType.drawCard:
-          if (_game.stockPile != null && !_game.stockPile!.isEmpty) {
-            tapPile(_game.stockPile!);
-          }
-          break;
-
-        case KlondikeMoveType.flipTableauCard:
-          // Face-down tracking not implemented, skip
-          break;
-      }
+      // Wrap the callbacks to match SolverStrategy's expected types
+      strategy.executeMove(
+        _game,
+        move,
+        tryMove: (from, to, cards) => tryMove(from, to, cards),
+        tapPile: (pile) => tapPile(pile),
+      );
     } catch (e) {
-      // Gracefully handle execution errors (sync issues)
       debugPrint('Solver move execution failed: $e');
     }
   }
 
   /// Auto-plays a sequence of solver moves with visual pacing.
-  ///
-  /// [isPlaying] - Callback to check if we should continue playing
-  /// [tryMove] - Callback to attempt a card move
-  /// [tapPile] - Callback to tap a pile (for stock draws)
   Future<void> autoPlaySolution(
-    List<KlondikeMove> moves, {
+    List<dynamic> moves, {
     required bool Function() isPlaying,
     required MoveExecutor tryMove,
     required PileTapper tapPile,
@@ -6895,62 +7178,28 @@ class SolverService {
   /// Shows a smart hint from the cached solver path, or falls back to fast hints.
   ///
   /// Returns true if a smart hint was shown, false otherwise.
-  /// When false is returned, the caller should fall back to fast hints.
   bool showSmartHint({
     required void Function() onHintUsed,
     required void Function() clearHintAfterDelay,
   }) {
-    // Check hint mode setting
-    if (_hintMode != HintMode.smart) {
-      return false;
-    }
+    if (_hintMode != HintMode.smart) return false;
+
+    // Get the solver strategy for this game
+    final strategy = SolverStrategyFactory.getStrategy(_game.gameType);
+    if (strategy == null) return false;
 
     // Check smart hint from solver cache
     if (_cachedWinningPath != null && _cachedWinningPath!.isNotEmpty) {
       final firstMove = _cachedWinningPath!.first;
-      Pile? sourcePile, destinationPile;
-      List<PlayingCard>? cards;
+      final hintData = strategy.getHintFromMove(_game, firstMove);
 
-      switch (firstMove.type) {
-        case KlondikeMoveType.tableauToTableau:
-          sourcePile = _game.tableauPiles[firstMove.fromPile];
-          destinationPile = _game.tableauPiles[firstMove.toPile];
-          cards = !sourcePile.isEmpty ? [sourcePile.topCard!] : null;
-          break;
-        case KlondikeMoveType.tableauToFoundation:
-          sourcePile = _game.tableauPiles[firstMove.fromPile];
-          destinationPile = _game.foundationPiles[firstMove.toPile];
-          cards = !sourcePile.isEmpty ? [sourcePile.topCard!] : null;
-          break;
-        case KlondikeMoveType.wasteToTableau:
-          sourcePile = _game.wastePile;
-          destinationPile = _game.tableauPiles[firstMove.toPile];
-          cards = sourcePile != null && !sourcePile.isEmpty
-              ? [sourcePile.topCard!]
-              : null;
-          break;
-        case KlondikeMoveType.wasteToFoundation:
-          sourcePile = _game.wastePile;
-          destinationPile = _game.foundationPiles[firstMove.toPile];
-          cards = sourcePile != null && !sourcePile.isEmpty
-              ? [sourcePile.topCard!]
-              : null;
-          break;
-        case KlondikeMoveType.drawCard:
-          sourcePile = _game.stockPile;
-          destinationPile = _game.stockPile;
-          cards = null;
-          break;
-        case KlondikeMoveType.flipTableauCard:
-          // Skip flip hints
-          break;
-      }
-
-      if (sourcePile != null && destinationPile != null) {
+      if (hintData != null &&
+          hintData.sourcePile != null &&
+          hintData.destinationPile != null) {
         _hintState.setHint(
-          sourcePile: sourcePile,
-          cards: cards,
-          destinationPile: destinationPile,
+          sourcePile: hintData.sourcePile!,
+          cards: hintData.cards,
+          destinationPile: hintData.destinationPile!,
         );
         onHintUsed();
         clearHintAfterDelay();
@@ -6958,19 +7207,17 @@ class SolverService {
       }
     }
 
-    // No smart hint available
     return false;
   }
 
   /// Invalidates cache and starts debounce timer for background solving.
-  ///
-  /// This should be called after any move that changes the game state.
   void invalidateCacheAndDebounceSolve() {
     _cachedWinningPath = null;
     _solveDebounceTimer?.cancel();
 
     // Only run solver if smart hint mode is enabled and game supports solving
-    if (_hintMode == HintMode.smart && _game.getSolverState() != null) {
+    if (_hintMode == HintMode.smart &&
+        SolverStrategyFactory.supportsSolving(_game.gameType)) {
       _solveDebounceTimer = Timer(
         const Duration(milliseconds: 500),
         _backgroundSolve,
@@ -6997,84 +7244,6 @@ class SolverService {
   void dispose() {
     _isDisposed = true;
     _solveDebounceTimer?.cancel();
-  }
-}
-
-
-// --- FILE: lib/features/game/services/game_timer_service.dart ---
-import 'dart:async';
-
-/// Callback type for inactivity timeout
-typedef InactivityCallback = void Function();
-
-/// GameTimerService manages inactivity timing for auto-hints.
-///
-/// This service encapsulates the inactivity detection logic,
-/// decoupling it from the GameController for better separation of concerns.
-class GameTimerService {
-  /// Default inactivity threshold before showing a hint
-  static const Duration defaultInactivityThreshold = Duration(seconds: 8);
-
-  Timer? _inactivityTimer;
-  final Duration _inactivityThreshold;
-  InactivityCallback? _onInactivityTimeout;
-  bool _isDisposed = false;
-  bool _isEnabled = false;
-
-  /// Creates a GameTimerService with an optional custom threshold.
-  GameTimerService({
-    Duration? inactivityThreshold,
-  }) : _inactivityThreshold = inactivityThreshold ?? defaultInactivityThreshold;
-
-  /// Sets the callback to invoke when inactivity timeout is reached.
-  void setInactivityCallback(InactivityCallback callback) {
-    _onInactivityTimeout = callback;
-  }
-
-  /// Enables inactivity tracking (call when game starts)
-  void enable() {
-    _isEnabled = true;
-  }
-
-  /// Disables inactivity tracking (call when game ends/pauses)
-  void disable() {
-    _isEnabled = false;
-    stop();
-  }
-
-  /// Resets the inactivity timer.
-  ///
-  /// Call this on any user interaction to restart the countdown.
-  void resetInactivityTimer() {
-    if (_isDisposed) return;
-
-    _inactivityTimer?.cancel();
-    _inactivityTimer = null;
-
-    if (_isEnabled) {
-      _inactivityTimer = Timer(_inactivityThreshold, _handleTimeout);
-    }
-  }
-
-  void _handleTimeout() {
-    if (_isDisposed || !_isEnabled) return;
-    _onInactivityTimeout?.call();
-    // Restart timer so hint shows again if still inactive
-    resetInactivityTimer();
-  }
-
-  /// Stops the inactivity timer without disabling the service.
-  void stop() {
-    _inactivityTimer?.cancel();
-    _inactivityTimer = null;
-  }
-
-  /// Disposes of the service and cancels any pending timers.
-  void dispose() {
-    _isDisposed = true;
-    _inactivityTimer?.cancel();
-    _inactivityTimer = null;
-    _onInactivityTimeout = null;
   }
 }
 
@@ -9819,13 +9988,28 @@ class VictoryOverlay extends StatelessWidget {
 // --- FILE: lib/features/game/widgets/game_board.dart ---
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/pile_render_data.dart';
+import '../layouts/layouts.dart';
 import '../services/game_controller.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
-import 'pile_widget.dart';
-import 'card_widget.dart';
-import 'game_layout_delegate.dart';
 
+/// The main game board widget that renders the playing surface.
+///
+/// This widget is game-agnostic - it delegates ALL layout decisions to
+/// the appropriate [LayoutStrategy] based on the current game type.
+///
+/// Architecture (Option B - Raw Constraints):
+/// - GameBoard handles only the felt background decoration
+/// - Each strategy receives raw [BoxConstraints] and has full autonomy over:
+///   - Card size calculations
+///   - Spacing and positioning
+///   - Widget structure (Column, Row, Stack, etc.)
+/// - Grid strategies use [GridLayoutMixin] for common calculations
+/// - Non-grid strategies (Pyramid, TriPeaks) calculate their own metrics
+///
+/// This design allows:
+/// - Pyramid to calculate only what Pyramid needs
+/// - Spider to use 10 columns without special-casing in GameBoard
+/// - Future games to implement completely custom layouts
 class GameBoard extends StatefulWidget {
   const GameBoard({super.key});
 
@@ -9834,18 +10018,19 @@ class GameBoard extends StatefulWidget {
 }
 
 class _GameBoardState extends State<GameBoard> {
-  // Cache for layout calculation memoization
-  BoxConstraints? _lastConstraints;
-  BoardLayoutData? _cachedLayout;
+  // Cache the layout strategy to avoid recreating on every build
+  LayoutStrategy? _cachedStrategy;
+  Object? _lastGameType;
 
-  // Get the appropriate layout delegate for the current game
-  GameLayoutDelegate _getLayoutDelegate(GameController controller) {
-    return createLayoutDelegate(controller);
-  }
-
-  @override
-  void initState() {
-    super.initState();
+  /// Get the appropriate layout strategy for the current game.
+  /// Caches the strategy and only recreates when game type changes.
+  LayoutStrategy _getLayoutStrategy(GameController controller) {
+    final currentGameType = controller.game.gameType;
+    if (_cachedStrategy == null || _lastGameType != currentGameType) {
+      _cachedStrategy = LayoutStrategyFactory.create(controller);
+      _lastGameType = currentGameType;
+    }
+    return _cachedStrategy!;
   }
 
   @override
@@ -9854,33 +10039,12 @@ class _GameBoardState extends State<GameBoard> {
       builder: (context, controller, _) {
         return LayoutBuilder(
           builder: (context, constraints) {
-            final layout = _calculateLayout(constraints, controller);
+            final strategy = _getLayoutStrategy(controller);
+
             return Container(
               decoration: _buildFeltBackground(context),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  layout.padding + 24, // Left padding
-                  layout.padding,
-                  layout.padding + 24, // Right padding (equal to left)
-                  layout.padding,
-                ),
-                child: Column(
-                  children: [
-                    // Top row: Delegated to strategy (listen to settings changes for leftHandMode)
-                    Consumer<SettingsProvider>(
-                      builder: (context, settings, _) {
-                        return _getLayoutDelegate(controller)
-                            .buildTopRow(context, controller, layout);
-                      },
-                    ),
-                    SizedBox(height: layout.rowSpacing),
-                    // Tableau - uses Selectors for granular rebuilds
-                    Expanded(
-                      child: _buildTableau(context, controller, layout),
-                    ),
-                  ],
-                ),
-              ),
+              // Strategy owns ALL layout decisions - just pass raw constraints
+              child: strategy.buildLayout(context, controller, constraints),
             );
           },
         );
@@ -9892,7 +10056,6 @@ class _GameBoardState extends State<GameBoard> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final settings = Provider.of<SettingsProvider>(context);
     final theme = settings.currentTheme;
-    debugPrint('Building felt background with theme: ${theme.name}');
 
     // Get theme-specific colors
     final baseColor = theme.getTableColor(Theme.of(context).brightness);
@@ -9916,460 +10079,6 @@ class _GameBoardState extends State<GameBoard> {
         ],
         stops: const [0.0, 0.5, 1.0],
       ),
-    );
-  }
-
-  Widget _buildTableau(
-      BuildContext context, GameController controller, BoardLayoutData layout) {
-    // Only build as many piles as the controller has, up to column count
-    // This allows the layout to adapt if the game state doesn't match the delegate's expectation
-    // (though in a correct implementation they should match)
-    final tableauCount = controller.tableau.length;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Tableau piles - each wrapped in Selector for granular rebuilds
-        for (int i = 0; i < tableauCount; i++) ...[
-          SizedBox(
-            width: layout.cardWidth,
-            child: _TableauPileSelector(
-              pileIndex: i,
-              cardWidth: layout.cardWidth,
-              stackOffset: layout.stackOffset,
-            ),
-          ),
-          if (i < tableauCount - 1) SizedBox(width: layout.pileSpacing),
-        ],
-      ],
-    );
-  }
-
-  BoardLayoutData _calculateLayout(
-      BoxConstraints constraints, GameController controller) {
-    // Return cached layout if constraints haven't changed
-    if (_lastConstraints == constraints && _cachedLayout != null) {
-      return _cachedLayout!;
-    }
-
-    // Store new constraints
-    _lastConstraints = constraints;
-
-    const double minCardWidth = 50.0;
-    const double maxCardWidth = 150.0;
-    const double padding = 8.0;
-
-    // Available width for cards (accounting for extra left/right padding)
-    final availableWidth = constraints.maxWidth - ((padding + 24) * 2);
-
-    // Dynamic column count from delegate
-    final int columns = _getLayoutDelegate(controller).columnCount;
-    final int gaps = columns - 1;
-
-    // availableWidth = columns * cardWidth + gaps * spacing
-    // spacing = 0.15 * cardWidth
-    // availableWidth = columns * cardWidth + gaps * 0.15 * cardWidth
-    // availableWidth = cardWidth * (columns + gaps * 0.15)
-
-    final denominator = columns + (gaps * 0.15);
-    final cardWidth =
-        (availableWidth / denominator).clamp(minCardWidth, maxCardWidth);
-    final pileSpacing = cardWidth * 0.15;
-
-    final cardHeight = cardWidth / CardWidget.aspectRatio;
-
-    // Calculate stack offset based on available vertical space
-    final topRowHeight = cardHeight;
-    // Increased from 0.02 to 0.04 for more space between top row and tableau
-    final rowSpacing = constraints.maxHeight * 0.04;
-    final availableTableauHeight =
-        constraints.maxHeight - topRowHeight - rowSpacing - (padding * 2);
-
-    // Max cards in a tableau pile after dealing: 7 + (remaining deck if all went to one pile)
-    // Realistically, aim for ~20 cards visible
-    const maxVisibleCards = 20;
-    final stackOffset = (availableTableauHeight - cardHeight) / maxVisibleCards;
-    final clampedStackOffset =
-        stackOffset.clamp(cardHeight * 0.15, cardHeight * 0.28);
-
-    // Cache the computed layout
-    _cachedLayout = BoardLayoutData(
-      cardWidth: cardWidth,
-      cardHeight: cardHeight,
-      pileSpacing: pileSpacing,
-      stackOffset: clampedStackOffset,
-      rowSpacing: rowSpacing,
-      padding: padding,
-    );
-
-    return _cachedLayout!;
-  }
-}
-
-/// Selector widget that only rebuilds a TableauPileWidget when its specific data changes.
-/// This prevents the entire board from rebuilding when unrelated state changes.
-class _TableauPileSelector extends StatelessWidget {
-  final int pileIndex;
-  final double cardWidth;
-  final double stackOffset;
-
-  const _TableauPileSelector({
-    required this.pileIndex,
-    required this.cardWidth,
-    required this.stackOffset,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Selector<GameController, TableauPileRenderData>(
-      selector: (_, controller) {
-        final pile = controller.tableau[pileIndex];
-        return TableauPileRenderData(
-          pile: pile,
-          pileVersion: pile.version,
-          isHintDestination: controller.hintDestinationPile == pile,
-          isHintSource: controller.hintSourcePile == pile,
-          isFocused: controller.focusedPile == pile,
-          selectedCards: controller.selectedCards,
-          selectedPile: controller.selectedPile,
-          hintCards: controller.hintCards,
-          animatingCard: controller.animatingCard,
-        );
-      },
-      builder: (context, data, _) {
-        final controller = Provider.of<GameController>(context, listen: false);
-        return Container(
-          key: controller.boardLayout.getKeyForPileId(data.pile.id),
-          child: TableauPileWidget(
-            pile: data.pile,
-            cardWidth: cardWidth,
-            stackOffset: stackOffset,
-            controller: controller,
-          ),
-        );
-      },
-    );
-  }
-}
-
-
-// --- FILE: lib/features/game/widgets/game_layout_delegate.dart ---
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../models/card.dart';
-import 'package:solitude/features/settings/models/difficulty.dart';
-import '../models/pile_render_data.dart';
-import '../services/game_controller.dart';
-import 'package:solitude/features/settings/services/settings_provider.dart';
-import 'pile_widget.dart';
-import '../games/game_interface.dart';
-
-class BoardLayoutData {
-  final double cardWidth;
-  final double cardHeight;
-  final double pileSpacing;
-  final double stackOffset;
-  final double rowSpacing;
-  final double padding;
-
-  const BoardLayoutData({
-    required this.cardWidth,
-    required this.cardHeight,
-    required this.pileSpacing,
-    required this.stackOffset,
-    required this.rowSpacing,
-    required this.padding,
-  });
-}
-
-abstract class GameLayoutDelegate {
-  int get columnCount;
-  Widget buildTopRow(
-      BuildContext context, GameController controller, BoardLayoutData layout);
-}
-
-/// Klondike layout delegate - handles 7-column layout with stock, waste, and foundations
-class KlondikeLayoutDelegate implements GameLayoutDelegate {
-  final LayoutConfig config;
-
-  const KlondikeLayoutDelegate(this.config);
-
-  @override
-  int get columnCount => config.tableauCount;
-
-  @override
-  Widget buildTopRow(
-      BuildContext context, GameController controller, BoardLayoutData layout) {
-    final stockPile = controller.stock;
-    final wastePile = controller.waste;
-    final settings = Provider.of<SettingsProvider>(context, listen: false);
-    final isLeftHandMode = settings.leftHandMode;
-
-    // Strict 7-column alignment for Klondike
-    final columns = <Widget>[];
-
-    if (isLeftHandMode) {
-      // Left hand mode: F0 | F1 | F2 | F3 | Empty | Stock | Waste
-      // Foundations in columns 0-3
-      for (int i = 0; i < 4; i++) {
-        if (i < controller.foundations.length) {
-          columns.add(SizedBox(
-            width: layout.cardWidth,
-            child: _FoundationPileSelector(
-              foundationIndex: i,
-              cardWidth: layout.cardWidth,
-            ),
-          ));
-        } else {
-          columns.add(SizedBox(width: layout.cardWidth));
-        }
-        columns.add(SizedBox(width: layout.pileSpacing));
-      }
-      // Empty column 4
-      columns.add(SizedBox(width: layout.cardWidth));
-      columns.add(SizedBox(width: layout.pileSpacing));
-      // Stock in column 5
-      if (config.hasStock && stockPile != null) {
-        columns.add(SizedBox(
-          width: layout.cardWidth,
-          child: _StockPileSelector(cardWidth: layout.cardWidth),
-        ));
-      } else {
-        columns.add(SizedBox(width: layout.cardWidth));
-      }
-      columns.add(SizedBox(width: layout.pileSpacing));
-      // Waste in column 6
-      if (config.hasWaste && wastePile != null) {
-        columns.add(SizedBox(
-          width: layout.cardWidth,
-          child: _WastePileSelector(
-            cardWidth: layout.cardWidth,
-            spreadCount: settings.difficulty.drawMode.drawCount,
-          ),
-        ));
-      } else {
-        columns.add(SizedBox(width: layout.cardWidth));
-      }
-    } else {
-      // Normal mode: Stock | Waste | Empty | F0 | F1 | F2 | F3
-      // Stock in column 0
-      if (config.hasStock && stockPile != null) {
-        columns.add(SizedBox(
-          width: layout.cardWidth,
-          child: _StockPileSelector(cardWidth: layout.cardWidth),
-        ));
-      } else {
-        columns.add(SizedBox(width: layout.cardWidth));
-      }
-      columns.add(SizedBox(width: layout.pileSpacing));
-      // Waste in column 1
-      if (config.hasWaste && wastePile != null) {
-        columns.add(SizedBox(
-          width: layout.cardWidth,
-          child: _WastePileSelector(
-            cardWidth: layout.cardWidth,
-            spreadCount: settings.difficulty.drawMode.drawCount,
-          ),
-        ));
-      } else {
-        columns.add(SizedBox(width: layout.cardWidth));
-      }
-      columns.add(SizedBox(width: layout.pileSpacing));
-      // Empty column 2
-      columns.add(SizedBox(width: layout.cardWidth));
-      columns.add(SizedBox(width: layout.pileSpacing));
-      // Foundations in columns 3-6
-      for (int i = 0; i < 4; i++) {
-        if (i < controller.foundations.length) {
-          columns.add(SizedBox(
-            width: layout.cardWidth,
-            child: _FoundationPileSelector(
-              foundationIndex: i,
-              cardWidth: layout.cardWidth,
-            ),
-          ));
-        } else {
-          columns.add(SizedBox(width: layout.cardWidth));
-        }
-        if (i < 3) columns.add(SizedBox(width: layout.pileSpacing));
-      }
-    }
-
-    return SizedBox(
-      height: layout.cardHeight,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: columns,
-      ),
-    );
-  }
-}
-
-/// Spider layout delegate - handles 10-column layout with only stock (no waste or visible foundations)
-class SpiderLayoutDelegate implements GameLayoutDelegate {
-  final LayoutConfig config;
-
-  const SpiderLayoutDelegate(this.config);
-
-  @override
-  int get columnCount => config.tableauCount;
-
-  @override
-  Widget buildTopRow(
-      BuildContext context, GameController controller, BoardLayoutData layout) {
-    // Spider has stock on the left, rest of row filled with expanded container
-    final stockPile = controller.stock;
-
-    return SizedBox(
-      height: layout.cardHeight,
-      child: Row(
-        children: [
-          // Stock pile in column 0
-          if (config.hasStock && stockPile != null)
-            SizedBox(
-              width: layout.cardWidth,
-              child: _StockPileSelector(cardWidth: layout.cardWidth),
-            ),
-          // Fill rest of row
-          Expanded(child: Container()),
-        ],
-      ),
-    );
-  }
-}
-
-/// Factory method to create the appropriate layout delegate for a game type
-GameLayoutDelegate createLayoutDelegate(GameController controller) {
-  final config = controller.game.layoutConfig;
-
-  // Check if it's a Klondike game (7 columns, 4 foundations, has waste)
-  if (config.tableauCount == 7 &&
-      config.foundationCount == 4 &&
-      config.hasWaste) {
-    return KlondikeLayoutDelegate(config);
-  }
-
-  // Check if it's a Spider game (10 columns, 8 foundations, no waste)
-  if (config.tableauCount == 10 &&
-      config.foundationCount == 8 &&
-      !config.hasWaste) {
-    return SpiderLayoutDelegate(config);
-  }
-
-  // Fallback - could be extended for other games
-  return KlondikeLayoutDelegate(config);
-}
-
-/// Selector widget for StockPileWidget - only rebuilds when stock pile data changes.
-class _StockPileSelector extends StatelessWidget {
-  final double cardWidth;
-
-  const _StockPileSelector({required this.cardWidth});
-
-  @override
-  Widget build(BuildContext context) {
-    return Selector<GameController, StockPileRenderData>(
-      selector: (_, controller) {
-        final pile = controller.stock!;
-        return StockPileRenderData(
-          pile: pile,
-          pileVersion: pile.version,
-          isFocused: controller.focusedPile == pile,
-          isHintSource: controller.hintSourcePile == pile,
-        );
-      },
-      builder: (context, data, _) {
-        final controller = Provider.of<GameController>(context, listen: false);
-        return Container(
-          key: controller.boardLayout.getKeyForPileId(data.pile.id),
-          child: StockPileWidget(
-            pile: data.pile,
-            cardWidth: cardWidth,
-            controller: controller,
-            onTapOverride: () => controller.animateStockDraw(cardWidth),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Selector widget for WastePileWidget - only rebuilds when waste pile data changes.
-class _WastePileSelector extends StatelessWidget {
-  final double cardWidth;
-  final int spreadCount;
-
-  const _WastePileSelector({
-    required this.cardWidth,
-    required this.spreadCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Selector<GameController, WastePileRenderData>(
-      selector: (_, controller) {
-        final pile = controller.waste!;
-        return WastePileRenderData(
-          pile: pile,
-          pileVersion: pile.version,
-          isFocused: controller.focusedPile == pile,
-          isHintSource: controller.hintSourcePile == pile,
-          selectedCards: controller.selectedCards,
-          selectedPile: controller.selectedPile,
-          animatingCard: controller.animatingCard,
-        );
-      },
-      builder: (context, data, _) {
-        final controller = Provider.of<GameController>(context, listen: false);
-        return Container(
-          key: controller.boardLayout.getKeyForPileId(data.pile.id),
-          child: WastePileWidget(
-            pile: data.pile,
-            cardWidth: cardWidth,
-            spreadCount: spreadCount,
-            controller: controller,
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Selector widget for FoundationPileWidget - only rebuilds when foundation pile data changes.
-class _FoundationPileSelector extends StatelessWidget {
-  final int foundationIndex;
-  final double cardWidth;
-
-  const _FoundationPileSelector({
-    required this.foundationIndex,
-    required this.cardWidth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Selector<GameController, FoundationPileRenderData>(
-      selector: (_, controller) {
-        final pile = controller.foundations[foundationIndex];
-        return FoundationPileRenderData(
-          pile: pile,
-          pileVersion: pile.version,
-          isValidDestination: controller.isValidDestination(pile),
-          isHintDestination: controller.hintDestinationPile == pile,
-        );
-      },
-      builder: (context, data, _) {
-        final controller = Provider.of<GameController>(context, listen: false);
-        return Container(
-          key: controller.boardLayout.getKeyForPileId(data.pile.id),
-          child: FoundationPileWidget(
-            pile: data.pile,
-            cardWidth: cardWidth,
-            suit: Suit.values[foundationIndex % Suit.values.length],
-            controller: controller,
-          ),
-        );
-      },
     );
   }
 }
@@ -10761,6 +10470,974 @@ class SolverEngine {
 
     // No solution found
     return null;
+  }
+}
+
+
+// --- FILE: lib/features/game/ai/solver_strategy.dart ---
+import 'dart:isolate';
+import '../games/game_interface.dart';
+import '../models/card.dart';
+import '../models/pile.dart';
+import 'abstract_solver.dart';
+import 'solver_engine.dart';
+import 'games/klondike_solver_state.dart';
+
+/// Callback signature for executing a move on the game
+typedef SolverMoveExecutor = bool Function(
+    Pile from, Pile to, List<PlayingCard> cards);
+
+/// Callback signature for tapping a pile
+typedef SolverPileTapper = void Function(Pile pile);
+
+/// Abstract base class for game-specific solver strategies.
+///
+/// Each game type that supports solving should have its own solver strategy
+/// that knows how to:
+/// - Convert game state to solver state
+/// - Execute solver moves on the game
+/// - Interpret solver results for hints
+abstract class SolverStrategy<M extends SolverMove> {
+  /// Solve the current game state.
+  /// Returns a list of moves to win, or null if unsolvable.
+  Future<List<M>?> solve(GameInterface game);
+
+  /// Execute a single solver move on the game.
+  /// Returns true if the move was executed successfully.
+  bool executeMove(
+    GameInterface game,
+    M move, {
+    required SolverMoveExecutor tryMove,
+    required SolverPileTapper tapPile,
+  });
+
+  /// Get hint data from a solver move.
+  /// Returns source pile, destination pile, and cards to move.
+  ({Pile? sourcePile, Pile? destinationPile, List<PlayingCard>? cards})?
+      getHintFromMove(GameInterface game, M move);
+}
+
+/// Klondike-specific solver strategy.
+class KlondikeSolverStrategy extends SolverStrategy<KlondikeMove> {
+  @override
+  Future<List<KlondikeMove>?> solve(GameInterface game) async {
+    final solverState = game.getSolverState();
+    if (solverState == null || solverState is! KlondikeSolverState) {
+      return null;
+    }
+
+    return await Isolate.run(() async {
+      final engine = SolverEngine();
+      return await engine.solve(solverState);
+    });
+  }
+
+  @override
+  bool executeMove(
+    GameInterface game,
+    KlondikeMove move, {
+    required SolverMoveExecutor tryMove,
+    required SolverPileTapper tapPile,
+  }) {
+    try {
+      switch (move.type) {
+        case KlondikeMoveType.tableauToTableau:
+          final fromPile = game.tableauPiles[move.fromPile];
+          final toPile = game.tableauPiles[move.toPile];
+          if (fromPile.isEmpty) return false;
+          final card = fromPile.topCard!;
+          return tryMove(fromPile, toPile, [card]);
+
+        case KlondikeMoveType.tableauToFoundation:
+          final fromPile = game.tableauPiles[move.fromPile];
+          final toPile = game.foundationPiles[move.toPile];
+          if (fromPile.isEmpty) return false;
+          final card = fromPile.topCard!;
+          return tryMove(fromPile, toPile, [card]);
+
+        case KlondikeMoveType.wasteToTableau:
+          final fromPile = game.wastePile;
+          if (fromPile == null || fromPile.isEmpty) return false;
+          final toPile = game.tableauPiles[move.toPile];
+          final card = fromPile.topCard!;
+          return tryMove(fromPile, toPile, [card]);
+
+        case KlondikeMoveType.wasteToFoundation:
+          final fromPile = game.wastePile;
+          if (fromPile == null || fromPile.isEmpty) return false;
+          final toPile = game.foundationPiles[move.toPile];
+          final card = fromPile.topCard!;
+          return tryMove(fromPile, toPile, [card]);
+
+        case KlondikeMoveType.drawCard:
+          final stockPile = game.stockPile;
+          if (stockPile != null && !stockPile.isEmpty) {
+            tapPile(stockPile);
+            return true;
+          }
+          return false;
+
+        case KlondikeMoveType.flipTableauCard:
+          // Flip is handled automatically by the game
+          return true;
+      }
+    } catch (e) {
+      return false;
+    }
+  }
+
+  @override
+  ({Pile? sourcePile, Pile? destinationPile, List<PlayingCard>? cards})?
+      getHintFromMove(GameInterface game, KlondikeMove move) {
+    switch (move.type) {
+      case KlondikeMoveType.tableauToTableau:
+        final source = game.tableauPiles[move.fromPile];
+        final dest = game.tableauPiles[move.toPile];
+        final cards = !source.isEmpty ? [source.topCard!] : null;
+        return (sourcePile: source, destinationPile: dest, cards: cards);
+
+      case KlondikeMoveType.tableauToFoundation:
+        final source = game.tableauPiles[move.fromPile];
+        final dest = game.foundationPiles[move.toPile];
+        final cards = !source.isEmpty ? [source.topCard!] : null;
+        return (sourcePile: source, destinationPile: dest, cards: cards);
+
+      case KlondikeMoveType.wasteToTableau:
+        final source = game.wastePile;
+        if (source == null) return null;
+        final dest = game.tableauPiles[move.toPile];
+        final cards = !source.isEmpty ? [source.topCard!] : null;
+        return (sourcePile: source, destinationPile: dest, cards: cards);
+
+      case KlondikeMoveType.wasteToFoundation:
+        final source = game.wastePile;
+        if (source == null) return null;
+        final dest = game.foundationPiles[move.toPile];
+        final cards = !source.isEmpty ? [source.topCard!] : null;
+        return (sourcePile: source, destinationPile: dest, cards: cards);
+
+      case KlondikeMoveType.drawCard:
+        final stock = game.stockPile;
+        if (stock == null) return null;
+        return (sourcePile: stock, destinationPile: stock, cards: null);
+
+      case KlondikeMoveType.flipTableauCard:
+        return null; // Skip flip hints
+    }
+  }
+}
+
+/// Factory for creating solver strategies based on game type.
+///
+/// This replaces the hardcoded Klondike type check in SolverService
+/// with a proper strategy pattern.
+class SolverStrategyFactory {
+  static final Map<GameType, SolverStrategy> _strategies = {
+    GameType.klondike: KlondikeSolverStrategy(),
+    // Future: GameType.spider: SpiderSolverStrategy(),
+  };
+
+  /// Get the solver strategy for a game type.
+  /// Returns null if the game type doesn't support solving.
+  static SolverStrategy? getStrategy(GameType gameType) {
+    return _strategies[gameType];
+  }
+
+  /// Check if a game type supports solving.
+  static bool supportsSolving(GameType gameType) {
+    return _strategies.containsKey(gameType);
+  }
+}
+
+
+// --- FILE: lib/features/game/layouts/spider_layout_strategy.dart ---
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/pile_render_data.dart';
+import '../services/game_controller.dart';
+import '../widgets/pile_widget.dart';
+import 'layout_strategy.dart';
+
+/// Layout strategy for Spider solitaire.
+///
+/// Layout structure:
+/// - Top row: Stock only (no waste, no visible foundations)
+/// - Bottom: 10 tableau columns
+///
+/// Spider uses 2 decks (104 cards), 10 tableau piles, and completed sequences
+/// are automatically removed to foundation piles (which are not displayed).
+///
+/// Uses [GridLayoutMixin] for standard card sizing and spacing calculations,
+/// with column count overridden to 10 for Spider's wider tableau.
+class SpiderLayoutStrategy extends LayoutStrategy with GridLayoutMixin {
+  const SpiderLayoutStrategy(super.config);
+
+  /// Spider has 10 tableau columns instead of the default 7.
+  @override
+  int get columnCount => 10;
+
+  @override
+  Widget buildLayout(
+    BuildContext context,
+    GameController controller,
+    BoxConstraints constraints,
+  ) {
+    // Calculate grid metrics from raw constraints
+    final metrics = calculateGridMetrics(constraints);
+
+    return buildGridPadding(
+      child: Column(
+        children: [
+          // Top row with stock only
+          _buildTopRow(context, controller, metrics),
+          SizedBox(height: metrics.rowSpacing),
+          // Tableau
+          Expanded(
+            child: _buildTableau(context, controller, metrics),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopRow(
+    BuildContext context,
+    GameController controller,
+    GridLayoutMetrics metrics,
+  ) {
+    final stockPile = controller.stock;
+
+    return SizedBox(
+      height: metrics.cardHeight,
+      child: Row(
+        children: [
+          // Stock pile on the left
+          if (config.hasStock && stockPile != null)
+            SizedBox(
+              width: metrics.cardWidth,
+              child: _StockPileSelector(cardWidth: metrics.cardWidth),
+            ),
+          // Fill rest of row (empty space where completed sequences could be shown)
+          Expanded(child: Container()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTableau(
+    BuildContext context,
+    GameController controller,
+    GridLayoutMetrics metrics,
+  ) {
+    final tableauCount = controller.tableau.length;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < tableauCount; i++) ...[
+          SizedBox(
+            width: metrics.cardWidth,
+            child: _TableauPileSelector(
+              pileIndex: i,
+              cardWidth: metrics.cardWidth,
+              stackOffset: metrics.stackOffset,
+            ),
+          ),
+          if (i < tableauCount - 1) SizedBox(width: metrics.pileSpacing),
+        ],
+      ],
+    );
+  }
+}
+
+/// Selector widget for StockPileWidget - only rebuilds when stock pile data changes.
+class _StockPileSelector extends StatelessWidget {
+  final double cardWidth;
+
+  const _StockPileSelector({required this.cardWidth});
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<GameController, StockPileRenderData>(
+      selector: (_, controller) {
+        final pile = controller.stock!;
+        return StockPileRenderData(
+          pile: pile,
+          pileVersion: pile.version,
+          isFocused: controller.focusedPile == pile,
+          isHintSource: controller.hintSourcePile == pile,
+        );
+      },
+      builder: (context, data, _) {
+        final controller = Provider.of<GameController>(context, listen: false);
+        return Container(
+          key: controller.boardLayout.getKeyForPileId(data.pile.id),
+          child: StockPileWidget(
+            pile: data.pile,
+            cardWidth: cardWidth,
+            controller: controller,
+            // Spider stock tap deals to all tableau piles
+            onTapOverride: () => controller.tapPile(data.pile),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Selector widget that only rebuilds a TableauPileWidget when its specific data changes.
+class _TableauPileSelector extends StatelessWidget {
+  final int pileIndex;
+  final double cardWidth;
+  final double stackOffset;
+
+  const _TableauPileSelector({
+    required this.pileIndex,
+    required this.cardWidth,
+    required this.stackOffset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<GameController, TableauPileRenderData>(
+      selector: (_, controller) {
+        final pile = controller.tableau[pileIndex];
+        return TableauPileRenderData(
+          pile: pile,
+          pileVersion: pile.version,
+          isHintDestination: controller.hintDestinationPile == pile,
+          isHintSource: controller.hintSourcePile == pile,
+          isFocused: controller.focusedPile == pile,
+          selectedCards: controller.selectedCards,
+          selectedPile: controller.selectedPile,
+          hintCards: controller.hintCards,
+          animatingCard: controller.animatingCard,
+        );
+      },
+      builder: (context, data, _) {
+        final controller = Provider.of<GameController>(context, listen: false);
+        return Container(
+          key: controller.boardLayout.getKeyForPileId(data.pile.id),
+          child: TableauPileWidget(
+            pile: data.pile,
+            cardWidth: cardWidth,
+            stackOffset: stackOffset,
+            controller: controller,
+          ),
+        );
+      },
+    );
+  }
+}
+
+
+// --- FILE: lib/features/game/layouts/layout_strategy_factory.dart ---
+import '../games/game_interface.dart';
+import '../services/game_controller.dart';
+import 'layout_strategy.dart';
+import 'klondike_layout_strategy.dart';
+import 'spider_layout_strategy.dart';
+
+/// Factory for creating layout strategies based on game type.
+///
+/// This replaces the fragile pile-count based detection with explicit
+/// GameType-based routing. Each game type maps to exactly one layout strategy.
+///
+/// To add a new game:
+/// 1. Add the GameType enum value in game_interface.dart
+/// 2. Create a new layout strategy class (extend LayoutStrategy, optionally with GridLayoutMixin)
+/// 3. Add the case to this factory
+class LayoutStrategyFactory {
+  /// Create the appropriate layout strategy for a game controller.
+  ///
+  /// Uses the game's explicit [GameType] for routing instead of
+  /// inferring from pile counts.
+  static LayoutStrategy create(GameController controller) {
+    final game = controller.game;
+    final config = game.layoutConfig;
+
+    return createFromType(game.gameType, config);
+  }
+
+  /// Create a layout strategy directly from a GameType and LayoutConfig.
+  ///
+  /// Useful when you don't have a controller but know the game type.
+  static LayoutStrategy createFromType(GameType type, LayoutConfig config) {
+    switch (type) {
+      case GameType.klondike:
+        return KlondikeLayoutStrategy(config);
+      case GameType.spider:
+        return SpiderLayoutStrategy(config);
+      // Future games - throw until implemented
+      case GameType.pyramid:
+      case GameType.golf:
+      case GameType.freecell:
+      case GameType.triPeaks:
+      case GameType.yukon:
+      case GameType.fortyThieves:
+      case GameType.canfield:
+      case GameType.scorpion:
+        throw UnimplementedError(
+          'Layout strategy for $type is not yet implemented. '
+          'To add support: create a new strategy class and add it to this factory.',
+        );
+    }
+  }
+}
+
+
+// --- FILE: lib/features/game/layouts/layouts.dart ---
+/// Layout strategy system for game-agnostic card positioning.
+///
+/// This module provides the abstraction layer between game logic and rendering,
+/// allowing different games to define their own layout strategies without
+/// modifying the core engine.
+///
+/// Architecture (Option B - Raw Constraints):
+/// - [LayoutStrategy] - Abstract base class receiving raw [BoxConstraints]
+/// - [GridLayoutMixin] - Mixin for grid-based games (shared calculations)
+/// - [GridLayoutMetrics] - Internal metrics for grid layouts
+/// - [CardPosition] - Absolute positioning for stack-based layouts
+/// - [LayoutStrategyFactory] - Creates strategies based on GameType
+///
+/// Key Design Decisions:
+/// - Each strategy owns ALL layout decisions
+/// - GameBoard only provides the felt background
+/// - Strategies receive raw constraints and calculate what they need
+/// - Grid strategies share logic via mixin; non-grid strategies are independent
+///
+/// Concrete Strategies:
+/// - [KlondikeLayoutStrategy] - Grid layout for Klondike (7 columns)
+/// - [SpiderLayoutStrategy] - Grid layout for Spider (10 columns)
+///
+/// Future strategies can implement:
+/// - Stack-based layouts for Pyramid, TriPeaks, Golf
+/// - Custom layouts for specialized games
+library;
+
+export 'layout_strategy.dart';
+export 'layout_strategy_factory.dart';
+export 'klondike_layout_strategy.dart';
+export 'spider_layout_strategy.dart';
+
+
+// --- FILE: lib/features/game/layouts/klondike_layout_strategy.dart ---
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/card.dart';
+import '../models/pile_render_data.dart';
+import '../services/game_controller.dart';
+import 'package:solitude/features/settings/models/difficulty.dart';
+import 'package:solitude/features/settings/services/settings_provider.dart';
+import '../widgets/pile_widget.dart';
+import 'layout_strategy.dart';
+
+/// Layout strategy for Klondike solitaire.
+///
+/// Layout structure:
+/// - Top row: Stock | Waste | Gap | Foundations (or reversed for left-hand mode)
+/// - Bottom: 7 tableau columns
+///
+/// Uses [GridLayoutMixin] for standard card sizing and spacing calculations.
+class KlondikeLayoutStrategy extends LayoutStrategy with GridLayoutMixin {
+  const KlondikeLayoutStrategy(super.config);
+
+  @override
+  Widget buildLayout(
+    BuildContext context,
+    GameController controller,
+    BoxConstraints constraints,
+  ) {
+    // Calculate grid metrics from raw constraints
+    final metrics = calculateGridMetrics(constraints);
+
+    return buildGridPadding(
+      child: Column(
+        children: [
+          // Top row with stock, waste, and foundations
+          Consumer<SettingsProvider>(
+            builder: (context, settings, _) {
+              return _buildTopRow(context, controller, metrics, settings);
+            },
+          ),
+          SizedBox(height: metrics.rowSpacing),
+          // Tableau
+          Expanded(
+            child: _buildTableau(context, controller, metrics),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopRow(
+    BuildContext context,
+    GameController controller,
+    GridLayoutMetrics metrics,
+    SettingsProvider settings,
+  ) {
+    final stockPile = controller.stock;
+    final wastePile = controller.waste;
+    final isLeftHandMode = settings.leftHandMode;
+
+    // Strict 7-column alignment for Klondike
+    final columns = <Widget>[];
+
+    if (isLeftHandMode) {
+      // Left hand mode: F0 | F1 | F2 | F3 | Empty | Stock | Waste
+      // Foundations in columns 0-3
+      for (int i = 0; i < 4; i++) {
+        if (i < controller.foundations.length) {
+          columns.add(SizedBox(
+            width: metrics.cardWidth,
+            child: _FoundationPileSelector(
+              foundationIndex: i,
+              cardWidth: metrics.cardWidth,
+            ),
+          ));
+        } else {
+          columns.add(SizedBox(width: metrics.cardWidth));
+        }
+        columns.add(SizedBox(width: metrics.pileSpacing));
+      }
+      // Empty column 4
+      columns.add(SizedBox(width: metrics.cardWidth));
+      columns.add(SizedBox(width: metrics.pileSpacing));
+      // Stock in column 5
+      if (config.hasStock && stockPile != null) {
+        columns.add(SizedBox(
+          width: metrics.cardWidth,
+          child: _StockPileSelector(cardWidth: metrics.cardWidth),
+        ));
+      } else {
+        columns.add(SizedBox(width: metrics.cardWidth));
+      }
+      columns.add(SizedBox(width: metrics.pileSpacing));
+      // Waste in column 6
+      if (config.hasWaste && wastePile != null) {
+        columns.add(SizedBox(
+          width: metrics.cardWidth,
+          child: _WastePileSelector(
+            cardWidth: metrics.cardWidth,
+            spreadCount: settings.difficulty.drawMode.drawCount,
+          ),
+        ));
+      } else {
+        columns.add(SizedBox(width: metrics.cardWidth));
+      }
+    } else {
+      // Normal mode: Stock | Waste | Empty | F0 | F1 | F2 | F3
+      // Stock in column 0
+      if (config.hasStock && stockPile != null) {
+        columns.add(SizedBox(
+          width: metrics.cardWidth,
+          child: _StockPileSelector(cardWidth: metrics.cardWidth),
+        ));
+      } else {
+        columns.add(SizedBox(width: metrics.cardWidth));
+      }
+      columns.add(SizedBox(width: metrics.pileSpacing));
+      // Waste in column 1
+      if (config.hasWaste && wastePile != null) {
+        columns.add(SizedBox(
+          width: metrics.cardWidth,
+          child: _WastePileSelector(
+            cardWidth: metrics.cardWidth,
+            spreadCount: settings.difficulty.drawMode.drawCount,
+          ),
+        ));
+      } else {
+        columns.add(SizedBox(width: metrics.cardWidth));
+      }
+      columns.add(SizedBox(width: metrics.pileSpacing));
+      // Empty column 2
+      columns.add(SizedBox(width: metrics.cardWidth));
+      columns.add(SizedBox(width: metrics.pileSpacing));
+      // Foundations in columns 3-6
+      for (int i = 0; i < 4; i++) {
+        if (i < controller.foundations.length) {
+          columns.add(SizedBox(
+            width: metrics.cardWidth,
+            child: _FoundationPileSelector(
+              foundationIndex: i,
+              cardWidth: metrics.cardWidth,
+            ),
+          ));
+        } else {
+          columns.add(SizedBox(width: metrics.cardWidth));
+        }
+        if (i < 3) columns.add(SizedBox(width: metrics.pileSpacing));
+      }
+    }
+
+    return SizedBox(
+      height: metrics.cardHeight,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: columns,
+      ),
+    );
+  }
+
+  Widget _buildTableau(
+    BuildContext context,
+    GameController controller,
+    GridLayoutMetrics metrics,
+  ) {
+    final tableauCount = controller.tableau.length;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < tableauCount; i++) ...[
+          SizedBox(
+            width: metrics.cardWidth,
+            child: _TableauPileSelector(
+              pileIndex: i,
+              cardWidth: metrics.cardWidth,
+              stackOffset: metrics.stackOffset,
+            ),
+          ),
+          if (i < tableauCount - 1) SizedBox(width: metrics.pileSpacing),
+        ],
+      ],
+    );
+  }
+}
+
+/// Selector widget for StockPileWidget - only rebuilds when stock pile data changes.
+class _StockPileSelector extends StatelessWidget {
+  final double cardWidth;
+
+  const _StockPileSelector({required this.cardWidth});
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<GameController, StockPileRenderData>(
+      selector: (_, controller) {
+        final pile = controller.stock!;
+        return StockPileRenderData(
+          pile: pile,
+          pileVersion: pile.version,
+          isFocused: controller.focusedPile == pile,
+          isHintSource: controller.hintSourcePile == pile,
+        );
+      },
+      builder: (context, data, _) {
+        final controller = Provider.of<GameController>(context, listen: false);
+        return Container(
+          key: controller.boardLayout.getKeyForPileId(data.pile.id),
+          child: StockPileWidget(
+            pile: data.pile,
+            cardWidth: cardWidth,
+            controller: controller,
+            onTapOverride: () => controller.animateStockDraw(cardWidth),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Selector widget for WastePileWidget - only rebuilds when waste pile data changes.
+class _WastePileSelector extends StatelessWidget {
+  final double cardWidth;
+  final int spreadCount;
+
+  const _WastePileSelector({
+    required this.cardWidth,
+    required this.spreadCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<GameController, WastePileRenderData>(
+      selector: (_, controller) {
+        final pile = controller.waste!;
+        return WastePileRenderData(
+          pile: pile,
+          pileVersion: pile.version,
+          isFocused: controller.focusedPile == pile,
+          isHintSource: controller.hintSourcePile == pile,
+          selectedCards: controller.selectedCards,
+          selectedPile: controller.selectedPile,
+          animatingCard: controller.animatingCard,
+        );
+      },
+      builder: (context, data, _) {
+        final controller = Provider.of<GameController>(context, listen: false);
+        return Container(
+          key: controller.boardLayout.getKeyForPileId(data.pile.id),
+          child: WastePileWidget(
+            pile: data.pile,
+            cardWidth: cardWidth,
+            spreadCount: spreadCount,
+            controller: controller,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Selector widget for FoundationPileWidget - only rebuilds when foundation pile data changes.
+class _FoundationPileSelector extends StatelessWidget {
+  final int foundationIndex;
+  final double cardWidth;
+
+  const _FoundationPileSelector({
+    required this.foundationIndex,
+    required this.cardWidth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<GameController, FoundationPileRenderData>(
+      selector: (_, controller) {
+        final pile = controller.foundations[foundationIndex];
+        return FoundationPileRenderData(
+          pile: pile,
+          pileVersion: pile.version,
+          isValidDestination: controller.isValidDestination(pile),
+          isHintDestination: controller.hintDestinationPile == pile,
+        );
+      },
+      builder: (context, data, _) {
+        final controller = Provider.of<GameController>(context, listen: false);
+        // Use game-agnostic getFoundationSuit instead of hardcoded mapping
+        final suit = controller.game.getFoundationSuit(foundationIndex);
+        return Container(
+          key: controller.boardLayout.getKeyForPileId(data.pile.id),
+          child: FoundationPileWidget(
+            pile: data.pile,
+            cardWidth: cardWidth,
+            suit: suit ?? Suit.values[foundationIndex % Suit.values.length],
+            controller: controller,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Selector widget that only rebuilds a TableauPileWidget when its specific data changes.
+class _TableauPileSelector extends StatelessWidget {
+  final int pileIndex;
+  final double cardWidth;
+  final double stackOffset;
+
+  const _TableauPileSelector({
+    required this.pileIndex,
+    required this.cardWidth,
+    required this.stackOffset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<GameController, TableauPileRenderData>(
+      selector: (_, controller) {
+        final pile = controller.tableau[pileIndex];
+        return TableauPileRenderData(
+          pile: pile,
+          pileVersion: pile.version,
+          isHintDestination: controller.hintDestinationPile == pile,
+          isHintSource: controller.hintSourcePile == pile,
+          isFocused: controller.focusedPile == pile,
+          selectedCards: controller.selectedCards,
+          selectedPile: controller.selectedPile,
+          hintCards: controller.hintCards,
+          animatingCard: controller.animatingCard,
+        );
+      },
+      builder: (context, data, _) {
+        final controller = Provider.of<GameController>(context, listen: false);
+        return Container(
+          key: controller.boardLayout.getKeyForPileId(data.pile.id),
+          child: TableauPileWidget(
+            pile: data.pile,
+            cardWidth: cardWidth,
+            stackOffset: stackOffset,
+            controller: controller,
+          ),
+        );
+      },
+    );
+  }
+}
+
+
+// --- FILE: lib/features/game/layouts/layout_strategy.dart ---
+import 'package:flutter/material.dart';
+import '../games/game_interface.dart';
+import '../services/game_controller.dart';
+import '../widgets/card_widget.dart';
+
+/// Represents a card's position in a stack-based layout.
+/// Used for games like Pyramid, TriPeaks, Golf that require absolute positioning.
+class CardPosition {
+  /// X coordinate (0.0 = left edge, 1.0 = right edge of board)
+  final double x;
+
+  /// Y coordinate (0.0 = top edge, 1.0 = bottom edge of board)
+  final double y;
+
+  /// Z-index for overlapping cards (higher = on top)
+  final int zIndex;
+
+  /// The pile this card belongs to
+  final String pileId;
+
+  /// Index of this card within the pile
+  final int cardIndex;
+
+  const CardPosition({
+    required this.x,
+    required this.y,
+    required this.zIndex,
+    required this.pileId,
+    required this.cardIndex,
+  });
+
+  /// Convert normalized coordinates to actual pixel positions
+  Offset toOffset(Size boardSize, double cardWidth, double cardHeight) {
+    return Offset(
+      x * (boardSize.width - cardWidth),
+      y * (boardSize.height - cardHeight),
+    );
+  }
+}
+
+/// Abstract base class for layout strategies.
+///
+/// Layout strategies determine how cards are positioned on the game board.
+/// Each game type can specify its own layout strategy to support:
+/// - Grid layouts (Klondike, Spider, Freecell)
+/// - Stack layouts with absolute positioning (Pyramid, TriPeaks, Golf)
+/// - Future custom layouts (spiral, tree, etc.)
+///
+/// The strategy receives raw [BoxConstraints] and has full control over
+/// how to calculate card sizes, spacing, and positioning. This allows
+/// non-grid games like Pyramid to use completely different layout logic.
+abstract class LayoutStrategy {
+  /// The layout configuration from the game
+  final LayoutConfig config;
+
+  const LayoutStrategy(this.config);
+
+  /// Build the complete game layout widget.
+  ///
+  /// This is the main entry point called by GameBoard.
+  /// The strategy receives raw constraints and has full autonomy over:
+  /// - Card size calculations
+  /// - Spacing and positioning
+  /// - Widget structure (Column, Row, Stack, etc.)
+  ///
+  /// [context] - Build context for accessing theme, providers, etc.
+  /// [controller] - Game controller for accessing piles and game state
+  /// [constraints] - Raw box constraints from the parent layout
+  Widget buildLayout(
+    BuildContext context,
+    GameController controller,
+    BoxConstraints constraints,
+  );
+}
+
+/// Computed layout metrics for grid-based games.
+/// Used internally by GridLayoutMixin - not exposed to GameBoard.
+class GridLayoutMetrics {
+  final double cardWidth;
+  final double cardHeight;
+  final double pileSpacing;
+  final double stackOffset;
+  final double rowSpacing;
+  final double padding;
+  final Size boardSize;
+
+  const GridLayoutMetrics({
+    required this.cardWidth,
+    required this.cardHeight,
+    required this.pileSpacing,
+    required this.stackOffset,
+    required this.rowSpacing,
+    required this.padding,
+    required this.boardSize,
+  });
+}
+
+/// Mixin providing common grid layout calculations.
+///
+/// Grid-based games (Klondike, Spider, Freecell) can use this mixin
+/// to share the standard card sizing and spacing logic.
+mixin GridLayoutMixin on LayoutStrategy {
+  /// Number of columns in the tableau for card width calculations.
+  /// Override for games with different column counts.
+  int get columnCount => config.tableauCount;
+
+  /// Standard horizontal padding added to left and right edges.
+  double get horizontalPadding => 24.0;
+
+  /// Base padding around the board.
+  double get basePadding => 8.0;
+
+  /// Calculate grid layout metrics from raw constraints.
+  GridLayoutMetrics calculateGridMetrics(BoxConstraints constraints) {
+    const double minCardWidth = 50.0;
+    const double maxCardWidth = 150.0;
+
+    // Available width for cards (accounting for extra left/right padding)
+    final availableWidth =
+        constraints.maxWidth - ((basePadding + horizontalPadding) * 2);
+
+    // Calculate card width based on column count
+    final int columns = columnCount;
+    final int gaps = columns - 1;
+
+    // availableWidth = columns * cardWidth + gaps * spacing
+    // spacing = 0.15 * cardWidth
+    // availableWidth = cardWidth * (columns + gaps * 0.15)
+    final denominator = columns + (gaps * 0.15);
+    final cardWidth =
+        (availableWidth / denominator).clamp(minCardWidth, maxCardWidth);
+    final pileSpacing = cardWidth * 0.15;
+
+    final cardHeight = cardWidth / CardWidget.aspectRatio;
+
+    // Calculate stack offset based on available vertical space
+    final topRowHeight = cardHeight;
+    final rowSpacing = constraints.maxHeight * 0.04;
+    final availableTableauHeight =
+        constraints.maxHeight - topRowHeight - rowSpacing - (basePadding * 2);
+
+    // Aim for ~20 cards visible in a tableau pile
+    const maxVisibleCards = 20;
+    final stackOffset =
+        (availableTableauHeight - cardHeight) / maxVisibleCards;
+    final clampedStackOffset =
+        stackOffset.clamp(cardHeight * 0.15, cardHeight * 0.28);
+
+    return GridLayoutMetrics(
+      cardWidth: cardWidth,
+      cardHeight: cardHeight,
+      pileSpacing: pileSpacing,
+      stackOffset: clampedStackOffset,
+      rowSpacing: rowSpacing,
+      padding: basePadding,
+      boardSize: Size(constraints.maxWidth, constraints.maxHeight),
+    );
+  }
+
+  /// Build padding widget that wraps content with standard grid padding.
+  Widget buildGridPadding({required Widget child}) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        basePadding + horizontalPadding,
+        basePadding,
+        basePadding + horizontalPadding,
+        basePadding,
+      ),
+      child: child,
+    );
   }
 }
 
@@ -12247,6 +12924,16 @@ enum DifficultyLevel {
         return _klondikeDescription;
       case GameType.spider:
         return _spiderDescription;
+      // Future games - use generic description until implemented
+      case GameType.pyramid:
+      case GameType.golf:
+      case GameType.freecell:
+      case GameType.triPeaks:
+      case GameType.yukon:
+      case GameType.fortyThieves:
+      case GameType.canfield:
+      case GameType.scorpion:
+        return displayName;
     }
   }
 
@@ -12279,6 +12966,16 @@ enum DifficultyLevel {
         return _klondikeFullDescription;
       case GameType.spider:
         return _spiderFullDescription;
+      // Future games - use display name until implemented
+      case GameType.pyramid:
+      case GameType.golf:
+      case GameType.freecell:
+      case GameType.triPeaks:
+      case GameType.yukon:
+      case GameType.fortyThieves:
+      case GameType.canfield:
+      case GameType.scorpion:
+        return '$displayName difficulty for ${gameType.name}';
     }
   }
 

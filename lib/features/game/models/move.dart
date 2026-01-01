@@ -54,6 +54,14 @@ class Move {
         return 'Foundation ${pile.index + 1}';
       case PileType.tableau:
         return 'Tableau ${pile.index + 1}';
+      case PileType.cell:
+        return 'Cell ${pile.index + 1}';
+      case PileType.reserve:
+        return 'Reserve ${pile.index + 1}';
+      case PileType.pyramid:
+        return 'Pyramid ${pile.index + 1}';
+      case PileType.discard:
+        return 'Discard';
     }
   }
 

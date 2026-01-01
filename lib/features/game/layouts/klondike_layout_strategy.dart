@@ -1,52 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/card.dart';
-import 'package:solitude/features/settings/models/difficulty.dart';
 import '../models/pile_render_data.dart';
 import '../services/game_controller.dart';
+import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
-import 'pile_widget.dart';
-import '../games/game_interface.dart';
+import '../widgets/pile_widget.dart';
+import 'layout_strategy.dart';
 
-class BoardLayoutData {
-  final double cardWidth;
-  final double cardHeight;
-  final double pileSpacing;
-  final double stackOffset;
-  final double rowSpacing;
-  final double padding;
-
-  const BoardLayoutData({
-    required this.cardWidth,
-    required this.cardHeight,
-    required this.pileSpacing,
-    required this.stackOffset,
-    required this.rowSpacing,
-    required this.padding,
-  });
-}
-
-abstract class GameLayoutDelegate {
-  int get columnCount;
-  Widget buildTopRow(
-      BuildContext context, GameController controller, BoardLayoutData layout);
-}
-
-/// Klondike layout delegate - handles 7-column layout with stock, waste, and foundations
-class KlondikeLayoutDelegate implements GameLayoutDelegate {
-  final LayoutConfig config;
-
-  const KlondikeLayoutDelegate(this.config);
+/// Layout strategy for Klondike solitaire.
+///
+/// Layout structure:
+/// - Top row: Stock | Waste | Gap | Foundations (or reversed for left-hand mode)
+/// - Bottom: 7 tableau columns
+///
+/// Uses [GridLayoutMixin] for standard card sizing and spacing calculations.
+class KlondikeLayoutStrategy extends LayoutStrategy with GridLayoutMixin {
+  const KlondikeLayoutStrategy(super.config);
 
   @override
-  int get columnCount => config.tableauCount;
+  Widget buildLayout(
+    BuildContext context,
+    GameController controller,
+    BoxConstraints constraints,
+  ) {
+    // Calculate grid metrics from raw constraints
+    final metrics = calculateGridMetrics(constraints);
 
-  @override
-  Widget buildTopRow(
-      BuildContext context, GameController controller, BoardLayoutData layout) {
+    return buildGridPadding(
+      child: Column(
+        children: [
+          // Top row with stock, waste, and foundations
+          Consumer<SettingsProvider>(
+            builder: (context, settings, _) {
+              return _buildTopRow(context, controller, metrics, settings);
+            },
+          ),
+          SizedBox(height: metrics.rowSpacing),
+          // Tableau
+          Expanded(
+            child: _buildTableau(context, controller, metrics),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopRow(
+    BuildContext context,
+    GameController controller,
+    GridLayoutMetrics metrics,
+    SettingsProvider settings,
+  ) {
     final stockPile = controller.stock;
     final wastePile = controller.waste;
-    final settings = Provider.of<SettingsProvider>(context, listen: false);
     final isLeftHandMode = settings.leftHandMode;
 
     // Strict 7-column alignment for Klondike
@@ -58,89 +65,89 @@ class KlondikeLayoutDelegate implements GameLayoutDelegate {
       for (int i = 0; i < 4; i++) {
         if (i < controller.foundations.length) {
           columns.add(SizedBox(
-            width: layout.cardWidth,
+            width: metrics.cardWidth,
             child: _FoundationPileSelector(
               foundationIndex: i,
-              cardWidth: layout.cardWidth,
+              cardWidth: metrics.cardWidth,
             ),
           ));
         } else {
-          columns.add(SizedBox(width: layout.cardWidth));
+          columns.add(SizedBox(width: metrics.cardWidth));
         }
-        columns.add(SizedBox(width: layout.pileSpacing));
+        columns.add(SizedBox(width: metrics.pileSpacing));
       }
       // Empty column 4
-      columns.add(SizedBox(width: layout.cardWidth));
-      columns.add(SizedBox(width: layout.pileSpacing));
+      columns.add(SizedBox(width: metrics.cardWidth));
+      columns.add(SizedBox(width: metrics.pileSpacing));
       // Stock in column 5
       if (config.hasStock && stockPile != null) {
         columns.add(SizedBox(
-          width: layout.cardWidth,
-          child: _StockPileSelector(cardWidth: layout.cardWidth),
+          width: metrics.cardWidth,
+          child: _StockPileSelector(cardWidth: metrics.cardWidth),
         ));
       } else {
-        columns.add(SizedBox(width: layout.cardWidth));
+        columns.add(SizedBox(width: metrics.cardWidth));
       }
-      columns.add(SizedBox(width: layout.pileSpacing));
+      columns.add(SizedBox(width: metrics.pileSpacing));
       // Waste in column 6
       if (config.hasWaste && wastePile != null) {
         columns.add(SizedBox(
-          width: layout.cardWidth,
+          width: metrics.cardWidth,
           child: _WastePileSelector(
-            cardWidth: layout.cardWidth,
+            cardWidth: metrics.cardWidth,
             spreadCount: settings.difficulty.drawMode.drawCount,
           ),
         ));
       } else {
-        columns.add(SizedBox(width: layout.cardWidth));
+        columns.add(SizedBox(width: metrics.cardWidth));
       }
     } else {
       // Normal mode: Stock | Waste | Empty | F0 | F1 | F2 | F3
       // Stock in column 0
       if (config.hasStock && stockPile != null) {
         columns.add(SizedBox(
-          width: layout.cardWidth,
-          child: _StockPileSelector(cardWidth: layout.cardWidth),
+          width: metrics.cardWidth,
+          child: _StockPileSelector(cardWidth: metrics.cardWidth),
         ));
       } else {
-        columns.add(SizedBox(width: layout.cardWidth));
+        columns.add(SizedBox(width: metrics.cardWidth));
       }
-      columns.add(SizedBox(width: layout.pileSpacing));
+      columns.add(SizedBox(width: metrics.pileSpacing));
       // Waste in column 1
       if (config.hasWaste && wastePile != null) {
         columns.add(SizedBox(
-          width: layout.cardWidth,
+          width: metrics.cardWidth,
           child: _WastePileSelector(
-            cardWidth: layout.cardWidth,
+            cardWidth: metrics.cardWidth,
             spreadCount: settings.difficulty.drawMode.drawCount,
           ),
         ));
       } else {
-        columns.add(SizedBox(width: layout.cardWidth));
+        columns.add(SizedBox(width: metrics.cardWidth));
       }
-      columns.add(SizedBox(width: layout.pileSpacing));
+      columns.add(SizedBox(width: metrics.pileSpacing));
       // Empty column 2
-      columns.add(SizedBox(width: layout.cardWidth));
-      columns.add(SizedBox(width: layout.pileSpacing));
+      columns.add(SizedBox(width: metrics.cardWidth));
+      columns.add(SizedBox(width: metrics.pileSpacing));
       // Foundations in columns 3-6
       for (int i = 0; i < 4; i++) {
         if (i < controller.foundations.length) {
           columns.add(SizedBox(
-            width: layout.cardWidth,
+            width: metrics.cardWidth,
             child: _FoundationPileSelector(
               foundationIndex: i,
-              cardWidth: layout.cardWidth,
+              cardWidth: metrics.cardWidth,
             ),
           ));
         } else {
-          columns.add(SizedBox(width: layout.cardWidth));
+          columns.add(SizedBox(width: metrics.cardWidth));
         }
-        if (i < 3) columns.add(SizedBox(width: layout.pileSpacing));
+        if (i < 3) columns.add(SizedBox(width: metrics.pileSpacing));
       }
     }
 
     return SizedBox(
-      height: layout.cardHeight,
+      height: metrics.cardHeight,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -148,61 +155,31 @@ class KlondikeLayoutDelegate implements GameLayoutDelegate {
       ),
     );
   }
-}
 
-/// Spider layout delegate - handles 10-column layout with only stock (no waste or visible foundations)
-class SpiderLayoutDelegate implements GameLayoutDelegate {
-  final LayoutConfig config;
+  Widget _buildTableau(
+    BuildContext context,
+    GameController controller,
+    GridLayoutMetrics metrics,
+  ) {
+    final tableauCount = controller.tableau.length;
 
-  const SpiderLayoutDelegate(this.config);
-
-  @override
-  int get columnCount => config.tableauCount;
-
-  @override
-  Widget buildTopRow(
-      BuildContext context, GameController controller, BoardLayoutData layout) {
-    // Spider has stock on the left, rest of row filled with expanded container
-    final stockPile = controller.stock;
-
-    return SizedBox(
-      height: layout.cardHeight,
-      child: Row(
-        children: [
-          // Stock pile in column 0
-          if (config.hasStock && stockPile != null)
-            SizedBox(
-              width: layout.cardWidth,
-              child: _StockPileSelector(cardWidth: layout.cardWidth),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < tableauCount; i++) ...[
+          SizedBox(
+            width: metrics.cardWidth,
+            child: _TableauPileSelector(
+              pileIndex: i,
+              cardWidth: metrics.cardWidth,
+              stackOffset: metrics.stackOffset,
             ),
-          // Fill rest of row
-          Expanded(child: Container()),
+          ),
+          if (i < tableauCount - 1) SizedBox(width: metrics.pileSpacing),
         ],
-      ),
+      ],
     );
   }
-}
-
-/// Factory method to create the appropriate layout delegate for a game type
-GameLayoutDelegate createLayoutDelegate(GameController controller) {
-  final config = controller.game.layoutConfig;
-
-  // Check if it's a Klondike game (7 columns, 4 foundations, has waste)
-  if (config.tableauCount == 7 &&
-      config.foundationCount == 4 &&
-      config.hasWaste) {
-    return KlondikeLayoutDelegate(config);
-  }
-
-  // Check if it's a Spider game (10 columns, 8 foundations, no waste)
-  if (config.tableauCount == 10 &&
-      config.foundationCount == 8 &&
-      !config.hasWaste) {
-    return SpiderLayoutDelegate(config);
-  }
-
-  // Fallback - could be extended for other games
-  return KlondikeLayoutDelegate(config);
 }
 
 /// Selector widget for StockPileWidget - only rebuilds when stock pile data changes.
@@ -304,12 +281,59 @@ class _FoundationPileSelector extends StatelessWidget {
       },
       builder: (context, data, _) {
         final controller = Provider.of<GameController>(context, listen: false);
+        // Use game-agnostic getFoundationSuit instead of hardcoded mapping
+        final suit = controller.game.getFoundationSuit(foundationIndex);
         return Container(
           key: controller.boardLayout.getKeyForPileId(data.pile.id),
           child: FoundationPileWidget(
             pile: data.pile,
             cardWidth: cardWidth,
-            suit: Suit.values[foundationIndex % Suit.values.length],
+            suit: suit ?? Suit.values[foundationIndex % Suit.values.length],
+            controller: controller,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Selector widget that only rebuilds a TableauPileWidget when its specific data changes.
+class _TableauPileSelector extends StatelessWidget {
+  final int pileIndex;
+  final double cardWidth;
+  final double stackOffset;
+
+  const _TableauPileSelector({
+    required this.pileIndex,
+    required this.cardWidth,
+    required this.stackOffset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<GameController, TableauPileRenderData>(
+      selector: (_, controller) {
+        final pile = controller.tableau[pileIndex];
+        return TableauPileRenderData(
+          pile: pile,
+          pileVersion: pile.version,
+          isHintDestination: controller.hintDestinationPile == pile,
+          isHintSource: controller.hintSourcePile == pile,
+          isFocused: controller.focusedPile == pile,
+          selectedCards: controller.selectedCards,
+          selectedPile: controller.selectedPile,
+          hintCards: controller.hintCards,
+          animatingCard: controller.animatingCard,
+        );
+      },
+      builder: (context, data, _) {
+        final controller = Provider.of<GameController>(context, listen: false);
+        return Container(
+          key: controller.boardLayout.getKeyForPileId(data.pile.id),
+          child: TableauPileWidget(
+            pile: data.pile,
+            cardWidth: cardWidth,
+            stackOffset: stackOffset,
             controller: controller,
           ),
         );

@@ -1,12 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/pile_render_data.dart';
+import '../layouts/layouts.dart';
 import '../services/game_controller.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
-import 'pile_widget.dart';
-import 'card_widget.dart';
-import 'game_layout_delegate.dart';
 
+/// The main game board widget that renders the playing surface.
+///
+/// This widget is game-agnostic - it delegates ALL layout decisions to
+/// the appropriate [LayoutStrategy] based on the current game type.
+///
+/// Architecture (Option B - Raw Constraints):
+/// - GameBoard handles only the felt background decoration
+/// - Each strategy receives raw [BoxConstraints] and has full autonomy over:
+///   - Card size calculations
+///   - Spacing and positioning
+///   - Widget structure (Column, Row, Stack, etc.)
+/// - Grid strategies use [GridLayoutMixin] for common calculations
+/// - Non-grid strategies (Pyramid, TriPeaks) calculate their own metrics
+///
+/// This design allows:
+/// - Pyramid to calculate only what Pyramid needs
+/// - Spider to use 10 columns without special-casing in GameBoard
+/// - Future games to implement completely custom layouts
 class GameBoard extends StatefulWidget {
   const GameBoard({super.key});
 
@@ -15,18 +30,19 @@ class GameBoard extends StatefulWidget {
 }
 
 class _GameBoardState extends State<GameBoard> {
-  // Cache for layout calculation memoization
-  BoxConstraints? _lastConstraints;
-  BoardLayoutData? _cachedLayout;
+  // Cache the layout strategy to avoid recreating on every build
+  LayoutStrategy? _cachedStrategy;
+  Object? _lastGameType;
 
-  // Get the appropriate layout delegate for the current game
-  GameLayoutDelegate _getLayoutDelegate(GameController controller) {
-    return createLayoutDelegate(controller);
-  }
-
-  @override
-  void initState() {
-    super.initState();
+  /// Get the appropriate layout strategy for the current game.
+  /// Caches the strategy and only recreates when game type changes.
+  LayoutStrategy _getLayoutStrategy(GameController controller) {
+    final currentGameType = controller.game.gameType;
+    if (_cachedStrategy == null || _lastGameType != currentGameType) {
+      _cachedStrategy = LayoutStrategyFactory.create(controller);
+      _lastGameType = currentGameType;
+    }
+    return _cachedStrategy!;
   }
 
   @override
@@ -35,33 +51,12 @@ class _GameBoardState extends State<GameBoard> {
       builder: (context, controller, _) {
         return LayoutBuilder(
           builder: (context, constraints) {
-            final layout = _calculateLayout(constraints, controller);
+            final strategy = _getLayoutStrategy(controller);
+
             return Container(
               decoration: _buildFeltBackground(context),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  layout.padding + 24, // Left padding
-                  layout.padding,
-                  layout.padding + 24, // Right padding (equal to left)
-                  layout.padding,
-                ),
-                child: Column(
-                  children: [
-                    // Top row: Delegated to strategy (listen to settings changes for leftHandMode)
-                    Consumer<SettingsProvider>(
-                      builder: (context, settings, _) {
-                        return _getLayoutDelegate(controller)
-                            .buildTopRow(context, controller, layout);
-                      },
-                    ),
-                    SizedBox(height: layout.rowSpacing),
-                    // Tableau - uses Selectors for granular rebuilds
-                    Expanded(
-                      child: _buildTableau(context, controller, layout),
-                    ),
-                  ],
-                ),
-              ),
+              // Strategy owns ALL layout decisions - just pass raw constraints
+              child: strategy.buildLayout(context, controller, constraints),
             );
           },
         );
@@ -73,7 +68,6 @@ class _GameBoardState extends State<GameBoard> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final settings = Provider.of<SettingsProvider>(context);
     final theme = settings.currentTheme;
-    debugPrint('Building felt background with theme: ${theme.name}');
 
     // Get theme-specific colors
     final baseColor = theme.getTableColor(Theme.of(context).brightness);
@@ -97,138 +91,6 @@ class _GameBoardState extends State<GameBoard> {
         ],
         stops: const [0.0, 0.5, 1.0],
       ),
-    );
-  }
-
-  Widget _buildTableau(
-      BuildContext context, GameController controller, BoardLayoutData layout) {
-    // Only build as many piles as the controller has, up to column count
-    // This allows the layout to adapt if the game state doesn't match the delegate's expectation
-    // (though in a correct implementation they should match)
-    final tableauCount = controller.tableau.length;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Tableau piles - each wrapped in Selector for granular rebuilds
-        for (int i = 0; i < tableauCount; i++) ...[
-          SizedBox(
-            width: layout.cardWidth,
-            child: _TableauPileSelector(
-              pileIndex: i,
-              cardWidth: layout.cardWidth,
-              stackOffset: layout.stackOffset,
-            ),
-          ),
-          if (i < tableauCount - 1) SizedBox(width: layout.pileSpacing),
-        ],
-      ],
-    );
-  }
-
-  BoardLayoutData _calculateLayout(
-      BoxConstraints constraints, GameController controller) {
-    // Return cached layout if constraints haven't changed
-    if (_lastConstraints == constraints && _cachedLayout != null) {
-      return _cachedLayout!;
-    }
-
-    // Store new constraints
-    _lastConstraints = constraints;
-
-    const double minCardWidth = 50.0;
-    const double maxCardWidth = 150.0;
-    const double padding = 8.0;
-
-    // Available width for cards (accounting for extra left/right padding)
-    final availableWidth = constraints.maxWidth - ((padding + 24) * 2);
-
-    // Dynamic column count from delegate
-    final int columns = _getLayoutDelegate(controller).columnCount;
-    final int gaps = columns - 1;
-
-    // availableWidth = columns * cardWidth + gaps * spacing
-    // spacing = 0.15 * cardWidth
-    // availableWidth = columns * cardWidth + gaps * 0.15 * cardWidth
-    // availableWidth = cardWidth * (columns + gaps * 0.15)
-
-    final denominator = columns + (gaps * 0.15);
-    final cardWidth =
-        (availableWidth / denominator).clamp(minCardWidth, maxCardWidth);
-    final pileSpacing = cardWidth * 0.15;
-
-    final cardHeight = cardWidth / CardWidget.aspectRatio;
-
-    // Calculate stack offset based on available vertical space
-    final topRowHeight = cardHeight;
-    // Increased from 0.02 to 0.04 for more space between top row and tableau
-    final rowSpacing = constraints.maxHeight * 0.04;
-    final availableTableauHeight =
-        constraints.maxHeight - topRowHeight - rowSpacing - (padding * 2);
-
-    // Max cards in a tableau pile after dealing: 7 + (remaining deck if all went to one pile)
-    // Realistically, aim for ~20 cards visible
-    const maxVisibleCards = 20;
-    final stackOffset = (availableTableauHeight - cardHeight) / maxVisibleCards;
-    final clampedStackOffset =
-        stackOffset.clamp(cardHeight * 0.15, cardHeight * 0.28);
-
-    // Cache the computed layout
-    _cachedLayout = BoardLayoutData(
-      cardWidth: cardWidth,
-      cardHeight: cardHeight,
-      pileSpacing: pileSpacing,
-      stackOffset: clampedStackOffset,
-      rowSpacing: rowSpacing,
-      padding: padding,
-    );
-
-    return _cachedLayout!;
-  }
-}
-
-/// Selector widget that only rebuilds a TableauPileWidget when its specific data changes.
-/// This prevents the entire board from rebuilding when unrelated state changes.
-class _TableauPileSelector extends StatelessWidget {
-  final int pileIndex;
-  final double cardWidth;
-  final double stackOffset;
-
-  const _TableauPileSelector({
-    required this.pileIndex,
-    required this.cardWidth,
-    required this.stackOffset,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Selector<GameController, TableauPileRenderData>(
-      selector: (_, controller) {
-        final pile = controller.tableau[pileIndex];
-        return TableauPileRenderData(
-          pile: pile,
-          pileVersion: pile.version,
-          isHintDestination: controller.hintDestinationPile == pile,
-          isHintSource: controller.hintSourcePile == pile,
-          isFocused: controller.focusedPile == pile,
-          selectedCards: controller.selectedCards,
-          selectedPile: controller.selectedPile,
-          hintCards: controller.hintCards,
-          animatingCard: controller.animatingCard,
-        );
-      },
-      builder: (context, data, _) {
-        final controller = Provider.of<GameController>(context, listen: false);
-        return Container(
-          key: controller.boardLayout.getKeyForPileId(data.pile.id),
-          child: TableauPileWidget(
-            pile: data.pile,
-            cardWidth: cardWidth,
-            stackOffset: stackOffset,
-            controller: controller,
-          ),
-        );
-      },
     );
   }
 }

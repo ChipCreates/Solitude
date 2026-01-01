@@ -634,17 +634,13 @@ class GameController extends ChangeNotifier {
     _inactivityService.resetInactivityTimer();
     clearHint();
 
-    // Only allow double-tap on top card of pile (or waste)
-    if (pile.topCard != card && pile.type != PileType.tableau) return false;
-
-    // For tableau, only allow if it's the top card
-    if (pile.type == PileType.tableau && pile.topCard != card) return false;
+    // Delegate auto-move validation to the game (game-agnostic)
+    if (!_game.canAutoMove(pile, card)) return false;
 
     _recordGameStart();
 
-    // Get cards to move (for tableau, may be a stack)
-    final cardIndex = pile.indexOfCard(card);
-    final cardsToMove = cardIndex >= 0 ? pile.cards.sublist(cardIndex) : [card];
+    // Get cards to move - delegate to game for proper selection
+    final cardsToMove = _game.getAutoMoveCards(pile, card);
 
     // Ask the game for the best destination
     final destinationPile =
@@ -712,17 +708,13 @@ class GameController extends ChangeNotifier {
     _inactivityService.resetInactivityTimer();
     clearHint();
 
-    // Only allow double-tap on top card of pile (or waste)
-    if (pile.topCard != card && pile.type != PileType.tableau) return false;
-
-    // For tableau, only allow if it's the top card
-    if (pile.type == PileType.tableau && pile.topCard != card) return false;
+    // Delegate auto-move validation to the game (game-agnostic)
+    if (!_game.canAutoMove(pile, card)) return false;
 
     _recordGameStart();
 
-    // Get cards to move (for tableau, may be a stack)
-    final cardIndex = pile.indexOfCard(card);
-    final cardsToMove = cardIndex >= 0 ? pile.cards.sublist(cardIndex) : [card];
+    // Get cards to move - delegate to game for proper selection
+    final cardsToMove = _game.getAutoMoveCards(pile, card);
 
     // Ask the game for the best destination
     final destinationPile =
@@ -835,9 +827,12 @@ class GameController extends ChangeNotifier {
       for (final foundation in _game.foundationPiles) {
         cardsInFoundations += foundation.length;
       }
-      // Calculate Vegas score: -52 to start + $5 per card
-      final vegasScore = ScoringMode.vegas.vegasGameCost +
-          (cardsInFoundations * ScoringMode.vegas.vegasCardValue);
+      // Calculate Vegas score using game's deck size (game-agnostic)
+      // Cost scales with deck size: -$1 per card in deck
+      final deckSize = _game.deckSize;
+      final vegasGameCost = -deckSize; // -52 for Klondike, -104 for Spider
+      final vegasScore =
+          vegasGameCost + (cardsInFoundations * ScoringMode.vegas.vegasCardValue);
       statisticsService.recordVegasScore(vegasScore);
     }
 
@@ -855,11 +850,15 @@ class GameController extends ChangeNotifier {
       _eventController.add(const GameEvent(GameEventType.gameWon));
     }
 
-    // Record Vegas scoring if in Vegas mode (winning = all 52 cards in foundations)
+    // Record Vegas scoring if in Vegas mode (winning = all cards in foundations)
     if (settingsProvider.scoringMode == ScoringMode.vegas) {
-      // Vegas win score: -52 + (52 * 5) = 208
-      final vegasScore = ScoringMode.vegas.vegasGameCost +
-          (52 * ScoringMode.vegas.vegasCardValue);
+      // Vegas win score uses game's deck size (game-agnostic)
+      // For Klondike: -52 + (52 * 5) = 208
+      // For Spider: -104 + (104 * 5) = 416
+      final deckSize = _game.deckSize;
+      final vegasGameCost = -deckSize;
+      final vegasScore =
+          vegasGameCost + (deckSize * ScoringMode.vegas.vegasCardValue);
       statisticsService.recordVegasScore(vegasScore);
     }
 
@@ -963,26 +962,7 @@ class GameController extends ChangeNotifier {
 
   /// Shows fast hint using greedy heuristic
   void _showFastHint() {
-    // Check for stock draw/recycle (game-agnostic check via getPile)
-    final stockPile = _game.getPile(PileType.stock);
-    final wastePile = _game.getPile(PileType.waste);
-
-    if (stockPile != null &&
-        stockPile.isEmpty &&
-        wastePile != null &&
-        !wastePile.isEmpty) {
-      // Recycle suggestion - hint source and destination are both stock
-      hintState.setHint(
-        sourcePile: stockPile,
-        cards: null,
-        destinationPile: stockPile,
-      );
-      if (!_eventController.isClosed) {
-        _eventController.add(const GameEvent(GameEventType.hintUsed));
-      }
-      return;
-    }
-
+    // First try to get a regular move hint from the game
     final hint = _game.getHint();
     if (hint != null) {
       hintState.setHint(
@@ -1002,25 +982,33 @@ class GameController extends ChangeNotifier {
           clearHint();
         }
       });
-    } else {
-      // No moves available, try suggesting drawing from stock
-      if (stockPile != null && !stockPile.isEmpty) {
+      return;
+    }
+
+    // No card moves available - try stock hint (game-agnostic delegation)
+    if (_game.supportsStockHints) {
+      final stockHint = _game.getStockHint();
+      if (stockHint != null) {
         hintState.setHint(
-          sourcePile: stockPile,
+          sourcePile: stockHint.source,
           cards: null,
-          destinationPile: stockPile,
+          destinationPile: stockHint.destination,
         );
+        if (!_eventController.isClosed) {
+          _eventController.add(const GameEvent(GameEventType.hintUsed));
+        }
         Future.delayed(const Duration(seconds: 2), () {
-          if (!_isDisposed && hintState.sourcePile == stockPile) {
+          if (!_isDisposed && hintState.sourcePile == stockHint.source) {
             clearHint();
           }
         });
-      } else {
-        // Absolutely no moves
-        if (!_eventController.isClosed) {
-          _eventController.add(const GameEvent(GameEventType.invalidMove));
-        }
+        return;
       }
+    }
+
+    // Absolutely no moves available
+    if (!_eventController.isClosed) {
+      _eventController.add(const GameEvent(GameEventType.invalidMove));
     }
   }
 
