@@ -57,19 +57,20 @@ class _GameChooserScreenState extends State<GameChooserScreen> {
                 ),
                 const SizedBox(height: 48),
                 Expanded(
-                  child: ListView(
-                    children: [
-                      _GameOption(
-                        gameType: GameType.klondike,
-                        onSelected: () =>
-                            _selectGame(context, GameType.klondike),
-                      ),
-                      const SizedBox(height: 16),
-                      _GameOption(
-                        gameType: GameType.spider,
-                        onSelected: () => _selectGame(context, GameType.spider),
-                      ),
-                    ],
+                  child: ListView.builder(
+                    itemCount: GameType.values.length,
+                    itemBuilder: (context, index) {
+                      final gameType = GameType.values[index];
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index < GameType.values.length - 1 ? 16.0 : 0,
+                        ),
+                        child: _GameOption(
+                          gameType: gameType,
+                          onSelected: () => _selectGame(context, gameType),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],

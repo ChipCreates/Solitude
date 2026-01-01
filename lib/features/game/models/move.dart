@@ -8,7 +8,9 @@ class Move {
   final bool flippedCard; // Did this move reveal a face-down card?
   final bool drewFromStock; // Was this a stock draw?
   final int stockRecycleCount; // Track stock recycles for undo
-  
+  final Map<String, dynamic>?
+      extraData; // Game-specific data (e.g., second pile for Pyramid pairs)
+
   Move({
     required this.fromPile,
     required this.toPile,
@@ -16,8 +18,9 @@ class Move {
     this.flippedCard = false,
     this.drewFromStock = false,
     this.stockRecycleCount = 0,
+    this.extraData,
   });
-  
+
   /// Get a human-readable description of this move
   String get description {
     // Handle stock draw/recycle
@@ -67,6 +70,6 @@ class Move {
 
   @override
   String toString() =>
-    'Move: ${cards.length} card(s) from ${fromPile.type.name}[${fromPile.index}] '
-    'to ${toPile.type.name}[${toPile.index}]${flippedCard ? " (flipped)" : ""}';
+      'Move: ${cards.length} card(s) from ${fromPile.type.name}[${fromPile.index}] '
+      'to ${toPile.type.name}[${toPile.index}]${flippedCard ? " (flipped)" : ""}';
 }

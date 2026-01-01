@@ -75,9 +75,8 @@ void main() {
     group('pattern identification', () {
       test('can identify each pattern uniquely', () {
         const patterns = VictoryPattern.values;
-        final labels = patterns.map((p) => p.label).toList();
 
-        // Verify each pattern can be uniquely identified
+        // Verify each pattern can be uniquely identified by label
         for (var i = 0; i < patterns.length; i++) {
           for (var j = i + 1; j < patterns.length; j++) {
             expect(patterns[i].label, isNot(equals(patterns[j].label)));

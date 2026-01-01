@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart'; // Added for SVG rendering
 import 'package:provider/provider.dart';
 import '../services/settings_provider.dart';
 import 'package:solitude/features/game/services/game_controller.dart';
+import 'package:solitude/features/game/games/game_factory.dart';
 import 'package:solitude/core/theme/app_theme.dart';
 import '../models/difficulty.dart';
 import '../models/theme_preset.dart';
@@ -869,64 +870,121 @@ class _CardBackCustomization extends StatelessWidget {
 class _GameplayTab extends StatelessWidget {
   const _GameplayTab();
 
+  /// Shows a SnackBar warning that changes will apply to the next game
+  void _showSettingsChangedSnackBar(BuildContext context, String settingName) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$settingName changed. Will apply to the next game.'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppTheme.toolbarColor(context),
+      ),
+    );
+  }
+
+  /// Check if Draw Mode setting should be shown for the current game type
+  bool _showDrawMode(GameType? gameType) {
+    return gameType == GameType.klondike || gameType == GameType.canfield;
+  }
+
+  /// Check if Scoring Mode setting should be shown for the current game type
+  bool _showScoringMode(GameType? gameType) {
+    return gameType == GameType.klondike;
+  }
+
+  /// Check if this is a Spider game (for suit count options)
+  bool _isSpiderGame(GameType? gameType) {
+    return gameType == GameType.spider;
+  }
+
+  /// Get Spider-specific difficulty description
+  String _getSpiderDifficultyDescription(Difficulty difficulty) {
+    switch (difficulty) {
+      case Difficulty.easy:
+        return '1 Suit - Easiest to win';
+      case Difficulty.medium:
+        return '2 Suits - Moderate challenge';
+      case Difficulty.hard:
+        return '4 Suits - Full difficulty';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Get the current game type from GameController (may be null if not in game)
+    final gameController = context.watch<GameController?>();
+    final currentGameType = gameController?.game.gameType;
+
     return Consumer<SettingsProvider>(
       builder: (context, settings, _) {
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              // Rule Settings Section
-              Row(
-                children: [
-                  Container(
-                      width: 40,
-                      height: 1,
-                      color:
-                          AppTheme.accentColor(context).withValues(alpha: 0.3)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('RULE SETTINGS',
-                        style: AppTypography.subheading(context)),
-                  ),
-                  Expanded(
-                      child: Container(
-                          height: 1,
-                          color: AppTheme.accentColor(context)
-                              .withValues(alpha: 0.3))),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Draw Mode',
-                subtitle: settings.drawMode == DrawMode.one
-                    ? 'Draw 1 card'
-                    : 'Draw 3 cards',
-                child: GameToggle<DrawMode>(
-                  value: settings.drawMode,
-                  options: [
-                    GameToggleOption(
-                        value: DrawMode.one,
-                        label: '1',
-                        color: settings.currentTheme.accentColor),
-                    GameToggleOption(
-                        value: DrawMode.three,
-                        label: '3',
-                        color: settings.currentTheme.accentColor),
+              // Rule Settings Section - only show if there are applicable settings
+              if (_showDrawMode(currentGameType) ||
+                  _showScoringMode(currentGameType)) ...[
+                Row(
+                  children: [
+                    Container(
+                        width: 40,
+                        height: 1,
+                        color: AppTheme.accentColor(context)
+                            .withValues(alpha: 0.3)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('RULE SETTINGS',
+                          style: AppTypography.subheading(context)),
+                    ),
+                    Expanded(
+                        child: Container(
+                            height: 1,
+                            color: AppTheme.accentColor(context)
+                                .withValues(alpha: 0.3))),
                   ],
-                  onChanged: settings.setDrawMode,
                 ),
-              ),
-              const SizedBox(height: 20),
-              _buildSettingRow(
-                context,
-                label: 'Scoring',
-                subtitle: settings.scoringMode.shortName,
-                child: _buildScoringDropdown(context, settings),
-              ),
-              const SizedBox(height: 28),
+                const SizedBox(height: 20),
+                // Draw Mode - only for Klondike and Canfield
+                if (_showDrawMode(currentGameType)) ...[
+                  _buildSettingRow(
+                    context,
+                    label: 'Draw Mode',
+                    subtitle: settings.drawMode == DrawMode.one
+                        ? 'Draw 1 card'
+                        : 'Draw 3 cards',
+                    child: GameToggle<DrawMode>(
+                      value: settings.drawMode,
+                      options: [
+                        GameToggleOption(
+                            value: DrawMode.one,
+                            label: '1',
+                            color: settings.currentTheme.accentColor),
+                        GameToggleOption(
+                            value: DrawMode.three,
+                            label: '3',
+                            color: settings.currentTheme.accentColor),
+                      ],
+                      onChanged: (mode) {
+                        settings.setDrawMode(mode);
+                        _showSettingsChangedSnackBar(context, 'Draw Mode');
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                // Scoring Mode - only for Klondike
+                if (_showScoringMode(currentGameType)) ...[
+                  _buildSettingRow(
+                    context,
+                    label: 'Scoring',
+                    subtitle: settings.scoringMode.shortName,
+                    child: _buildScoringDropdown(context, settings),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                const SizedBox(height: 8),
+              ],
 
               // Accessibility Section
               Row(
@@ -991,12 +1049,41 @@ class _GameplayTab extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 20),
+              // Difficulty - with Spider-specific labels
               _buildSettingRow(
                 context,
-                label: 'Difficulty',
-                subtitle: settings.difficulty.description,
+                label: _isSpiderGame(currentGameType)
+                    ? 'Suit Count'
+                    : 'Difficulty',
+                subtitle: _isSpiderGame(currentGameType)
+                    ? _getSpiderDifficultyDescription(settings.difficulty)
+                    : settings.difficulty.description,
                 child: Builder(builder: (ctx) {
                   final accent = settings.currentTheme.accentColor;
+                  // Spider-specific suit count options
+                  if (_isSpiderGame(currentGameType)) {
+                    return GameToggle<Difficulty>(
+                      value: settings.difficulty,
+                      options: [
+                        GameToggleOption(
+                            value: Difficulty.easy, label: '1', color: accent),
+                        GameToggleOption(
+                            value: Difficulty.medium,
+                            label: '2',
+                            color: accent),
+                        GameToggleOption(
+                            value: Difficulty.hard, label: '4', color: accent),
+                      ],
+                      onChanged: (difficulty) {
+                        settings.setDifficulty(difficulty);
+                        if (gameController != null) {
+                          gameController.game.applyDifficulty(difficulty);
+                        }
+                        _showSettingsChangedSnackBar(context, 'Suit Count');
+                      },
+                    );
+                  }
+                  // Standard difficulty options for other games
                   return GameToggle<Difficulty>(
                     value: settings.difficulty,
                     options: [
@@ -1011,10 +1098,9 @@ class _GameplayTab extends StatelessWidget {
                     ],
                     onChanged: (difficulty) {
                       settings.setDifficulty(difficulty);
-                      context
-                          .read<GameController>()
-                          .game
-                          .applyDifficulty(difficulty);
+                      if (gameController != null) {
+                        gameController.game.applyDifficulty(difficulty);
+                      }
                     },
                   );
                 }),
@@ -1094,6 +1180,7 @@ class _GameplayTab extends StatelessWidget {
         onChanged: (ScoringMode? newValue) {
           if (newValue != null) {
             settings.setScoringMode(newValue);
+            _showSettingsChangedSnackBar(context, 'Scoring Mode');
           }
         },
         items: ScoringMode.values

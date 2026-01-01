@@ -3,6 +3,14 @@ import '../services/game_controller.dart';
 import 'layout_strategy.dart';
 import 'klondike_layout_strategy.dart';
 import 'spider_layout_strategy.dart';
+import 'freecell_layout_strategy.dart';
+import 'canfield_layout_strategy.dart';
+import 'forty_thieves_layout_strategy.dart';
+import 'yukon_layout_strategy.dart';
+import 'scorpion_layout_strategy.dart';
+import 'golf_layout_strategy.dart';
+import 'pyramid_layout_strategy.dart';
+import 'tripeaks_layout_strategy.dart';
 
 /// Factory for creating layout strategies based on game type.
 ///
@@ -30,23 +38,33 @@ class LayoutStrategyFactory {
   /// Useful when you don't have a controller but know the game type.
   static LayoutStrategy createFromType(GameType type, LayoutConfig config) {
     switch (type) {
+      // Grid-based layouts (Klondike-style)
       case GameType.klondike:
         return KlondikeLayoutStrategy(config);
       case GameType.spider:
         return SpiderLayoutStrategy(config);
-      // Future games - throw until implemented
-      case GameType.pyramid:
-      case GameType.golf:
+
+      // Special grid layouts
       case GameType.freecell:
-      case GameType.triPeaks:
-      case GameType.yukon:
-      case GameType.fortyThieves:
+        return FreeCellLayoutStrategy(config);
       case GameType.canfield:
+        return CanfieldLayoutStrategy(config);
+      case GameType.fortyThieves:
+        return FortyThievesLayoutStrategy(config);
+
+      // Simple grid layouts (no stock/waste or foundations-only)
+      case GameType.yukon:
+        return YukonLayoutStrategy(config);
       case GameType.scorpion:
-        throw UnimplementedError(
-          'Layout strategy for $type is not yet implemented. '
-          'To add support: create a new strategy class and add it to this factory.',
-        );
+        return ScorpionLayoutStrategy(config);
+      case GameType.golf:
+        return GolfLayoutStrategy(config);
+
+      // Absolute positioned layouts
+      case GameType.pyramid:
+        return PyramidLayoutStrategy(config);
+      case GameType.triPeaks:
+        return TriPeaksLayoutStrategy(config);
     }
   }
 }

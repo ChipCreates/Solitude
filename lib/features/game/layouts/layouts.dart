@@ -17,16 +17,32 @@
 /// - Strategies receive raw constraints and calculate what they need
 /// - Grid strategies share logic via mixin; non-grid strategies are independent
 ///
-/// Concrete Strategies:
-/// - [KlondikeLayoutStrategy] - Grid layout for Klondike (7 columns)
-/// - [SpiderLayoutStrategy] - Grid layout for Spider (10 columns)
+/// Grid-based Strategies (use GridLayoutMixin):
+/// - [KlondikeLayoutStrategy] - 7 columns, stock/waste, 4 foundations
+/// - [SpiderLayoutStrategy] - 10 columns, stock only
+/// - [FreeCellLayoutStrategy] - 8 columns, 4 free cells, 4 foundations
+/// - [CanfieldLayoutStrategy] - 4 columns, reserve, stock/waste, 4 foundations
+/// - [FortyThievesLayoutStrategy] - 10 columns, stock/waste, 8 foundations
+/// - [YukonLayoutStrategy] - 7 columns, foundations only
+/// - [ScorpionLayoutStrategy] - 7 columns, stock only
+/// - [GolfLayoutStrategy] - 7 columns, stock/waste (waste is target)
 ///
-/// Future strategies can implement:
-/// - Stack-based layouts for Pyramid, TriPeaks, Golf
-/// - Custom layouts for specialized games
+/// Absolute-positioned Strategies (pyramid/tree layouts):
+/// - [PyramidLayoutStrategy] - 28 cards in 7-row triangle, stock/waste/discard
+/// - [TriPeaksLayoutStrategy] - 3 overlapping 4-row pyramids, stock/waste
 library;
 
 export 'layout_strategy.dart';
 export 'layout_strategy_factory.dart';
+// Grid-based layouts
 export 'klondike_layout_strategy.dart';
 export 'spider_layout_strategy.dart';
+export 'freecell_layout_strategy.dart';
+export 'canfield_layout_strategy.dart';
+export 'forty_thieves_layout_strategy.dart';
+export 'yukon_layout_strategy.dart';
+export 'scorpion_layout_strategy.dart';
+export 'golf_layout_strategy.dart';
+// Absolute-positioned layouts
+export 'pyramid_layout_strategy.dart';
+export 'tripeaks_layout_strategy.dart';

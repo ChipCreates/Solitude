@@ -1,6 +1,14 @@
 import 'game_interface.dart';
 import 'klondike/klondike_game.dart';
 import 'spider/spider_game.dart';
+import 'freecell/freecell_game.dart';
+import 'pyramid/pyramid_game.dart';
+import 'tripeaks/tripeaks_game.dart';
+import 'golf/golf_game.dart';
+import 'yukon/yukon_game.dart';
+import 'fortythieves/forty_thieves_game.dart';
+import 'canfield/canfield_game.dart';
+import 'scorpion/scorpion_game.dart';
 
 // Re-export GameType for convenience
 export 'game_interface.dart' show GameType;
@@ -68,21 +76,21 @@ class GameFactory {
       case GameType.spider:
         return SpiderGame();
       case GameType.pyramid:
-        throw UnimplementedError('Pyramid game is not yet implemented.');
+        return PyramidGame();
       case GameType.golf:
-        throw UnimplementedError('Golf game is not yet implemented.');
+        return GolfGame();
       case GameType.freecell:
-        throw UnimplementedError('FreeCell game is not yet implemented.');
+        return FreeCellGame();
       case GameType.triPeaks:
-        throw UnimplementedError('TriPeaks game is not yet implemented.');
+        return TriPeaksGame();
       case GameType.yukon:
-        throw UnimplementedError('Yukon game is not yet implemented.');
+        return YukonGame();
       case GameType.fortyThieves:
-        throw UnimplementedError('Forty Thieves game is not yet implemented.');
+        return FortyThievesGame();
       case GameType.canfield:
-        throw UnimplementedError('Canfield game is not yet implemented.');
+        return CanfieldGame();
       case GameType.scorpion:
-        throw UnimplementedError('Scorpion game is not yet implemented.');
+        return ScorpionGame();
     }
   }
 }

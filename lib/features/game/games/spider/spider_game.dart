@@ -7,6 +7,7 @@ import '../../models/move.dart';
 import 'package:solitude/features/settings/models/difficulty.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
 import '../../ai/abstract_solver.dart';
+import '../../ai/games/spider_solver_state.dart';
 
 /// Spider Solitaire game implementation.
 ///
@@ -228,9 +229,30 @@ class SpiderGame extends SolitaireGameBase {
   }
 
   @override
-  SolverState? getSolverState() {
-    // Solver not implemented for Spider in V1.0
-    return null;
+  SpiderSolverState? getSolverState() {
+    // Convert card to solver format
+    String cardToString(PlayingCard card) {
+      return '${card.value}${card.suit.name[0].toUpperCase()}';
+    }
+
+    // Convert tableau piles
+    final solverTableau = tableau.map((pile) {
+      return pile.cards
+          .map((card) => SpiderCard(cardToString(card), faceUp: card.faceUp))
+          .toList();
+    }).toList();
+
+    // Calculate stock deals remaining (each deal is 10 cards)
+    final stockDeals = stock.length ~/ 10;
+
+    // Count completed sequences
+    final completed = completedPiles.where((p) => !p.isEmpty).length;
+
+    return SpiderSolverState(
+      tableau: solverTableau,
+      stockDeals: stockDeals,
+      completedSequences: completed,
+    );
   }
 
   // ==========================================================================

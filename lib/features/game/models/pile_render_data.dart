@@ -7,7 +7,7 @@ import '../models/pile.dart';
 @immutable
 class TableauPileRenderData {
   final Pile pile;
-  final int pileVersion;  // Incremented when pile contents change
+  final int pileVersion; // Incremented when pile contents change
   final bool isHintDestination;
   final bool isHintSource;
   final bool isFocused;
@@ -46,16 +46,16 @@ class TableauPileRenderData {
 
   @override
   int get hashCode => Object.hash(
-    pile,
-    pileVersion,
-    isHintDestination,
-    isHintSource,
-    isFocused,
-    selectedCards,
-    selectedPile,
-    hintCards,
-    animatingCard,
-  );
+        pile,
+        pileVersion,
+        isHintDestination,
+        isHintSource,
+        isFocused,
+        selectedCards,
+        selectedPile,
+        hintCards,
+        animatingCard,
+      );
 }
 
 /// Immutable data class for stock pile rendering.
@@ -125,14 +125,14 @@ class WastePileRenderData {
 
   @override
   int get hashCode => Object.hash(
-    pile,
-    pileVersion,
-    isFocused,
-    isHintSource,
-    selectedCards,
-    selectedPile,
-    animatingCard,
-  );
+        pile,
+        pileVersion,
+        isFocused,
+        isHintSource,
+        selectedCards,
+        selectedPile,
+        animatingCard,
+      );
 }
 
 /// Immutable data class for foundation pile rendering.
@@ -163,9 +163,158 @@ class FoundationPileRenderData {
 
   @override
   int get hashCode => Object.hash(
-    pile,
-    pileVersion,
-    isValidDestination,
-    isHintDestination,
-  );
+        pile,
+        pileVersion,
+        isValidDestination,
+        isHintDestination,
+      );
+}
+
+/// Immutable data class for cell pile rendering (FreeCell's free cells).
+@immutable
+class CellPileRenderData {
+  final Pile pile;
+  final int pileVersion;
+  final bool isFocused;
+  final bool isValidDestination;
+  final bool isHintDestination;
+  final List<PlayingCard>? selectedCards;
+  final Pile? selectedPile;
+  final PlayingCard? animatingCard;
+
+  const CellPileRenderData({
+    required this.pile,
+    required this.pileVersion,
+    required this.isFocused,
+    required this.isValidDestination,
+    required this.isHintDestination,
+    required this.selectedCards,
+    required this.selectedPile,
+    required this.animatingCard,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! CellPileRenderData) return false;
+
+    return pile == other.pile &&
+        pileVersion == other.pileVersion &&
+        isFocused == other.isFocused &&
+        isValidDestination == other.isValidDestination &&
+        isHintDestination == other.isHintDestination &&
+        listEquals(selectedCards, other.selectedCards) &&
+        selectedPile == other.selectedPile &&
+        animatingCard == other.animatingCard;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        pile,
+        pileVersion,
+        isFocused,
+        isValidDestination,
+        isHintDestination,
+        selectedCards,
+        selectedPile,
+        animatingCard,
+      );
+}
+
+/// Immutable data class for reserve pile rendering (Canfield's reserve).
+@immutable
+class ReservePileRenderData {
+  final Pile pile;
+  final int pileVersion;
+  final bool isFocused;
+  final bool isHintSource;
+  final List<PlayingCard>? selectedCards;
+  final Pile? selectedPile;
+  final PlayingCard? animatingCard;
+
+  const ReservePileRenderData({
+    required this.pile,
+    required this.pileVersion,
+    required this.isFocused,
+    required this.isHintSource,
+    required this.selectedCards,
+    required this.selectedPile,
+    required this.animatingCard,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! ReservePileRenderData) return false;
+
+    return pile == other.pile &&
+        pileVersion == other.pileVersion &&
+        isFocused == other.isFocused &&
+        isHintSource == other.isHintSource &&
+        listEquals(selectedCards, other.selectedCards) &&
+        selectedPile == other.selectedPile &&
+        animatingCard == other.animatingCard;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        pile,
+        pileVersion,
+        isFocused,
+        isHintSource,
+        selectedCards,
+        selectedPile,
+        animatingCard,
+      );
+}
+
+/// Immutable data class for pyramid pile rendering (Pyramid/TriPeaks).
+@immutable
+class PyramidPileRenderData {
+  final Pile pile;
+  final int pileVersion;
+  final bool isFocused;
+  final bool isUncovered;
+  final bool isHintSource;
+  final List<PlayingCard>? selectedCards;
+  final Pile? selectedPile;
+  final PlayingCard? animatingCard;
+
+  const PyramidPileRenderData({
+    required this.pile,
+    required this.pileVersion,
+    required this.isFocused,
+    required this.isUncovered,
+    required this.isHintSource,
+    required this.selectedCards,
+    required this.selectedPile,
+    required this.animatingCard,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! PyramidPileRenderData) return false;
+
+    return pile == other.pile &&
+        pileVersion == other.pileVersion &&
+        isFocused == other.isFocused &&
+        isUncovered == other.isUncovered &&
+        isHintSource == other.isHintSource &&
+        listEquals(selectedCards, other.selectedCards) &&
+        selectedPile == other.selectedPile &&
+        animatingCard == other.animatingCard;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        pile,
+        pileVersion,
+        isFocused,
+        isUncovered,
+        isHintSource,
+        selectedCards,
+        selectedPile,
+        animatingCard,
+      );
 }

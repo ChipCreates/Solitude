@@ -3,6 +3,14 @@ import 'package:solitude/features/game/games/game_factory.dart';
 import 'package:solitude/features/game/games/game_interface.dart';
 import 'package:solitude/features/game/games/klondike/klondike_game.dart';
 import 'package:solitude/features/game/games/spider/spider_game.dart';
+import 'package:solitude/features/game/games/pyramid/pyramid_game.dart';
+import 'package:solitude/features/game/games/golf/golf_game.dart';
+import 'package:solitude/features/game/games/freecell/freecell_game.dart';
+import 'package:solitude/features/game/games/tripeaks/tripeaks_game.dart';
+import 'package:solitude/features/game/games/yukon/yukon_game.dart';
+import 'package:solitude/features/game/games/fortythieves/forty_thieves_game.dart';
+import 'package:solitude/features/game/games/canfield/canfield_game.dart';
+import 'package:solitude/features/game/games/scorpion/scorpion_game.dart';
 
 void main() {
   group('GameFactory', () {
@@ -59,61 +67,61 @@ void main() {
       });
     });
 
-    group('unimplemented games', () {
-      test('throws UnimplementedError for Pyramid', () {
-        expect(
-          () => GameFactory.createGame(GameType.pyramid),
-          throwsA(isA<UnimplementedError>()),
-        );
+    group('implemented games', () {
+      test('creates Pyramid game', () {
+        final game = GameFactory.createGame(GameType.pyramid);
+        expect(game, isNotNull);
+        expect(game, isA<PyramidGame>());
+        expect(game.gameType, equals(GameType.pyramid));
       });
 
-      test('throws UnimplementedError for Golf', () {
-        expect(
-          () => GameFactory.createGame(GameType.golf),
-          throwsA(isA<UnimplementedError>()),
-        );
+      test('creates Golf game', () {
+        final game = GameFactory.createGame(GameType.golf);
+        expect(game, isNotNull);
+        expect(game, isA<GolfGame>());
+        expect(game.gameType, equals(GameType.golf));
       });
 
-      test('throws UnimplementedError for FreeCell', () {
-        expect(
-          () => GameFactory.createGame(GameType.freecell),
-          throwsA(isA<UnimplementedError>()),
-        );
+      test('creates FreeCell game', () {
+        final game = GameFactory.createGame(GameType.freecell);
+        expect(game, isNotNull);
+        expect(game, isA<FreeCellGame>());
+        expect(game.gameType, equals(GameType.freecell));
       });
 
-      test('throws UnimplementedError for TriPeaks', () {
-        expect(
-          () => GameFactory.createGame(GameType.triPeaks),
-          throwsA(isA<UnimplementedError>()),
-        );
+      test('creates TriPeaks game', () {
+        final game = GameFactory.createGame(GameType.triPeaks);
+        expect(game, isNotNull);
+        expect(game, isA<TriPeaksGame>());
+        expect(game.gameType, equals(GameType.triPeaks));
       });
 
-      test('throws UnimplementedError for Yukon', () {
-        expect(
-          () => GameFactory.createGame(GameType.yukon),
-          throwsA(isA<UnimplementedError>()),
-        );
+      test('creates Yukon game', () {
+        final game = GameFactory.createGame(GameType.yukon);
+        expect(game, isNotNull);
+        expect(game, isA<YukonGame>());
+        expect(game.gameType, equals(GameType.yukon));
       });
 
-      test('throws UnimplementedError for FortyThieves', () {
-        expect(
-          () => GameFactory.createGame(GameType.fortyThieves),
-          throwsA(isA<UnimplementedError>()),
-        );
+      test('creates FortyThieves game', () {
+        final game = GameFactory.createGame(GameType.fortyThieves);
+        expect(game, isNotNull);
+        expect(game, isA<FortyThievesGame>());
+        expect(game.gameType, equals(GameType.fortyThieves));
       });
 
-      test('throws UnimplementedError for Canfield', () {
-        expect(
-          () => GameFactory.createGame(GameType.canfield),
-          throwsA(isA<UnimplementedError>()),
-        );
+      test('creates Canfield game', () {
+        final game = GameFactory.createGame(GameType.canfield);
+        expect(game, isNotNull);
+        expect(game, isA<CanfieldGame>());
+        expect(game.gameType, equals(GameType.canfield));
       });
 
-      test('throws UnimplementedError for Scorpion', () {
-        expect(
-          () => GameFactory.createGame(GameType.scorpion),
-          throwsA(isA<UnimplementedError>()),
-        );
+      test('creates Scorpion game', () {
+        final game = GameFactory.createGame(GameType.scorpion);
+        expect(game, isNotNull);
+        expect(game, isA<ScorpionGame>());
+        expect(game.gameType, equals(GameType.scorpion));
       });
     });
 
@@ -270,28 +278,21 @@ void main() {
 
     group('game type coverage', () {
       test('all enum values are handled', () {
+        // All games are now implemented
         for (final gameType in GameType.values) {
-          if (gameType == GameType.klondike || gameType == GameType.spider) {
-            // These should work
-            expect(() => GameFactory.createGame(gameType), returnsNormally);
-          } else {
-            // These should throw UnimplementedError
-            expect(
-              () => GameFactory.createGame(gameType),
-              throwsA(isA<UnimplementedError>()),
-            );
-          }
+          expect(() => GameFactory.createGame(gameType), returnsNormally);
         }
       });
 
-      test('factory covers current implementation status', () {
-        final implementedGames = [GameType.klondike, GameType.spider];
-        final unimplementedGames = GameType.values
-            .where((type) => !implementedGames.contains(type))
-            .toList();
+      test('factory covers all game types', () {
+        const implementedGames = GameType.values;
+        expect(implementedGames.length, equals(10));
 
-        expect(implementedGames.length, greaterThan(0));
-        expect(unimplementedGames.length, greaterThan(0));
+        // Verify each game type creates the correct game
+        for (final gameType in implementedGames) {
+          final game = GameFactory.createGame(gameType);
+          expect(game.gameType, equals(gameType));
+        }
       });
     });
   });
