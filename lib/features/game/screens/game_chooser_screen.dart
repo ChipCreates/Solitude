@@ -10,6 +10,7 @@ import '../services/animation_state_notifier.dart';
 import '../services/hint_state_notifier.dart';
 import '../services/selection_state_notifier.dart';
 import '../services/timer_state_notifier.dart';
+import '../services/game_state_repository.dart';
 import 'package:solitude/core/services/audio_service.dart';
 import '../services/game_audio_observer.dart';
 import 'game_screen.dart';
@@ -99,6 +100,7 @@ class _GameChooserScreenState extends State<GameChooserScreen> {
     final hintState = context.read<HintStateNotifier>();
     final selectionState = context.read<SelectionStateNotifier>();
     final timerState = context.read<TimerStateNotifier>();
+    final gameStateRepository = context.read<GameStateRepository>();
 
     // Navigate to game screen
     Navigator.pushReplacement(
@@ -115,6 +117,7 @@ class _GameChooserScreenState extends State<GameChooserScreen> {
               timerState: timerState,
               boardLayout: boardLayout,
               gameType: gameType,
+              gameStateRepository: gameStateRepository,
             );
 
             // Audio synchronization logic

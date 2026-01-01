@@ -70,6 +70,7 @@ class StatisticsService extends ChangeNotifier {
   static const String _gamesLostKey = 'gamesLost';
   static const String _vegasCumulativeScoreKey = 'vegasCumulativeScore';
   static const String _vegasHighScoreKey = 'vegasHighScore';
+  static const String _migrationCompleteKey = 'stats_migration_v1_complete';
 
   // Current game type being tracked
   GameType _currentGameType = GameType.klondike;
@@ -77,17 +78,21 @@ class StatisticsService extends ChangeNotifier {
   // Cache of statistics per game type
   final Map<GameType, Statistics> _statisticsCache = {};
 
+  // Track if legacy migration has been attempted
+  bool _migrationAttempted = false;
+
   Statistics get statistics => _statisticsCache[_currentGameType] ?? const Statistics();
   GameType get currentGameType => _currentGameType;
 
   /// Get the storage key prefix for a game type
-  /// Historically keys were stored without a game-type prefix.
-  /// Tests expect unprefixed keys (e.g. 'gamesPlayed'), so keep prefix empty
-  /// to maintain backward compatibility.
-  String _keyPrefix(GameType type) => '';
+  /// Keys are now prefixed with game type name (e.g., 'klondike_gamesPlayed')
+  String _keyPrefix(GameType type) => '${type.name}_';
 
   /// Get a full storage key for a game type and key suffix
   String _key(GameType type, String suffix) => '${_keyPrefix(type)}$suffix';
+
+  /// Get the legacy (unprefixed) key for backward compatibility
+  String _legacyKey(String suffix) => suffix;
 
   /// Switch to tracking a different game type
   Future<void> setGameType(GameType type) async {
@@ -135,21 +140,40 @@ class StatisticsService extends ChangeNotifier {
 
   Future<void> _loadStatisticsForType(GameType type) async {
     final prefs = await SharedPreferences.getInstance();
+    final box = await _ensureBox();
 
-    // If prefs contains any legacy keys, prefer prefs (this simplifies tests and
-    // provides a straightforward migration path). Attempt to migrate to Hive
-    // asynchronously but don't fail if Hive isn't available in the test env.
-    final hasLegacy = prefs.containsKey(_key(type, _gamesPlayedKey)) ||
-        prefs.containsKey(_key(type, _gamesWonKey)) ||
-        prefs.containsKey(_key(type, _gamesLostKey)) ||
-        prefs.containsKey(_key(type, _currentStreakKey)) ||
-        prefs.containsKey(_key(type, _bestStreakKey)) ||
-        prefs.containsKey(_key(type, _bestTimeKey)) ||
-        prefs.containsKey(_key(type, _fewestMovesKey)) ||
-        prefs.containsKey(_key(type, _vegasCumulativeScoreKey)) ||
-        prefs.containsKey(_key(type, _vegasHighScoreKey));
+    // Check if we need to migrate legacy unprefixed keys to Klondike
+    // Legacy keys (unprefixed) are assumed to be Klondike stats since that was
+    // the only game type before multi-game support
+    if (!_migrationAttempted && type == GameType.klondike) {
+      _migrationAttempted = true;
+      await _migrateLegacyKeys(prefs, box);
+    }
 
-    if (hasLegacy) {
+    // Try to load from Hive first (new prefixed keys)
+    final prefixedKey = _key(type, _gamesPlayedKey);
+    final hasHiveData = box.containsKey(prefixedKey);
+
+    if (hasHiveData) {
+      _statisticsCache[type] = Statistics(
+        gamesPlayed: box.get(_key(type, _gamesPlayedKey)) as int? ?? 0,
+        gamesWon: box.get(_key(type, _gamesWonKey)) as int? ?? 0,
+        gamesLost: box.get(_key(type, _gamesLostKey)) as int? ?? 0,
+        currentStreak: box.get(_key(type, _currentStreakKey)) as int? ?? 0,
+        bestStreak: box.get(_key(type, _bestStreakKey)) as int? ?? 0,
+        bestTime: box.get(_key(type, _bestTimeKey)) != null
+            ? Duration(milliseconds: box.get(_key(type, _bestTimeKey)) as int)
+            : null,
+        fewestMoves: box.get(_key(type, _fewestMovesKey)) as int?,
+        vegasCumulativeScore: box.get(_key(type, _vegasCumulativeScoreKey)) as int? ?? 0,
+        vegasHighScore: box.get(_key(type, _vegasHighScoreKey)) as int?,
+      );
+      return;
+    }
+
+    // Check SharedPreferences for prefixed keys (intermediate migration state)
+    final hasPrefixedPrefs = prefs.containsKey(_key(type, _gamesPlayedKey));
+    if (hasPrefixedPrefs) {
       final gamesPlayed = prefs.getInt(_key(type, _gamesPlayedKey)) ?? 0;
       final gamesWon = prefs.getInt(_key(type, _gamesWonKey)) ?? 0;
       final gamesLost = prefs.getInt(_key(type, _gamesLostKey)) ?? 0;
@@ -172,68 +196,68 @@ class StatisticsService extends ChangeNotifier {
         vegasHighScore: vegasHighScore,
       );
 
-      // Try to migrate prefs -> Hive but don't fail tests if Hive isn't available
-      (() async {
-        try {
-          final box = await _ensureBox();
-          await box.put(_key(type, _gamesPlayedKey), gamesPlayed);
-          await box.put(_key(type, _gamesWonKey), gamesWon);
-          await box.put(_key(type, _gamesLostKey), gamesLost);
-          await box.put(_key(type, _currentStreakKey), currentStreak);
-          await box.put(_key(type, _bestStreakKey), bestStreak);
-          if (bestTimeMs != null) await box.put(_key(type, _bestTimeKey), bestTimeMs);
-          if (fewestMoves != null) await box.put(_key(type, _fewestMovesKey), fewestMoves);
-          await box.put(_key(type, _vegasCumulativeScoreKey), vegasCumulative);
-          if (vegasHighScore != null) await box.put(_key(type, _vegasHighScoreKey), vegasHighScore);
-        } catch (_) {}
-      })();
-
+      // Migrate to Hive
+      await _saveStatisticsToBox(box, type, _statisticsCache[type]!);
       return;
     }
 
-    final box = await _ensureBox();
-    final prefs2 = prefs; // kept for symmetry with previous logic
-
-    Future<int?> migratedInt(String key) async {
-      final prefVal = prefs2.getInt(key);
-      if (prefVal != null) {
-        await box.put(key, prefVal);
-        return prefVal;
-      }
-      final boxVal = box.get(key) as int?;
-      if (boxVal != null) return boxVal;
-      return null;
-    }
-
-    final bestTimeMs = await migratedInt(_key(type, _bestTimeKey));
-    final fewestMoves = await migratedInt(_key(type, _fewestMovesKey));
-    final vegasHighScore = await migratedInt(_key(type, _vegasHighScoreKey));
-
-    final gamesPlayed = await migratedInt(_key(type, _gamesPlayedKey)) ?? 0;
-    final gamesWon = await migratedInt(_key(type, _gamesWonKey)) ?? 0;
-    final gamesLost = await migratedInt(_key(type, _gamesLostKey)) ?? 0;
-    final currentStreak = await migratedInt(_key(type, _currentStreakKey)) ?? 0;
-    final bestStreak = await migratedInt(_key(type, _bestStreakKey)) ?? 0;
-    final vegasCumulative = await migratedInt(_key(type, _vegasCumulativeScoreKey)) ?? 0;
-
-    _statisticsCache[type] = Statistics(
-      gamesPlayed: gamesPlayed,
-      gamesWon: gamesWon,
-      gamesLost: gamesLost,
-      currentStreak: currentStreak,
-      bestStreak: bestStreak,
-      bestTime: bestTimeMs != null ? Duration(milliseconds: bestTimeMs) : null,
-      fewestMoves: fewestMoves,
-      vegasCumulativeScore: vegasCumulative,
-      vegasHighScore: vegasHighScore,
-    );
+    // No data found - start fresh
+    _statisticsCache[type] = const Statistics();
   }
 
-  Future<void> _saveStatistics() async {
-    final box = await _ensureBox();
-    final type = _currentGameType;
-    final stats = statistics;
+  /// Migrate legacy unprefixed keys to Klondike-prefixed keys
+  Future<void> _migrateLegacyKeys(SharedPreferences prefs, Box box) async {
+    // Check if migration already completed
+    if (box.get(_migrationCompleteKey) == true) return;
 
+    // Check for legacy unprefixed keys
+    final hasLegacy = prefs.containsKey(_legacyKey(_gamesPlayedKey)) ||
+        prefs.containsKey(_legacyKey(_gamesWonKey)) ||
+        prefs.containsKey(_legacyKey(_gamesLostKey));
+
+    if (!hasLegacy) {
+      // No legacy data to migrate
+      await box.put(_migrationCompleteKey, true);
+      return;
+    }
+
+    // Migrate legacy stats to Klondike (the original game type)
+    const klondikeType = GameType.klondike;
+    final gamesPlayed = prefs.getInt(_legacyKey(_gamesPlayedKey)) ?? 0;
+    final gamesWon = prefs.getInt(_legacyKey(_gamesWonKey)) ?? 0;
+    final gamesLost = prefs.getInt(_legacyKey(_gamesLostKey)) ?? 0;
+    final currentStreak = prefs.getInt(_legacyKey(_currentStreakKey)) ?? 0;
+    final bestStreak = prefs.getInt(_legacyKey(_bestStreakKey)) ?? 0;
+    final bestTimeMs = prefs.getInt(_legacyKey(_bestTimeKey));
+    final fewestMoves = prefs.getInt(_legacyKey(_fewestMovesKey));
+    final vegasCumulative = prefs.getInt(_legacyKey(_vegasCumulativeScoreKey)) ?? 0;
+    final vegasHighScore = prefs.getInt(_legacyKey(_vegasHighScoreKey));
+
+    // Save with new prefixed keys
+    await box.put(_key(klondikeType, _gamesPlayedKey), gamesPlayed);
+    await box.put(_key(klondikeType, _gamesWonKey), gamesWon);
+    await box.put(_key(klondikeType, _gamesLostKey), gamesLost);
+    await box.put(_key(klondikeType, _currentStreakKey), currentStreak);
+    await box.put(_key(klondikeType, _bestStreakKey), bestStreak);
+    await box.put(_key(klondikeType, _vegasCumulativeScoreKey), vegasCumulative);
+    if (bestTimeMs != null) {
+      await box.put(_key(klondikeType, _bestTimeKey), bestTimeMs);
+    }
+    if (fewestMoves != null) {
+      await box.put(_key(klondikeType, _fewestMovesKey), fewestMoves);
+    }
+    if (vegasHighScore != null) {
+      await box.put(_key(klondikeType, _vegasHighScoreKey), vegasHighScore);
+    }
+
+    // Mark migration complete
+    await box.put(_migrationCompleteKey, true);
+
+    debugPrint('StatisticsService: Migrated legacy stats to Klondike-prefixed keys');
+  }
+
+  /// Save statistics to Hive box
+  Future<void> _saveStatisticsToBox(Box box, GameType type, Statistics stats) async {
     await box.put(_key(type, _gamesPlayedKey), stats.gamesPlayed);
     await box.put(_key(type, _gamesWonKey), stats.gamesWon);
     await box.put(_key(type, _gamesLostKey), stats.gamesLost);
@@ -244,14 +268,17 @@ class StatisticsService extends ChangeNotifier {
     if (stats.bestTime != null) {
       await box.put(_key(type, _bestTimeKey), stats.bestTime!.inMilliseconds);
     }
-
     if (stats.fewestMoves != null) {
       await box.put(_key(type, _fewestMovesKey), stats.fewestMoves!);
     }
-
     if (stats.vegasHighScore != null) {
       await box.put(_key(type, _vegasHighScoreKey), stats.vegasHighScore!);
     }
+  }
+
+  Future<void> _saveStatistics() async {
+    final box = await _ensureBox();
+    await _saveStatisticsToBox(box, _currentGameType, statistics);
   }
 
   Future<void> recordGameStarted() async {

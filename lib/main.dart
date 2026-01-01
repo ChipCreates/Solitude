@@ -21,6 +21,7 @@ import 'features/game/services/animation_state_notifier.dart';
 import 'features/game/services/hint_state_notifier.dart';
 import 'features/game/services/selection_state_notifier.dart';
 import 'features/game/services/timer_state_notifier.dart';
+import 'features/game/services/game_state_repository.dart';
 
 // Feature imports - Achievements
 import 'features/achievements/services/achievement_service.dart';
@@ -70,6 +71,10 @@ Future<void> _initializeApp() async {
   // Initialize achievement service
   final achievementService = AchievementService();
   await achievementService.initialize();
+
+  // Initialize game state repository for save/restore functionality
+  final gameStateRepository = GameStateRepository();
+  await gameStateRepository.initialize();
 
   // Initialize services
   final settingsProvider = SettingsProvider();
@@ -121,6 +126,7 @@ Future<void> _initializeApp() async {
         Provider.value(value: boardLayoutService),
         Provider.value(value: audioService),
         Provider.value(value: achievementService),
+        Provider.value(value: gameStateRepository),
       ],
       child: const SolitudeApp(),
     ),

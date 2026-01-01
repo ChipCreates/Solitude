@@ -22,6 +22,7 @@ import 'solver_service.dart';
 import 'game_timer_service.dart';
 import 'package:solitude/features/settings/models/hint_mode.dart';
 import 'audio_service.dart';
+import 'game_state_repository.dart';
 
 enum GameState { playing, won, autoCompleting, autoplaying, lost }
 
@@ -41,6 +42,7 @@ class GameController extends ChangeNotifier {
   final SettingsProvider settingsProvider;
   final StatisticsService statisticsService;
   final BoardLayoutService boardLayout;
+  final GameStateRepository? gameStateRepository;
 
   // Separate notifiers for performance optimization
   final AnimationStateNotifier animationState;
@@ -86,11 +88,24 @@ class GameController extends ChangeNotifier {
     required this.timerState,
     required this.boardLayout,
     required GameType gameType,
+    this.gameStateRepository,
     dynamic audioService,
+    GameInterface? restoredGame,
+    Duration? restoredElapsedTime,
   }) {
-    _game = GameFactory.createGame(gameType);
-    _game.applyDifficulty(settingsProvider.difficulty);
-    _game.initialize();
+    if (restoredGame != null) {
+      // Use restored game state
+      _game = restoredGame;
+      _gameStarted = true; // Game was already in progress
+      if (restoredElapsedTime != null) {
+        timerState.setElapsed(restoredElapsedTime);
+      }
+    } else {
+      // Create new game
+      _game = GameFactory.createGame(gameType);
+      _game.applyDifficulty(settingsProvider.difficulty);
+      _game.initialize();
+    }
     // Initialize pile keys after game is set up
     initializePileKeys();
     _bot = SolitaireBot(
@@ -205,6 +220,9 @@ class GameController extends ChangeNotifier {
     _inactivityService.disable();
     timerState.reset();
     _gameStarted = false;
+
+    // Clear any saved game state since we're starting fresh
+    gameStateRepository?.clearSavedGame();
 
     // Update difficulty settings via game interface
     _game.applyDifficulty(settingsProvider.difficulty);
@@ -847,9 +865,20 @@ class GameController extends ChangeNotifier {
     _audioService.playSfx(SoundEffect.win);
     statisticsService.recordWin(
         time: timerState.elapsed, moves: _game.moveCount);
+
+    // Emit game won event with achievement data
     if (!_eventController.isClosed) {
-      _eventController.add(const GameEvent(GameEventType.gameWon));
+      final winData = {
+        'time': timerState.elapsed,
+        'moves': _game.moveCount,
+        'streak': statisticsService.statistics.currentStreak,
+        // Note: usedUndo and usedHint are tracked by AchievementService internally
+      };
+      _eventController.add(GameEvent(GameEventType.gameWon, winData));
     }
+
+    // Clear saved game state since the game is complete
+    gameStateRepository?.clearSavedGame();
 
     // Record Vegas scoring if in Vegas mode (winning = all cards in foundations)
     if (settingsProvider.scoringMode == ScoringMode.vegas) {

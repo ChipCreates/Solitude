@@ -33,6 +33,13 @@ class TimerStateNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Set the elapsed time (used when restoring a saved game)
+  void setElapsed(Duration elapsed) {
+    _stopwatch.reset();
+    _elapsed = elapsed;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _timer?.cancel();

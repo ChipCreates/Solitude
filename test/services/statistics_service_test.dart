@@ -75,7 +75,8 @@ void main() {
       await service.recordGameStarted();
 
       final box = await Hive.openBox('statistics');
-      expect(box.get('gamesPlayed'), 1);
+      // Keys are now prefixed with game type (default is klondike)
+      expect(box.get('klondike_gamesPlayed'), 1);
     });
 
     test('recordGameStarted() notifies listeners', () async {
@@ -163,11 +164,12 @@ void main() {
       await service.recordWin(time: const Duration(seconds: 120), moves: 100);
 
       final box = await Hive.openBox('statistics');
-      expect(box.get('gamesWon'), 1);
-      expect(box.get('currentStreak'), 1);
-      expect(box.get('bestStreak'), 1);
-      expect(box.get('bestTime'), 120000);
-      expect(box.get('fewestMoves'), 100);
+      // Keys are now prefixed with game type (default is klondike)
+      expect(box.get('klondike_gamesWon'), 1);
+      expect(box.get('klondike_currentStreak'), 1);
+      expect(box.get('klondike_bestStreak'), 1);
+      expect(box.get('klondike_bestTime'), 120000);
+      expect(box.get('klondike_fewestMoves'), 100);
     });
 
     test('recordWin() notifies listeners', () async {
@@ -229,8 +231,9 @@ void main() {
       await service.recordLoss();
 
       final box = await Hive.openBox('statistics');
-      expect(box.get('gamesLost'), 1);
-      expect(box.get('currentStreak'), 0);
+      // Keys are now prefixed with game type (default is klondike)
+      expect(box.get('klondike_gamesLost'), 1);
+      expect(box.get('klondike_currentStreak'), 0);
     });
 
     test('recordLoss() notifies listeners', () async {
@@ -280,8 +283,9 @@ void main() {
       await service.recordVegasScore(50);
 
       final box = await Hive.openBox('statistics');
-      expect(box.get('vegasCumulativeScore'), 50);
-      expect(box.get('vegasHighScore'), 50);
+      // Keys are now prefixed with game type (default is klondike)
+      expect(box.get('klondike_vegasCumulativeScore'), 50);
+      expect(box.get('klondike_vegasHighScore'), 50);
     });
 
     test('recordVegasScore() notifies listeners', () async {
@@ -350,9 +354,10 @@ void main() {
       await service.resetStatistics();
 
       final box = await Hive.openBox('statistics');
-      expect(box.get('gamesPlayed'), isNull);
-      expect(box.get('gamesWon'), isNull);
-      expect(box.get('currentStreak'), isNull);
+      // Keys are now prefixed with game type (default is klondike)
+      expect(box.get('klondike_gamesPlayed'), isNull);
+      expect(box.get('klondike_gamesWon'), isNull);
+      expect(box.get('klondike_currentStreak'), isNull);
     });
 
     test('resetStatistics() notifies listeners', () async {

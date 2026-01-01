@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/game_controller.dart';
 import '../services/animation_state_notifier.dart';
 import '../services/timer_state_notifier.dart';
+import '../services/game_state_repository.dart';
 import 'package:solitude/features/settings/services/settings_provider.dart';
 import 'package:solitude/core/theme/app_theme.dart';
 import 'package:solitude/core/widgets/game_button.dart';
@@ -28,12 +29,13 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> {
+class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Request focus when the screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
@@ -42,8 +44,41 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _focusNode.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Save game when app goes to background or is paused
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      _saveGameState();
+    }
+  }
+
+  Future<void> _saveGameState() async {
+    final controller = context.read<GameController>();
+    final timerState = context.read<TimerStateNotifier>();
+    final gameStateRepository = context.read<GameStateRepository>();
+
+    // Don't save if game is won, lost, or hasn't started
+    if (controller.isWon ||
+        controller.state == GameState.lost ||
+        controller.moveCount == 0) {
+      // Clear any saved game since it's complete or not started
+      await gameStateRepository.clearSavedGame();
+      return;
+    }
+
+    // Save the current game state
+    await gameStateRepository.saveGame(
+      game: controller.game,
+      elapsedTime: timerState.elapsed,
+    );
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {

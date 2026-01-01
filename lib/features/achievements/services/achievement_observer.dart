@@ -20,16 +20,37 @@ class AchievementObserver {
 
     switch (event.type) {
       case GameEventType.gameStarted:
-        // Game started - could track game sessions
+        // Reset session tracking for perfect game achievement
+        _achievementService.resetSessionTracking();
         break;
+
       case GameEventType.gameWon:
+        // Pass game data to check achievements
         _achievementService.checkWinAchievements(event.data);
         break;
+
       case GameEventType.moveExecuted:
+        // Track move count for efficiency achievements
         _achievementService.incrementMoveCount();
         break;
-      // ... handle other events
-      default:
+
+      case GameEventType.undoUsed:
+        // Track undo usage (disqualifies perfect game achievement)
+        _achievementService.trackUndoUsed();
+        break;
+
+      case GameEventType.hintUsed:
+        // Track hint usage (disqualifies perfect game achievement)
+        _achievementService.trackHintUsed();
+        break;
+
+      case GameEventType.cardFlipped:
+      case GameEventType.stockDrawn:
+      case GameEventType.invalidMove:
+      case GameEventType.gameLost:
+      case GameEventType.autoCompleteTriggered:
+      case GameEventType.streakUpdated:
+        // These events don't affect achievements directly
         break;
     }
   }
