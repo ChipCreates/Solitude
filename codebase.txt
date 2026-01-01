@@ -290,7 +290,10 @@ import 'package:window_manager/window_manager.dart';
 
 /// Service to configure desktop window properties.
 /// Only active on desktop platforms (Windows, macOS, Linux).
-class DesktopWindowService {
+///
+/// This service respects OS-level maximize and snap features by only
+/// enforcing aspect ratio when the window is in normal (non-maximized) state.
+class DesktopWindowService with WindowListener {
   // Preferred aspect ratio (3:2)
   static const double preferredAspectRatio = 3 / 2;
 
@@ -301,6 +304,10 @@ class DesktopWindowService {
   // Default window dimensions (3:2 aspect ratio)
   static const double defaultWidth = 1350.0;
   static const double defaultHeight = 900.0;
+
+  static DesktopWindowService? _instance;
+
+  DesktopWindowService._();
 
   /// Check if we're running on a desktop platform
   static bool get isDesktop {
@@ -326,31 +333,71 @@ class DesktopWindowService {
     );
 
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
-      // Set aspect ratio immediately when ready, before showing
+      // Set aspect ratio for normal window state
+      // This will be temporarily disabled when maximized
       await windowManager.setAspectRatio(preferredAspectRatio);
       await windowManager.show();
       await windowManager.focus();
     });
+
+    // Create instance and listen for window state changes
+    _instance = DesktopWindowService._();
+    windowManager.addListener(_instance!);
+  }
+
+  @override
+  void onWindowMaximize() {
+    // Remove aspect ratio constraint when maximized to allow full screen usage
+    windowManager.setAspectRatio(0.0); // 0.0 = no aspect ratio constraint
+    debugPrint(
+        'DesktopWindowService: Window maximized - aspect ratio constraint removed');
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    // Restore aspect ratio constraint when returning to normal state
+    windowManager.setAspectRatio(preferredAspectRatio);
+    debugPrint(
+        'DesktopWindowService: Window restored - aspect ratio constraint applied');
+  }
+
+  /// Cleanup window listener
+  static void dispose() {
+    if (_instance != null && isDesktop) {
+      windowManager.removeListener(_instance!);
+      _instance = null;
+    }
   }
 }
 
 
 // --- FILE: lib/core/services/svg_preload_service.dart ---
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart' as xml;
 
 /// Service to preload SVG assets during app initialization.
 /// Eliminates the performance hit when first card is rendered.
+///
+/// This service is crash-resistant: if assets fail to load, the app
+/// will continue with degraded card rendering rather than crashing.
 class SvgPreloadService {
   static String? _cachedFullSvg;
   static xml.XmlDocument? _cachedSvgDoc;
   static Map<String, xml.XmlElement>? _elementCache;
-  
-  /// Whether the SVG has been preloaded
+  static bool _loadFailed = false;
+
+  /// Whether the SVG has been preloaded successfully
   static bool get isPreloaded => _cachedFullSvg != null;
-  
+
+  /// Whether SVG loading failed (app will use fallback rendering)
+  static bool get loadFailed => _loadFailed;
+
   /// Preload the SVG card file and build the element cache.
   /// Call this during app initialization before showing the game.
+  ///
+  /// This method is crash-resistant: if loading fails, it logs the error
+  /// and allows the app to continue (cards will use fallback rendering).
   static Future<void> preloadCardSvg() async {
     if (_cachedFullSvg != null) {
       return; // Already loaded
@@ -367,48 +414,60 @@ class SvgPreloadService {
         final svgString = await rootBundle.loadString(path);
         if (svgString.isNotEmpty) {
           _cachedFullSvg = svgString;
-          _cachedSvgDoc = xml.XmlDocument.parse(_cachedFullSvg!);
 
-          // Build element cache for O(1) lookups
-          _buildElementCache();
+          try {
+            _cachedSvgDoc = xml.XmlDocument.parse(_cachedFullSvg!);
 
-          return;
+            // Build element cache for O(1) lookups
+            _buildElementCache();
+
+            debugPrint('SvgPreloadService: Successfully loaded $path');
+            return;
+          } catch (parseError) {
+            debugPrint('SvgPreloadService: Failed to parse $path: $parseError');
+            // Try next candidate
+            continue;
+          }
         }
       } catch (e) {
+        debugPrint('SvgPreloadService: Failed to load $path: $e');
         // Try next candidate
       }
     }
-    
-    throw Exception(
-      'Could not preload svg-cards.svg from any location. '
-      'Checked: ${candidates.join(', ')}'
-    );
+
+    // All candidates failed - log error but DON'T crash
+    _loadFailed = true;
+    debugPrint(
+        'SvgPreloadService: WARNING - Could not preload svg-cards.svg from any location. '
+        'Checked: ${candidates.join(', ')}. '
+        'App will continue with fallback card rendering.');
   }
-  
+
   /// Build element ID cache for fast lookups
   static void _buildElementCache() {
     if (_cachedSvgDoc == null) return;
-    
+
     _elementCache = {};
-    
+
     // Single traversal to build the entire cache
-    for (final element in _cachedSvgDoc!.descendants.whereType<xml.XmlElement>()) {
+    for (final element
+        in _cachedSvgDoc!.descendants.whereType<xml.XmlElement>()) {
       final id = element.getAttribute('id');
       if (id != null && id.isNotEmpty) {
         _elementCache![id] = element;
       }
     }
   }
-  
+
   /// Get the cached SVG string (for use by SvgCardRenderer)
   static String? getCachedSvg() => _cachedFullSvg;
-  
+
   /// Get the cached XML document (for use by SvgCardRenderer)
   static xml.XmlDocument? getCachedDoc() => _cachedSvgDoc;
-  
+
   /// Get the element cache (for use by SvgCardRenderer)
   static Map<String, xml.XmlElement>? getElementCache() => _elementCache;
-  
+
   /// Clear all caches (for testing or hot reload)
   static void clearCache() {
     _cachedFullSvg = null;
@@ -2131,8 +2190,7 @@ class AchievementService {
   static const String _boxName = 'achievements';
   Box<Achievement>? _achievementBox;
 
-  // Track session data for achievements
-  int _sessionMoveCount = 0;
+  // Track session data for achievements (undo/hint usage for perfect game detection)
   bool _sessionUsedUndo = false;
   bool _sessionUsedHint = false;
 
@@ -2171,7 +2229,6 @@ class AchievementService {
 
   /// Reset session tracking when a new game starts
   void resetSessionTracking() {
-    _sessionMoveCount = 0;
     _sessionUsedUndo = false;
     _sessionUsedHint = false;
   }
@@ -2353,11 +2410,10 @@ class AchievementService {
   }
 
   /// Track move count for efficiency achievements
+  /// Move count is passed in gameData on win, so we don't need session tracking for it
   Future<void> incrementMoveCount() async {
-    _sessionMoveCount++;
-
-    // Update progress for move-based achievements
-    await _updateMoveProgress();
+    // Move count tracking is handled via game data on win event
+    // This method exists for event stream compatibility
   }
 
   /// Track undo usage for perfect game achievement
@@ -2368,12 +2424,6 @@ class AchievementService {
   /// Track hint usage for perfect game achievement
   void trackHintUsed() {
     _sessionUsedHint = true;
-  }
-
-  /// Update progress for move-based achievements
-  Future<void> _updateMoveProgress() async {
-    // Could be extended to track cumulative move counts across games
-    // For now, move tracking is per-session and checked on win
   }
 
   /// Update progress for an achievement (for gradual achievements)
@@ -23004,6 +23054,7 @@ class _WastePileSelector extends StatelessWidget {
 
 // --- FILE: lib/features/home/screens/about_screen.dart ---
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:solitude/core/theme/app_theme.dart';
 import 'package:solitude/core/widgets/game_button.dart';
 
@@ -23031,6 +23082,9 @@ class AboutScreen extends StatelessWidget {
                     _buildCreditsSection(context),
                     const SizedBox(height: 32),
                     _buildSourceSection(context),
+                    const SizedBox(height: 32),
+                    _buildPrivacySection(context),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -23040,7 +23094,7 @@ class AboutScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildHeader(BuildContext context) {
     return Container(
       height: 56,
@@ -23049,7 +23103,7 @@ class AboutScreen extends StatelessWidget {
         color: AppTheme.toolbarColor(context),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -23067,7 +23121,7 @@ class AboutScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildAppInfo(BuildContext context) {
     return Center(
       child: Column(
@@ -23078,7 +23132,8 @@ class AboutScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.feltMedium,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.gold.withValues(alpha:0.5), width: 2),
+              border: Border.all(
+                  color: AppColors.gold.withValues(alpha: 0.5), width: 2),
             ),
             child: const Center(
               child: Text(
@@ -23107,7 +23162,7 @@ class AboutScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildLicenseSection(BuildContext context) {
     return _buildSection(
       context,
@@ -23132,7 +23187,7 @@ class AboutScreen extends StatelessWidget {
           'Under the condition that you preserve the same freedoms for others.',
           style: AppTypography.body(context).copyWith(
             fontStyle: FontStyle.italic,
-            color: AppColors.cream.withValues(alpha:0.8),
+            color: AppColors.cream.withValues(alpha: 0.8),
           ),
         ),
         const SizedBox(height: 16),
@@ -23145,7 +23200,7 @@ class AboutScreen extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildCreditsSection(BuildContext context) {
     return _buildSection(
       context,
@@ -23154,7 +23209,8 @@ class AboutScreen extends StatelessWidget {
         _buildCreditItem(
           context,
           title: 'Card Graphics',
-          description: 'SVG Playing Cards by David Bellot, maintained by Huub de Beer',
+          description:
+              'SVG Playing Cards by David Bellot, maintained by Huub de Beer',
           license: 'Licensed under LGPL 2.1+',
           url: 'github.com/htdebeer/SVG-cards',
         ),
@@ -23169,7 +23225,7 @@ class AboutScreen extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildSourceSection(BuildContext context) {
     return _buildSection(
       context,
@@ -23183,13 +23239,14 @@ class AboutScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.feltDarkest.withValues(alpha:0.5),
+            color: AppColors.feltDarkest.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.cream.withValues(alpha:0.1)),
+            border: Border.all(color: AppColors.cream.withValues(alpha: 0.1)),
           ),
           child: Row(
             children: [
-              Icon(Icons.code, color: AppColors.cream.withValues(alpha:0.7), size: 20),
+              Icon(Icons.code,
+                  color: AppColors.cream.withValues(alpha: 0.7), size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -23205,19 +23262,99 @@ class AboutScreen extends StatelessWidget {
       ],
     );
   }
-  
-  Widget _buildSection(BuildContext context, {required String title, required List<Widget> children}) {
+
+  Widget _buildPrivacySection(BuildContext context) {
+    return _buildSection(
+      context,
+      title: 'Privacy & Data',
+      children: [
+        Text(
+          'Solitude respects your privacy. All game data is stored locally on your device.',
+          style: AppTypography.body(context),
+        ),
+        const SizedBox(height: 12),
+        _buildBulletPoint(context, 'No personal information is collected'),
+        _buildBulletPoint(context, 'No data is sent to external servers'),
+        _buildBulletPoint(context, 'No analytics or tracking'),
+        _buildBulletPoint(
+            context, 'Game stats and progress stay on your device'),
+        const SizedBox(height: 16),
+        Center(
+          child: TextButton.icon(
+            onPressed: () => _launchPrivacyPolicy(context),
+            icon: const Icon(Icons.privacy_tip_outlined, color: AppColors.gold),
+            label: Text(
+              'Privacy Policy',
+              style:
+                  AppTypography.label(context).copyWith(color: AppColors.gold),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(color: AppColors.gold.withValues(alpha: 0.3)),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _launchPrivacyPolicy(BuildContext context) async {
+    const url = 'https://github.com/plotworx/solitude/blob/main/PRIVACY.md';
+    final uri = Uri.parse(url);
+
+    try {
+      final canLaunch = await canLaunchUrl(uri);
+      if (canLaunch) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Privacy Policy: $url'),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Copy',
+                onPressed: () {
+                  // Could implement clipboard copy here
+                },
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open Privacy Policy. Visit: $url'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildSection(BuildContext context,
+      {required String title, required List<Widget> children}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Container(width: 40, height: 1, color: AppColors.cream.withValues(alpha:0.2)),
+            Container(
+                width: 40,
+                height: 1,
+                color: AppColors.cream.withValues(alpha: 0.2)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(title, style: AppTypography.subheading(context)),
             ),
-            Expanded(child: Container(height: 1, color: AppColors.cream.withValues(alpha:0.2))),
+            Expanded(
+                child: Container(
+                    height: 1, color: AppColors.cream.withValues(alpha: 0.2))),
           ],
         ),
         const SizedBox(height: 16),
@@ -23225,7 +23362,7 @@ class AboutScreen extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildBulletPoint(BuildContext context, String text) {
     return Padding(
       padding: const EdgeInsets.only(left: 16, bottom: 4),
@@ -23238,8 +23375,9 @@ class AboutScreen extends StatelessWidget {
       ),
     );
   }
-  
-  Widget _buildCreditItem(BuildContext context, {
+
+  Widget _buildCreditItem(
+    BuildContext context, {
     required String title,
     required String description,
     required String license,
@@ -23248,9 +23386,9 @@ class AboutScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.feltDarkest.withValues(alpha:0.3),
+        color: AppColors.feltDarkest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.cream.withValues(alpha:0.1)),
+        border: Border.all(color: AppColors.cream.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -23261,7 +23399,8 @@ class AboutScreen extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             license,
-            style: AppTypography.stat(context).copyWith(fontStyle: FontStyle.italic),
+            style: AppTypography.stat(context)
+                .copyWith(fontStyle: FontStyle.italic),
           ),
           const SizedBox(height: 4),
           Text(
@@ -23272,7 +23411,7 @@ class AboutScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   void _showLicenseText(BuildContext context) {
     showDialog(
       context: context,
@@ -23281,9 +23420,9 @@ class AboutScreen extends StatelessWidget {
         child: Container(
           constraints: const BoxConstraints(maxWidth: 600, maxHeight: 500),
           decoration: BoxDecoration(
-            color: AppColors.feltDarkest.withValues(alpha:0.98),
+            color: AppColors.feltDarkest.withValues(alpha: 0.98),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.gold.withValues(alpha:0.3)),
+            border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
           ),
           child: Column(
             children: [
@@ -23292,7 +23431,8 @@ class AboutScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('GNU GPL v3.0', style: AppTypography.subheading(context)),
+                    Text('GNU GPL v3.0',
+                        style: AppTypography.subheading(context)),
                     IconButton(
                       icon: const Icon(Icons.close, color: AppColors.cream),
                       onPressed: () => Navigator.pop(context),
