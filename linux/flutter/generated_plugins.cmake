@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_linux
+  native_splash_screen_linux
   screen_retriever_linux
   url_launcher_linux
   window_manager
