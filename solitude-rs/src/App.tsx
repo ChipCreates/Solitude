@@ -57,13 +57,11 @@ export const App: React.FC = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    // Guard: if the canvas hasn't been laid out yet, retry on next frame
     if (rect.width === 0 || rect.height === 0) {
       requestAnimationFrame(() => updateLayout(type));
       return;
     }
     const piles = getPilesLayout();
-    if (piles.length === 0) return; // engine not yet initialized
     const boundsList: CardBounds[] = [];
 
     const pushSlot = (pileKind: number, pileIndex: number, x: number, y: number, w: number, h: number) =>
@@ -491,7 +489,9 @@ export const App: React.FC = () => {
     animatedCardsRef.current.clear();
     setSelectedPyramidCard(null);
     setMoveCount(0); setTimerSeconds(0);
-    // Defer layout update one frame so canvas dimensions are finalized
+    // Call updateLayout immediately (engine is populated synchronously),
+    // and also schedule a second call after React flushes state updates
+    updateLayout(type);
     requestAnimationFrame(() => updateLayout(type));
   }, [updateLayout]);
 
