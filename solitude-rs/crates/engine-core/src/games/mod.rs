@@ -1,3 +1,10 @@
+pub mod canfield;
+pub mod forty_thieves;
 pub mod freecell;
+pub mod golf;
 pub mod klondike;
 pub mod pyramid;
+pub mod scorpion;
+pub mod spider;
+pub mod tripeaks;
+pub mod yukon;

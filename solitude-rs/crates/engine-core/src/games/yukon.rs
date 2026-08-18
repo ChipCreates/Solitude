@@ -1,0 +1,301 @@
+use crate::card::{CardId, Rank};
+use crate::deck::Deck;
+use crate::error::EngineError;
+use crate::game::{GameRules, GameType, HintMove};
+use crate::history::{GameSnapshot, History};
+use crate::mv::Move;
+use crate::pile::{Pile, PileRef, PileType};
+
+#[derive(Debug, Clone)]
+pub struct YukonGame {
+    piles: Vec<Pile>,
+    move_count: u32,
+    history: History,
+}
+
+impl YukonGame {
+    pub fn new() -> Self {
+        let piles = Self::create_piles();
+        Self {
+            piles,
+            move_count: 0,
+            history: History::new(),
+        }
+    }
+
+    fn create_piles() -> Vec<Pile> {
+        let mut piles = Vec::with_capacity(11);
+        for i in 0..4 {
+            piles.push(Pile::new(PileType::Foundation, i)); // 0..3
+        }
+        for i in 0..7 {
+            piles.push(Pile::new(PileType::Tableau, i)); // 4..10
+        }
+        piles
+    }
+
+    fn get_pile_idx(&self, r: PileRef) -> Option<usize> {
+        match r.kind {
+            PileType::Foundation => {
+                if r.index < 4 { Some(r.index as usize) } else { None }
+            }
+            PileType::Tableau => {
+                if r.index < 7 { Some(4 + r.index as usize) } else { None }
+            }
+            _ => None,
+        }
+    }
+
+    fn snapshot(&self) -> GameSnapshot {
+        GameSnapshot::new(self.piles.clone(), self.move_count, 0)
+    }
+
+    fn restore(&mut self, snapshot: GameSnapshot) {
+        self.piles = snapshot.piles;
+        self.move_count = snapshot.move_count;
+    }
+}
+
+impl Default for YukonGame {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GameRules for YukonGame {
+    fn game_type(&self) -> GameType {
+        GameType::Yukon
+    }
+
+    fn deck_size(&self) -> usize {
+        52
+    }
+
+    fn piles(&self) -> &[Pile] {
+        &self.piles
+    }
+
+    fn initialize(&mut self, seed: u64) {
+        self.piles = Self::create_piles();
+        self.move_count = 0;
+        self.history.clear();
+
+        let mut deck = Deck::new(1);
+        deck.shuffle(seed);
+
+        // Column 1: 1 card (face up)
+        // Columns 2-7: i cards (bottom i-1 face down, top face up)
+        for i in 0..7 {
+            for j in i..7 {
+                let mut card = deck.draw().unwrap();
+                card.face_up = j == i;
+                self.piles[4 + j].add_card(card);
+            }
+        }
+
+        // Deal 4 extra face-up cards to columns 2-7 (indices 1-6)
+        for col in 1..7 {
+            for _ in 0..4 {
+                let mut card = deck.draw().unwrap();
+                card.face_up = true;
+                self.piles[4 + col].add_card(card);
+            }
+        }
+    }
+
+    fn is_valid_move(&self, from: PileRef, to: PileRef, cards: &[CardId]) -> bool {
+        if cards.is_empty() || from == to {
+            return false;
+        }
+
+        let from_idx = match self.get_pile_idx(from) {
+            Some(i) => i,
+            None => return false,
+        };
+        let to_idx = match self.get_pile_idx(to) {
+            Some(i) => i,
+            None => return false,
+        };
+
+        let from_pile = &self.piles[from_idx];
+        let to_pile = &self.piles[to_idx];
+
+        // Find moving card in from_pile
+        let first_id = cards[0];
+        let start_pos = match from_pile.cards().iter().position(|c| c.id == first_id) {
+            Some(p) => p,
+            None => return false,
+        };
+
+        let moving_card = &from_pile.cards()[start_pos];
+        if !moving_card.face_up {
+            return false;
+        }
+
+        // Foundation target
+        if to.kind == PileType::Foundation {
+            if cards.len() > 1 {
+                return false;
+            }
+            if let Some(top) = to_pile.top_card() {
+                return moving_card.suit == top.suit && moving_card.rank.value() == top.rank.value() + 1;
+            } else {
+                return moving_card.rank == Rank::Ace;
+            }
+        }
+
+        // Tableau target
+        if to.kind == PileType::Tableau {
+            if to_pile.is_empty() {
+                return moving_card.rank == Rank::King;
+            } else {
+                let top = to_pile.top_card().unwrap();
+                return moving_card.suit.is_red() != top.suit.is_red()
+                    && moving_card.rank.value() + 1 == top.rank.value();
+            }
+        }
+
+        false
+    }
+
+    fn execute_move(
+        &mut self,
+        from: PileRef,
+        to: PileRef,
+        cards: &[CardId],
+    ) -> Result<Move, EngineError> {
+        if !self.is_valid_move(from, to, cards) {
+            return Err(EngineError::InvalidMove("Illegal Yukon move".into()));
+        }
+
+        self.history.push(self.snapshot());
+
+        let from_idx = self.get_pile_idx(from).unwrap();
+        let to_idx = self.get_pile_idx(to).unwrap();
+
+        let first_id = cards[0];
+        let start_pos = self.piles[from_idx]
+            .cards()
+            .iter()
+            .position(|c| c.id == first_id)
+            .unwrap();
+
+        let mut will_flip = false;
+        if start_pos > 0 {
+            if let Some(c_below) = self.piles[from_idx].card_at(start_pos - 1) {
+                if !c_below.face_up {
+                    will_flip = true;
+                }
+            }
+        }
+
+        let moved_cards = self.piles[from_idx].remove_from(start_pos);
+        self.piles[to_idx].add_cards(moved_cards);
+
+        if will_flip {
+            self.piles[from_idx].flip_top_card();
+        }
+
+        self.move_count += 1;
+        Ok(Move::new(from, to, cards.to_vec()))
+    }
+
+    fn tap_stock(&mut self) -> Result<Option<Move>, EngineError> {
+        Ok(None)
+    }
+
+    fn undo(&mut self) -> bool {
+        let current = self.snapshot();
+        if let Some(prev) = self.history.undo(current) {
+            self.restore(prev);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn redo(&mut self) -> bool {
+        let current = self.snapshot();
+        if let Some(next) = self.history.redo(current) {
+            self.restore(next);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn check_win(&self) -> bool {
+        (0..4).all(|i| self.piles[i].len() == 13)
+    }
+
+    fn is_lost(&self) -> bool {
+        false
+    }
+
+    fn get_hint(&self) -> Option<HintMove> {
+        // Priority 1: Move single card to foundation
+        for t_idx in 0..7 {
+            let p_ref = PileRef::new(PileType::Tableau, t_idx as u8);
+            if let Some(top) = self.piles[4 + t_idx].top_card() {
+                for f_idx in 0..4 {
+                    let f_ref = PileRef::new(PileType::Foundation, f_idx as u8);
+                    if self.is_valid_move(p_ref, f_ref, &[top.id]) {
+                        return Some(HintMove {
+                            from: p_ref,
+                            to: f_ref,
+                            cards: vec![top.id],
+                        });
+                    }
+                }
+            }
+        }
+
+        // Priority 2: Expose face-down cards
+        for t_idx in 0..7 {
+            let pile = &self.piles[4 + t_idx];
+            if pile.is_empty() {
+                continue;
+            }
+            if let Some(first_fu) = pile.cards().iter().position(|c| c.face_up) {
+                if first_fu > 0 {
+                    let p_ref = PileRef::new(PileType::Tableau, t_idx as u8);
+                    let cards_to_move: Vec<CardId> =
+                        pile.cards()[first_fu..].iter().map(|c| c.id).collect();
+                    for to_idx in 0..7 {
+                        if to_idx == t_idx {
+                            continue;
+                        }
+                        let to_ref = PileRef::new(PileType::Tableau, to_idx as u8);
+                        if self.is_valid_move(p_ref, to_ref, &cards_to_move) {
+                            return Some(HintMove {
+                                from: p_ref,
+                                to: to_ref,
+                                cards: cards_to_move,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    fn find_best_auto_move_destination(&self, from: PileRef, cards: &[CardId]) -> Option<PileRef> {
+        if cards.len() == 1 {
+            for f in 0..4 {
+                let f_ref = PileRef::new(PileType::Foundation, f);
+                if self.is_valid_move(from, f_ref, cards) {
+                    return Some(f_ref);
+                }
+            }
+        }
+        for t in 0..7 {
+            let t_ref = PileRef::new(PileType::Tableau, t);
+            if t_ref != from && self.is_valid_move(from, t_ref, cards) {
+                return Some(t_ref);
+            }
+        }
+        None
+    }
+}

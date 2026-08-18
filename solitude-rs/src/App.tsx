@@ -106,6 +106,137 @@ export const App: React.FC = () => {
           boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
         });
       });
+    } else if (type === 6) {
+      // YUKON
+      const layout = calculateGridLayout(rect.width, rect.height, 7);
+      for (let f = 0; f < 4; f++) pushSlot(2, f, layout.startX + (3 + f) * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 7; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      piles.forEach((pile) => {
+        let bx = layout.startX, by = layout.topOffset;
+        if (pile.kind === 2) bx = layout.startX + (3 + pile.index) * (layout.cardWidth + layout.gap);
+        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        pile.cards.forEach((card, ci) => {
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+        });
+      });
+    } else if (type === 7) {
+      // FORTY THIEVES
+      const layout = calculateGridLayout(rect.width, rect.height, 10);
+      pushSlot(0, 0, layout.startX, layout.topOffset, layout.cardWidth, layout.cardHeight);
+      pushSlot(1, 0, layout.startX + layout.cardWidth + layout.gap, layout.topOffset, layout.cardWidth, layout.cardHeight);
+      for (let f = 0; f < 8; f++) pushSlot(2, f, layout.startX + (2 + f) * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 10; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      piles.forEach((pile) => {
+        let bx = layout.startX, by = layout.topOffset;
+        if (pile.kind === 0) bx = layout.startX;
+        else if (pile.kind === 1) bx = layout.startX + layout.cardWidth + layout.gap;
+        else if (pile.kind === 2) bx = layout.startX + (2 + pile.index) * (layout.cardWidth + layout.gap);
+        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        pile.cards.forEach((card, ci) => {
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+        });
+      });
+    } else if (type === 8) {
+      // CANFIELD
+      const layout = calculateGridLayout(rect.width, rect.height, 7);
+      pushSlot(0, 0, layout.startX, layout.topOffset, layout.cardWidth, layout.cardHeight);
+      pushSlot(1, 0, layout.startX + layout.cardWidth + layout.gap, layout.topOffset, layout.cardWidth, layout.cardHeight);
+      pushSlot(5, 0, layout.startX + 2 * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
+      for (let f = 0; f < 4; f++) pushSlot(2, f, layout.startX + (3 + f) * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 4; t++) pushSlot(3, t, layout.startX + (3 + t) * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      piles.forEach((pile) => {
+        let bx = layout.startX, by = layout.topOffset;
+        if (pile.kind === 0) bx = layout.startX;
+        else if (pile.kind === 1) bx = layout.startX + layout.cardWidth + layout.gap;
+        else if (pile.kind === 5) bx = layout.startX + 2 * (layout.cardWidth + layout.gap);
+        else if (pile.kind === 2) bx = layout.startX + (3 + pile.index) * (layout.cardWidth + layout.gap);
+        else if (pile.kind === 3) { bx = layout.startX + (3 + pile.index) * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        pile.cards.forEach((card, ci) => {
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : (pile.kind === 5 ? ci * 4 : 0)), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+        });
+      });
+    } else if (type === 1) {
+      // SPIDER
+      const layout = calculateGridLayout(rect.width, rect.height, 10);
+      pushSlot(0, 0, layout.startX, layout.topOffset, layout.cardWidth, layout.cardHeight);
+      for (let f = 0; f < 8; f++) pushSlot(2, f, layout.startX + (2 + f) * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 10; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      piles.forEach((pile) => {
+        let bx = layout.startX, by = layout.topOffset;
+        if (pile.kind === 0) bx = layout.startX;
+        else if (pile.kind === 2) bx = layout.startX + (2 + pile.index) * (layout.cardWidth + layout.gap);
+        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        pile.cards.forEach((card, ci) => {
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+        });
+      });
+    } else if (type === 4) {
+      // GOLF
+      const layout = calculateGridLayout(rect.width, rect.height, 7);
+      pushSlot(0, 0, layout.startX, layout.topOffset, layout.cardWidth, layout.cardHeight);
+      pushSlot(1, 0, layout.startX + layout.cardWidth + layout.gap, layout.topOffset, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 7; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      piles.forEach((pile) => {
+        let bx = layout.startX, by = layout.topOffset;
+        if (pile.kind === 0) bx = layout.startX;
+        else if (pile.kind === 1) bx = layout.startX + layout.cardWidth + layout.gap;
+        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        pile.cards.forEach((card, ci) => {
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+        });
+      });
+    } else if (type === 5) {
+      // TRIPEAKS
+      const layout = calculateGridLayout(rect.width, rect.height, 10);
+      const topY = layout.topOffset;
+      const rowGap = layout.cardHeight * 0.45;
+
+      const peakPos = (idx: number) => {
+        if (idx === 0) return { x: layout.startX + 1.5 * (layout.cardWidth + layout.gap), y: topY };
+        if (idx === 1) return { x: layout.startX + 4.5 * (layout.cardWidth + layout.gap), y: topY };
+        if (idx === 2) return { x: layout.startX + 7.5 * (layout.cardWidth + layout.gap), y: topY };
+        if (idx >= 3 && idx <= 8) {
+          const offsets = [1, 2, 4, 5, 7, 8];
+          return { x: layout.startX + offsets[idx - 3] * (layout.cardWidth + layout.gap), y: topY + rowGap };
+        }
+        if (idx >= 9 && idx <= 17) {
+          return { x: layout.startX + (idx - 9) * (layout.cardWidth + layout.gap) + 0.5 * (layout.cardWidth + layout.gap), y: topY + 2 * rowGap };
+        }
+        return { x: layout.startX + (idx - 18) * (layout.cardWidth + layout.gap), y: topY + 3 * rowGap };
+      };
+
+      for (let p = 0; p < 28; p++) {
+        const pos = peakPos(p);
+        pushSlot(6, p, pos.x, pos.y, layout.cardWidth, layout.cardHeight);
+      }
+      const bY = topY + 4.5 * rowGap;
+      pushSlot(0, 0, layout.startX, bY, layout.cardWidth, layout.cardHeight);
+      pushSlot(1, 0, layout.startX + layout.cardWidth + layout.gap, bY, layout.cardWidth, layout.cardHeight);
+
+      piles.forEach((pile) => {
+        let bx = 0, by = 0;
+        if (pile.kind === 6) {
+          const pos = peakPos(pile.index);
+          bx = pos.x; by = pos.y;
+        } else if (pile.kind === 0) { bx = layout.startX; by = bY; }
+        else if (pile.kind === 1) { bx = layout.startX + layout.cardWidth + layout.gap; by = bY; }
+        pile.cards.forEach((card, ci) => {
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by, width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+        });
+      });
+    } else if (type === 9) {
+      // SCORPION
+      const layout = calculateGridLayout(rect.width, rect.height, 7);
+      pushSlot(0, 0, layout.startX, layout.topOffset, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 7; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      piles.forEach((pile) => {
+        let bx = layout.startX, by = layout.topOffset;
+        if (pile.kind === 0) bx = layout.startX;
+        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        pile.cards.forEach((card, ci) => {
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+        });
+      });
     } else {
       // KLONDIKE
       const layout = calculateGridLayout(rect.width, rect.height, 7);
@@ -385,8 +516,15 @@ export const App: React.FC = () => {
           <select value={gameTypeCode} onChange={(e) => handleGameSelect(Number(e.target.value))}
             style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", color: "#e5e2e1", padding: "6px 12px", fontFamily: "Inter,sans-serif", fontSize: "14px", fontWeight: 600, cursor: "pointer", outline: "none" }}>
             <option value={0} style={{ background: "#1e1e1e" }}>Klondike</option>
+            <option value={1} style={{ background: "#1e1e1e" }}>Spider</option>
             <option value={2} style={{ background: "#1e1e1e" }}>FreeCell</option>
             <option value={3} style={{ background: "#1e1e1e" }}>Pyramid</option>
+            <option value={4} style={{ background: "#1e1e1e" }}>Golf</option>
+            <option value={5} style={{ background: "#1e1e1e" }}>TriPeaks</option>
+            <option value={6} style={{ background: "#1e1e1e" }}>Yukon</option>
+            <option value={7} style={{ background: "#1e1e1e" }}>Forty Thieves</option>
+            <option value={8} style={{ background: "#1e1e1e" }}>Canfield</option>
+            <option value={9} style={{ background: "#1e1e1e" }}>Scorpion</option>
           </select>
         </div>
         <div style={{ display: "flex", gap: 24, fontFamily: "JetBrains Mono,monospace", fontSize: "14px" }}>
