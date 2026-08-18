@@ -198,7 +198,9 @@ export const App: React.FC = () => {
       // TRIPEAKS
       const layout = calculateGridLayout(rect.width, rect.height, 10);
       const topY = layout.topOffset;
-      const rowGap = layout.cardHeight * 0.45;
+      // rowGap = 60% of card height: each row overlaps the one above, but
+      // enough of each card is visible to read rank/suit
+      const rowGap = layout.cardHeight * 0.6;
 
       const peakPos = (idx: number) => {
         if (idx === 0) return { x: layout.startX + 1.5 * (layout.cardWidth + layout.gap), y: topY };
@@ -211,6 +213,7 @@ export const App: React.FC = () => {
         if (idx >= 9 && idx <= 17) {
           return { x: layout.startX + (idx - 9) * (layout.cardWidth + layout.gap) + 0.5 * (layout.cardWidth + layout.gap), y: topY + 2 * rowGap };
         }
+        // Base row (idx 18-27): 10 cards across all columns
         return { x: layout.startX + (idx - 18) * (layout.cardWidth + layout.gap), y: topY + 3 * rowGap };
       };
 
@@ -218,7 +221,8 @@ export const App: React.FC = () => {
         const pos = peakPos(p);
         pushSlot(6, p, pos.x, pos.y, layout.cardWidth, layout.cardHeight);
       }
-      const bY = topY + 4.5 * rowGap;
+      // Stock and waste sit below the BOTTOM EDGE of the base row cards + padding
+      const bY = topY + 3 * rowGap + layout.cardHeight + 20;
       pushSlot(0, 0, layout.startX, bY, layout.cardWidth, layout.cardHeight);
       pushSlot(1, 0, layout.startX + layout.cardWidth + layout.gap, bY, layout.cardWidth, layout.cardHeight);
 
