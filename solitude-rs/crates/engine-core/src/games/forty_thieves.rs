@@ -58,6 +58,13 @@ impl Default for FortyThievesGame {
 }
 
 impl GameRules for FortyThievesGame {
+    fn snapshot_history(&self) -> History {
+        self.history.clone()
+    }
+    fn restore_history(&mut self, history: History) {
+        self.history = history;
+    }
+
 
     fn snapshot(&self) -> GameSnapshot {
         GameSnapshot::new(self.piles.clone(), self.move_count, 0)

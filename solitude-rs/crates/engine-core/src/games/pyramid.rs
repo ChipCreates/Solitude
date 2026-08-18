@@ -141,6 +141,13 @@ impl Default for PyramidGame {
 }
 
 impl GameRules for PyramidGame {
+    fn snapshot_history(&self) -> History {
+        self.history.clone()
+    }
+    fn restore_history(&mut self, history: History) {
+        self.history = history;
+    }
+
 
     fn snapshot(&self) -> GameSnapshot {
         GameSnapshot::new(self.piles.clone(), self.move_count, self.stock_recycle_count)
@@ -415,14 +422,9 @@ impl GameRules for PyramidGame {
             for j in (i + 1)..accessible.len() {
                 if accessible[i].1.rank.value() + accessible[j].1.rank.value() == 13 {
                     moves.push(HintMove {
-                        from: accessible[i].0, // Use the first card's origin
+                        from: accessible[i].0,
                         to: discard_ref,
                         cards: vec![accessible[i].1.id, accessible[j].1.id],
-                    });
-                    moves.push(HintMove {
-                        from: accessible[j].0, // Order shouldn't matter but this covers both from directions
-                        to: discard_ref,
-                        cards: vec![accessible[j].1.id, accessible[i].1.id],
                     });
                 }
             }

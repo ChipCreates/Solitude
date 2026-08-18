@@ -40,6 +40,10 @@ pub trait GameRules: Send {
     }
     fn snapshot(&self) -> crate::history::GameSnapshot;
     fn restore(&mut self, snapshot: crate::history::GameSnapshot);
+    fn snapshot_history(&self) -> crate::history::History {
+        crate::history::History::new()
+    }
+    fn restore_history(&mut self, _history: crate::history::History) {}
     fn tap_stock(&mut self) -> Result<Option<Move>, EngineError>;
     fn can_tap_stock(&self) -> bool {
         false

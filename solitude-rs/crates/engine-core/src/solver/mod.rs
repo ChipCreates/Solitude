@@ -1,6 +1,6 @@
 use crate::game::{GameRules, HintMove};
 use crate::history::GameSnapshot;
-use crate::pile::PileType;
+use crate::pile::{Pile, PileType};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashSet};
 
@@ -14,7 +14,7 @@ pub struct SolverNode {
 
 impl PartialEq for SolverNode {
     fn eq(&self, other: &Self) -> bool {
-        self.score == other.score
+        self.score == other.score && self.depth == other.depth
     }
 }
 
@@ -22,7 +22,9 @@ impl Eq for SolverNode {}
 
 impl Ord for SolverNode {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.score.cmp(&other.score)
+        self.score
+            .cmp(&other.score)
+            .then_with(|| other.depth.cmp(&self.depth))
     }
 }
 
@@ -30,6 +32,12 @@ impl PartialOrd for SolverNode {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct StateSignature {
+    piles: Vec<Pile>,
+    stock_recycle_count: u32,
 }
 
 pub struct SolverEngine;
@@ -41,7 +49,12 @@ impl SolverEngine {
             return 10_000;
         }
 
+        let snap = game.snapshot();
         let mut score = 0;
+
+        // Reward completed suits / completed progress (Spider, Scorpion, Klondike recycles)
+        score += (snap.stock_recycle_count as i32) * 100;
+
         for pile in game.piles() {
             match pile.kind {
                 PileType::Foundation | PileType::Discard => {
@@ -75,6 +88,7 @@ impl SolverEngine {
     /// Explores the game tree to find the best immediate move using Best-First Search.
     pub fn find_best_move(game: &mut dyn GameRules) -> Option<HintMove> {
         let initial_snapshot = game.snapshot();
+        let initial_history = game.snapshot_history();
         let initial_score = Self::calculate_heuristic(game);
 
         let mut open_set = BinaryHeap::new();
@@ -106,12 +120,16 @@ impl SolverEngine {
                 break;
             }
 
-            // Create a simple state signature string by serializing the snapshot length/moves
-            let state_signature = format!("{:?}", game.snapshot());
-            if visited.contains(&state_signature) {
+            // Cycle detection using pile configuration and recycle/completed count (ignoring move_count)
+            let current_snap = game.snapshot();
+            let state_sig = StateSignature {
+                piles: current_snap.piles,
+                stock_recycle_count: current_snap.stock_recycle_count,
+            };
+            if visited.contains(&state_sig) {
                 continue;
             }
-            visited.insert(state_signature);
+            visited.insert(state_sig);
 
             if node.depth >= 15 {
                 continue;
@@ -153,7 +171,10 @@ impl SolverEngine {
             }
         }
 
+        // Restore exact initial board state and undo history
         game.restore(initial_snapshot);
+        game.restore_history(initial_history);
+
         best_move_found
     }
 }
@@ -169,8 +190,12 @@ mod tests {
         let mut game = GameFactory::create_game(GameType::Klondike);
         game.initialize(12345);
 
+        let initial_history_len = game.snapshot_history().can_undo();
         let hint = SolverEngine::find_best_move(game.as_mut());
-        // Should not panic and should restore the exact initial state
+        let _ = hint;
+
+        // Should not panic and should restore the exact initial state & history
         assert_eq!(game.snapshot().move_count, 0);
+        assert_eq!(game.snapshot_history().can_undo(), initial_history_len);
     }
 }
