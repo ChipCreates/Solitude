@@ -51,10 +51,12 @@ export function redoWasm(): boolean {
 }
 
 export function checkWinWasm(): boolean {
+  if (!isInitialized) return false;
   return check_win();
 }
 
 export function isLostWasm(): boolean {
+  if (!isInitialized) return false;
   return is_lost();
 }
 
@@ -134,6 +136,7 @@ export function getPilesLayout(): WasmPile[] {
 }
 
 export function getHintWasm(): any | null {
+  if (!isInitialized) return null;
   const json = get_hint_json();
   if (!json) return null;
   try {
@@ -144,9 +147,11 @@ export function getHintWasm(): any | null {
 }
 
 export function autoPlayStepWasm(): boolean {
+  if (!isInitialized) return false;
   return auto_play_step_wasm();
 }
 
 export function autoCompleteStepWasm(): boolean {
+  if (!isInitialized) return false;
   return auto_complete_step_wasm();
 }
