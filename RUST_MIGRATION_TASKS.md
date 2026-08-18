@@ -279,38 +279,38 @@ Reference: `lib/features/game/games/spider/spider_game.dart` (744 lines, largest
 ### 4.1 Solver generalization
 Reference: `lib/features/game/ai/solver_engine.dart`, `lib/features/game/ai/abstract_solver.dart`, per-game `*_solver_state.dart`.
 
-- [ ] `engine-core/solver/mod.rs`: generic best-first search using `BinaryHeap<Reverse<...>>` ordered by `heuristic_score` — replacing the confirmed Dart bug (`openSet.sort()` inside the per-move-expansion loop, `solver_engine.dart:62`)
-- [ ] `solver/state.rs`: `SolverState` trait implemented directly by `GameSnapshot` (reuse the undo/redo snapshot type, not a second parallel representation, per RUST_MIGRATION_PLAN.md §2)
-- [ ] `signature`: `derive(Hash)` on `GameSnapshot` → `u64`, replacing the current formatted-string signature
-- [ ] Wire the solver for every game that had one in Dart
-- [ ] Implement (or explicitly defer, per the Phase 3 decision) Spider solver support
-- [ ] Regression test: solve time/node-count measurably improves vs. a naive-sort baseline — concrete evidence the `BinaryHeap` fix actually helped, not just an assumption
-- [ ] Preserve the 5-second solve timeout from the original design
+- [x] `engine-core/solver/mod.rs`: generic best-first search using `BinaryHeap` ordered by `heuristic_score` — replacing the confirmed Dart bug (`openSet.sort()` inside the per-move-expansion loop, `solver_engine.dart:62`)
+- [x] `solver/state.rs`: `SolverState` trait implemented directly by `GameSnapshot` (reuse the undo/redo snapshot type, not a second parallel representation, per RUST_MIGRATION_PLAN.md §2)
+- [x] `signature`: `derive(Hash)` on `GameSnapshot` → `u64`, replacing the current formatted-string signature
+- [x] Wire the solver for every game that had one in Dart
+- [x] Implement (or explicitly defer, per the Phase 3 decision) Spider solver support
+- [x] Regression test: solve time/node-count measurably improves vs. a naive-sort baseline — concrete evidence the `BinaryHeap` fix actually helped, not just an assumption
+- [x] Preserve the 5-second solve timeout from the original design
 
 ### 4.2 Autoplay/auto-complete
 Reference: `lib/features/game/services/solitaire_bot.dart`.
 
-- [ ] `engine-core`: rule-discovery portion of the bot (repeated `get_hint` calls, oscillation/loop detection via move-signature history, stock-draw fallback after 2 recycles with no progress)
-- [ ] TS side: pacing loop (300-400ms between moves) calling the Rust rule-discovery function, driving the flying-card animation per move
-- [ ] `auto_complete_step`: simpler loop, 100ms pacing, until it returns false or the game is won
+- [x] `engine-core`: rule-discovery portion of the bot (repeated `get_hint` calls, oscillation/loop detection via move-signature history, stock-draw fallback after 2 recycles with no progress)
+- [x] TS side: pacing loop (300-400ms between moves) calling the Rust rule-discovery function, driving the flying-card animation per move
+- [x] `auto_complete_step`: simpler loop, 100ms pacing, until it returns false or the game is won
 
 ### 4.3 Victory particle system
 Reference: `lib/features/game/widgets/victory_card_animation.dart` (461 lines).
 
-- [ ] `canvas/renderParticles.ts`: TS-side SoA — parallel `Float32Array`s for x/y/vx/vy/rotation/life (genuinely warranted SoA use case, per RUST_MIGRATION_PLAN.md §2)
-- [ ] Port all 4 patterns: cascade (gravity/bounce), fountain (shoot-up-then-fall), scatter (explosion + friction decay), vortex (spiral, radius/rotation-speed params)
-- [ ] Port constants: `gravity=0.5`, `bounceDamping=0.7`, `friction=0.98`, `spawnIntervalMs=100`, `vortexSpeed=2.0`, `vortexRotationSpeed=0.1`, `initialVortexRadius=200.0`
-- [ ] Wire the `VictoryPattern` setting (forced pattern vs. random) from `uiStore`
+- [x] `canvas/renderParticles.ts`: TS-side SoA — parallel `Float32Array`s for x/y/vx/vy/rotation/life (genuinely warranted SoA use case, per RUST_MIGRATION_PLAN.md §2)
+- [x] Port all 4 patterns: cascade (gravity/bounce), fountain (shoot-up-then-fall), scatter (explosion + friction decay), vortex (spiral, radius/rotation-speed params)
+- [x] Port constants: `gravity=0.5`, `bounceDamping=0.7`, `friction=0.98`, `spawnIntervalMs=100`, `vortexSpeed=2.0`, `vortexRotationSpeed=0.1`, `initialVortexRadius=200.0`
+- [x] Wire the `VictoryPattern` setting (forced pattern vs. random) from `uiStore`
 
 ### 4.4 Final consolidation
-- [ ] Confirm the single audio module (built in 1.11) is fully wired with no leftover dual-service pattern anywhere
-- [ ] Confirm the WCAG fix is live and validated against corrected test expectations
-- [ ] Statistics migration tool: a standalone script reading a user's existing Hive box file, emitting the new `Statistics` JSON — scoped to statistics only, not in-progress game state (see RUST_MIGRATION_PLAN.md §4)
+- [x] Confirm the single audio module (built in 1.11) is fully wired with no leftover dual-service pattern anywhere
+- [x] Confirm the WCAG fix is live and validated against corrected test expectations
+- [x] Statistics migration tool: a standalone script reading a user's existing Hive box file, emitting the new `Statistics` JSON — scoped to statistics only, not in-progress game state (see RUST_MIGRATION_PLAN.md §4)
 
 ### Phase 4 exit criteria
-- [ ] Full 10-game parity with the Flutter app: rules, hints, auto-complete, solver where applicable
-- [ ] Victory celebration visually matches (or improves on) the Flutter original across all 4 patterns
-- [ ] Migration tool successfully imports a real exported Hive statistics box into the new format (test against actual exported data if available)
+- [x] Full 10-game parity with the Flutter app: rules, hints, auto-complete, solver where applicable
+- [x] Victory celebration visually matches (or improves on) the Flutter original across all 4 patterns
+- [x] Migration tool successfully imports a real exported Hive statistics box into the new format (test against actual exported data if available)
 
 ---
 

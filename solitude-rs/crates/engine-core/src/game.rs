@@ -18,7 +18,7 @@ pub enum GameType {
     Scorpion,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HintMove {
     pub from: PileRef,
     pub to: PileRef,

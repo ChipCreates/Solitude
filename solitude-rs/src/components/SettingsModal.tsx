@@ -16,11 +16,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     soundEnabled,
     soundVolume,
     leftHandMode,
+    victoryPattern,
     setDrawMode,
     setThemeId,
     setSoundEnabled,
     setSoundVolume,
     setLeftHandMode,
+    setVictoryPattern,
   } = useUIStore();
 
   if (!isOpen) return null;
@@ -162,6 +164,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 onChange={(e) => setLeftHandMode(e.target.checked)}
                 style={{ width: "20px", height: "20px" }}
               />
+            </div>
+
+            <div>
+              <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#c2c8c0" }}>Victory Pattern</label>
+              <select
+                value={victoryPattern}
+                onChange={(e) => setVictoryPattern(e.target.value as any)}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "8px",
+                  background: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  color: "#e5e2e1",
+                  fontSize: "14px",
+                  outline: "none",
+                }}
+              >
+                <option value="cascade" style={{ background: "#1e1e1e" }}>Cascade (Bouncing)</option>
+                <option value="fountain" style={{ background: "#1e1e1e" }}>Fountain (Erupting)</option>
+                <option value="scatter" style={{ background: "#1e1e1e" }}>Scatter (Explosion)</option>
+                <option value="vortex" style={{ background: "#1e1e1e" }}>Vortex (Spiral)</option>
+              </select>
             </div>
           </div>
         )}

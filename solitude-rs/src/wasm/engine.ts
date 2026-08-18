@@ -10,6 +10,9 @@ import init, {
   execute_pair_move_wasm,
   get_layout_buffer_ptr,
   get_layout_buffer_len,
+  get_hint_json,
+  auto_play_step_wasm,
+  auto_complete_step_wasm,
 } from "./pkg/engine_wasm.js";
 
 let isInitialized = false;
@@ -128,4 +131,22 @@ export function getPilesLayout(): WasmPile[] {
   }
 
   return piles;
+}
+
+export function getHintWasm(): any | null {
+  const json = get_hint_json();
+  if (!json) return null;
+  try {
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+export function autoPlayStepWasm(): boolean {
+  return auto_play_step_wasm();
+}
+
+export function autoCompleteStepWasm(): boolean {
+  return auto_complete_step_wasm();
 }

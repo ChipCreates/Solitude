@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   initEngine, initializeGame, getPilesLayout, tapStockWasm,
   undoWasm, redoWasm, executeMoveWasm, executePairMoveWasm,
+  getHintWasm, autoPlayStepWasm, checkWinWasm,
 } from "./wasm/engine";
 import { calculateGridLayout } from "./canvas/layout/gridLayout";
 import { calculatePyramidLayout, getPyramidCardPosition } from "./canvas/layout/pyramidLayout";
@@ -11,7 +12,8 @@ import { THEME_PRESETS } from "./theme/presets";
 import { useUIStore } from "./store/uiStore";
 import { SettingsModal } from "./components/SettingsModal";
 import { audioService } from "./audio/audioService";
-import { RotateCcw, Play, Settings as SettingsIcon } from "lucide-react";
+import { ParticleSystem } from "./canvas/renderParticles";
+import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles } from "lucide-react";
 
 interface AnimatedCard { x: number; y: number; vx: number; vy: number; }
 
@@ -37,12 +39,16 @@ export const App: React.FC = () => {
   const cardBoundsListRef = useRef<CardBounds[]>([]);
   const animatedCardsRef = useRef(new Map<number, AnimatedCard>());
   const dragStateRef = useRef<{ cardId: number; ptrX: number; ptrY: number; offsetX: number; offsetY: number } | null>(null);
-  // Track pointer down position for tap detection
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
   const movedRef = useRef(false);
   const dragStartCardRef = useRef<CardBounds | null>(null);
 
-  const { themeId, soundEnabled, soundVolume } = useUIStore();
+  const particleSystemRef = useRef(new ParticleSystem());
+  const hintCardIdRef = useRef<number | null>(null);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const isWonRef = useRef(false);
+
+  const { themeId, soundEnabled, soundVolume, victoryPattern } = useUIStore();
   const currentTheme = THEME_PRESETS[themeId] || THEME_PRESETS.classic_felt;
 
   useEffect(() => { audioService.setConfig(soundEnabled, soundVolume); }, [soundEnabled, soundVolume]);
@@ -324,8 +330,19 @@ export const App: React.FC = () => {
       cardsToDraw.forEach((b) => {
         const anim = animatedCardsRef.current.get(b.cardId)!;
         const isSel = selectedPyramidCardRef.current?.cardId === b.cardId;
-        drawCard(ctx, b, anim.x, anim.y, b.width, b.height, b.width < 60, currentTheme.accentColor, isSel);
+        const isHint = hintCardIdRef.current === b.cardId;
+        drawCard(ctx, b, anim.x, anim.y, b.width, b.height, b.width < 60, currentTheme.accentColor, isSel || isHint);
       });
+
+      if (checkWinWasm()) {
+        if (!isWonRef.current) {
+          isWonRef.current = true;
+          audioService.playWin();
+          particleSystemRef.current.spawnVictoryPattern(victoryPattern, rect.width, rect.height);
+        }
+        particleSystemRef.current.updateAndRender(ctx, rect.width, rect.height, victoryPattern);
+      }
+
       ctx.restore();
       rafId = requestAnimationFrame(render);
     };
@@ -492,18 +509,44 @@ export const App: React.FC = () => {
     initializeGame(type, BigInt(Date.now()));
     animatedCardsRef.current.clear();
     setSelectedPyramidCard(null);
+    hintCardIdRef.current = null;
+    isWonRef.current = false;
+    particleSystemRef.current.clear();
+    setIsAutoPlaying(false);
     setMoveCount(0); setTimerSeconds(0);
-    // Call updateLayout immediately (engine is populated synchronously),
-    // and also schedule a second call after React flushes state updates
     updateLayout(type);
     requestAnimationFrame(() => updateLayout(type));
+  }, [updateLayout]);
+
+  const handleHint = useCallback(() => {
+    const hint = getHintWasm();
+    if (hint && hint.cards && hint.cards.length > 0) {
+      hintCardIdRef.current = hint.cards[0];
+      setTimeout(() => { hintCardIdRef.current = null; }, 2500);
+    }
+  }, []);
+
+  const handleAutoPlay = useCallback(() => {
+    const nextStep = () => {
+      if (checkWinWasm()) return;
+      const success = autoPlayStepWasm();
+      if (success) {
+        setMoveCount((m) => m + 1);
+        audioService.playCardMove();
+        updateLayout();
+        setTimeout(nextStep, 350);
+      } else {
+        setIsAutoPlaying(false);
+      }
+    };
+    setIsAutoPlaying(true);
+    nextStep();
   }, [updateLayout]);
 
   useEffect(() => {
     initEngine().then(() => startNewGame(0));
   }, []);
 
-  // Fix: game selector immediately resets AND switches layout
   const handleGameSelect = useCallback((typeCode: number) => {
     setGameTypeCode(typeCode);
     startNewGame(typeCode);
@@ -514,10 +557,11 @@ export const App: React.FC = () => {
       onUndo: () => { undoWasm(); updateLayout(); },
       onRedo: () => { redoWasm(); updateLayout(); },
       onNewGame: () => startNewGame(),
-      onHint: () => {}, onAutoPlay: () => {},
+      onHint: handleHint,
+      onAutoPlay: handleAutoPlay,
       onSettings: () => setIsSettingsOpen((o) => !o),
     });
-  }, [updateLayout, startNewGame]);
+  }, [updateLayout, startNewGame, handleHint, handleAutoPlay]);
 
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
@@ -551,9 +595,11 @@ export const App: React.FC = () => {
           <div><span style={{ opacity: 0.6 }}>MOVES: </span>{moveCount}</div>
         </div>
         <div style={{ display: "flex", gap: 12 }}>
-          <button onClick={() => { undoWasm(); updateLayout(); }} title="Undo" style={HUD_BTN}><RotateCcw size={18} /></button>
-          <button onClick={() => startNewGame()} title="New Game" style={HUD_BTN}><Play size={18} /></button>
-          <button onClick={() => setIsSettingsOpen(true)} title="Settings" style={HUD_BTN}><SettingsIcon size={18} /></button>
+          <button onClick={handleHint} title="Hint (H)" style={HUD_BTN}><Lightbulb size={18} /></button>
+          <button onClick={handleAutoPlay} title="Auto Play (A)" style={{ ...HUD_BTN, color: isAutoPlaying ? currentTheme.accentColor : "#e5e2e1" }}><Sparkles size={18} /></button>
+          <button onClick={() => { undoWasm(); updateLayout(); }} title="Undo (U)" style={HUD_BTN}><RotateCcw size={18} /></button>
+          <button onClick={() => startNewGame()} title="New Game (N)" style={HUD_BTN}><Play size={18} /></button>
+          <button onClick={() => setIsSettingsOpen(true)} title="Settings (Esc)" style={HUD_BTN}><SettingsIcon size={18} /></button>
         </div>
       </div>
       <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />

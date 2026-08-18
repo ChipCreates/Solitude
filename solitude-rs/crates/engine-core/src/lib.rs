@@ -7,3 +7,4 @@ pub mod games;
 pub mod history;
 pub mod mv;
 pub mod pile;
+pub mod solver;

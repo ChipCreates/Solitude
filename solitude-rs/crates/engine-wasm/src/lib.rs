@@ -203,3 +203,45 @@ pub fn execute_pair_move_wasm(
         false
     }
 }
+
+#[wasm_bindgen]
+pub fn get_hint_json() -> String {
+    let lock = CURRENT_GAME.lock().unwrap();
+    if let Some(game) = lock.as_ref() {
+        if let Some(hint) = game.get_hint() {
+            return serde_json::to_string(&hint).unwrap_or_default();
+        }
+    }
+    String::new()
+}
+
+#[wasm_bindgen]
+pub fn auto_play_step_wasm() -> bool {
+    let mut lock = CURRENT_GAME.lock().unwrap();
+    if let Some(game) = lock.as_mut() {
+        if let Some(hint) = game.get_hint() {
+            let card_ids: Vec<CardId> = hint.cards;
+            return game.execute_move(hint.from, hint.to, &card_ids).is_ok();
+        } else {
+            // Fallback: tap stock if available
+            return game.tap_stock().is_ok();
+        }
+    }
+    false
+}
+
+#[wasm_bindgen]
+pub fn auto_complete_step_wasm() -> bool {
+    let mut lock = CURRENT_GAME.lock().unwrap();
+    if let Some(game) = lock.as_mut() {
+        if game.check_win() {
+            return false;
+        }
+        if let Some(hint) = game.get_hint() {
+            let card_ids: Vec<CardId> = hint.cards;
+            return game.execute_move(hint.from, hint.to, &card_ids).is_ok();
+        }
+    }
+    false
+}
+

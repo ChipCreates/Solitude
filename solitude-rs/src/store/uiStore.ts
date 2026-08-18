@@ -8,11 +8,13 @@ export interface SettingsState {
   soundEnabled: boolean;
   soundVolume: number;
   leftHandMode: boolean;
+  victoryPattern: "cascade" | "fountain" | "scatter" | "vortex";
   setDrawMode: (mode: number) => void;
   setThemeId: (id: string) => void;
   setSoundEnabled: (enabled: boolean) => void;
   setSoundVolume: (vol: number) => void;
   setLeftHandMode: (leftHand: boolean) => void;
+  setVictoryPattern: (pattern: "cascade" | "fountain" | "scatter" | "vortex") => void;
 }
 
 export const useUIStore = create<SettingsState>((set) => ({
@@ -23,10 +25,12 @@ export const useUIStore = create<SettingsState>((set) => ({
   soundEnabled: true,
   soundVolume: 0.8,
   leftHandMode: false,
+  victoryPattern: "cascade",
 
   setDrawMode: (drawMode) => set({ drawMode }),
   setThemeId: (themeId) => set({ themeId }),
   setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
   setSoundVolume: (soundVolume) => set({ soundVolume }),
   setLeftHandMode: (leftHandMode) => set({ leftHandMode }),
+  setVictoryPattern: (victoryPattern) => set({ victoryPattern }),
 }));
