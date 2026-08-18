@@ -1,4 +1,4 @@
-use crate::card::{Card, CardId};
+use crate::card::CardId;
 use crate::error::EngineError;
 use crate::mv::Move;
 use crate::pile::{Pile, PileRef};

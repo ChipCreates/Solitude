@@ -192,13 +192,13 @@ Goal: stress-test whether `GameRules`/`Pile`/`Move`/`History` are genuinely gene
 ### 2.1 Pyramid (`engine-core`)
 Reference: `lib/features/game/games/pyramid/pyramid_game.dart` (712 lines).
 
-- [ ] `games/pyramid.rs`: 28 individual single-card piles (`PileType::Pyramid`), plus stock/waste/discard
-- [ ] Port the adjacency/coverage model: `pyramid_covers: Vec<Vec<usize>>`, `pyramid_positions` (row/col), built once in an equivalent of `_buildPyramidStructure()`
-- [ ] Port `is_card_uncovered(index)`'s coverage-scan logic
-- [ ] Port `is_valid_move`: pairs-summing-to-13 matching, King self-removal, moves always target the discard pile — this is **not** stack-based logic; confirm `GameRules` accommodates it without special-casing elsewhere in shared code
-- [ ] `MoveExtra::PyramidPair { second_card: CardId }` variant
-- [ ] Port or write test coverage matching `pyramid_game.dart`'s behavior (check whether a dedicated Dart test file exists first)
-- [ ] **If `GameRules` needed changes to accommodate Pyramid, document exactly what changed and why** — this is the explicit point of doing Pyramid second rather than eighth
+- [x] `games/pyramid.rs`: 28 individual single-card piles (`PileType::Pyramid`), plus stock/waste/discard
+- [x] Port the adjacency/coverage model: `pyramid_covers: Vec<Vec<usize>>`, `pyramid_positions` (row/col), built once in an equivalent of `_buildPyramidStructure()`
+- [x] Port `is_card_uncovered(index)`'s coverage-scan logic
+- [x] Port `is_valid_move`: pairs-summing-to-13 matching, King self-removal, moves always target the discard pile — this is **not** stack-based logic; confirm `GameRules` accommodates it without special-casing elsewhere in shared code
+- [x] `MoveExtra::PyramidPair { second_card: CardId }` variant
+- [x] Port or write test coverage matching `pyramid_game.dart`'s behavior (check whether a dedicated Dart test file exists first)
+- [x] **If `GameRules` needed changes to accommodate Pyramid, document exactly what changed and why** — confirmed `GameRules` required zero modifications!
 
 ### 2.2 Pyramid layout + rendering
 Reference: `lib/features/game/layouts/pyramid_layout_strategy.dart`.
@@ -209,12 +209,12 @@ Reference: `lib/features/game/layouts/pyramid_layout_strategy.dart`.
 ### 2.3 FreeCell (`engine-core`)
 Reference: `lib/features/game/games/freecell/freecell_game.dart` (697 lines).
 
-- [ ] `games/freecell.rs`: 4 free cells (`PileType::Cell`), 4 foundations, 8 tableau, **no** stock/waste
-- [ ] Port the deal: all 52 cards face-up, round-robin across 8 piles (4 get 7, 4 get 6)
-- [ ] Port the supermove formula: `max_moveable_cards = (empty_cells + 1) * 2^empty_columns`, plus the empty-columns-discounting variant for moves targeting an empty column
-- [ ] Unit test: supermove formula against specific empty-cell/empty-column combinations, checked bit-for-bit against the Dart original's expected outputs
-- [ ] Port `is_safe_to_auto_move` (opposite-color foundations within 1 of the card's value) — used by both auto-complete and `find_best_auto_move_destination`
-- [ ] `MoveExtra::FreecellSupermove { cells_used, columns_used }` variant
+- [x] `games/freecell.rs`: 4 free cells (`PileType::Cell`), 4 foundations, 8 tableau, **no** stock/waste
+- [x] Port the deal: all 52 cards face-up, round-robin across 8 piles (4 get 7, 4 get 6)
+- [x] Port the supermove formula: `max_moveable_cards = (empty_cells + 1) * 2^empty_columns`, plus the empty-columns-discounting variant for moves targeting an empty column
+- [x] Unit test: supermove formula against specific empty-cell/empty-column combinations, checked bit-for-bit against the Dart original's expected outputs
+- [x] Port `is_safe_to_auto_move` (opposite-color foundations within 1 of the card's value) — used by both auto-complete and `find_best_auto_move_destination`
+- [x] `MoveExtra::FreecellSupermove { cells_used, columns_used }` variant
 
 ### 2.4 FreeCell layout + rendering
 - [ ] Confirm the 8-column grid works via the existing `gridLayout.ts` math with no code changes — verify the layout correctly omits stock/waste rendering slots when a game has neither

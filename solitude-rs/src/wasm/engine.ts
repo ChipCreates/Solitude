@@ -7,6 +7,7 @@ import init, {
   check_win,
   is_lost,
   execute_move_wasm,
+  execute_pair_move_wasm,
   get_layout_buffer_ptr,
   get_layout_buffer_len,
 } from "./pkg/engine_wasm.js";
@@ -64,6 +65,24 @@ export function executeMoveWasm(
   return execute_move_wasm(fromKind, fromIdx, toKind, toIdx, cardId);
 }
 
+export function executePairMoveWasm(
+  fromKind: number,
+  fromIdx: number,
+  toKind: number,
+  toIdx: number,
+  cardId: number,
+  secondCardId: number
+): boolean {
+  return execute_pair_move_wasm(
+    fromKind,
+    fromIdx,
+    toKind,
+    toIdx,
+    cardId,
+    secondCardId
+  );
+}
+
 export interface WasmCard {
   id: number;
   suit: number; // 0: Hearts, 1: Diamonds, 2: Clubs, 3: Spades
@@ -72,7 +91,7 @@ export interface WasmCard {
 }
 
 export interface WasmPile {
-  kind: number; // 0: Stock, 1: Waste, 2: Foundation, 3: Tableau
+  kind: number; // 0: Stock, 1: Waste, 2: Foundation, 3: Tableau, 4: Cell, 5: Reserve, 6: Pyramid, 7: Discard
   index: number;
   cards: WasmCard[];
 }

@@ -1,7 +1,7 @@
 // Architecture note: Game rule mutations are discrete function calls triggered by input events.
 // world.tick(dt) is only used for cosmetic UI animation loops in TypeScript.
 
-use engine_core::card::{CardId, Rank, Suit};
+use engine_core::card::{CardId, Suit};
 use engine_core::factory::GameFactory;
 use engine_core::game::{GameRules, GameType};
 use engine_core::pile::{PileRef, PileType};
@@ -109,6 +109,20 @@ fn pile_type_to_u8(kind: PileType) -> u8 {
     }
 }
 
+fn u8_to_pile_type(kind: u8) -> Option<PileType> {
+    match kind {
+        0 => Some(PileType::Stock),
+        1 => Some(PileType::Waste),
+        2 => Some(PileType::Foundation),
+        3 => Some(PileType::Tableau),
+        4 => Some(PileType::Cell),
+        5 => Some(PileType::Reserve),
+        6 => Some(PileType::Pyramid),
+        7 => Some(PileType::Discard),
+        _ => None,
+    }
+}
+
 fn suit_to_u8(suit: Suit) -> u8 {
     match suit {
         Suit::Hearts => 0,
@@ -154,27 +168,37 @@ pub fn get_layout_buffer_len() -> usize {
 
 #[wasm_bindgen]
 pub fn execute_move_wasm(from_kind: u8, from_idx: u8, to_kind: u8, to_idx: u8, card_id: u8) -> bool {
-    let from_type = match from_kind {
-        0 => PileType::Stock,
-        1 => PileType::Waste,
-        2 => PileType::Foundation,
-        3 => PileType::Tableau,
-        _ => return false,
-    };
+    execute_pair_move_wasm(from_kind, from_idx, to_kind, to_idx, card_id, 255)
+}
 
-    let to_type = match to_kind {
-        0 => PileType::Stock,
-        1 => PileType::Waste,
-        2 => PileType::Foundation,
-        3 => PileType::Tableau,
-        _ => return false,
+#[wasm_bindgen]
+pub fn execute_pair_move_wasm(
+    from_kind: u8,
+    from_idx: u8,
+    to_kind: u8,
+    to_idx: u8,
+    card_id: u8,
+    second_card_id: u8,
+) -> bool {
+    let from_type = match u8_to_pile_type(from_kind) {
+        Some(t) => t,
+        None => return false,
+    };
+    let to_type = match u8_to_pile_type(to_kind) {
+        Some(t) => t,
+        None => return false,
     };
 
     let mut lock = CURRENT_GAME.lock().unwrap();
     if let Some(game) = lock.as_mut() {
         let from_ref = PileRef::new(from_type, from_idx);
         let to_ref = PileRef::new(to_type, to_idx);
-        game.execute_move(from_ref, to_ref, &[CardId(card_id)]).is_ok()
+        let cards = if second_card_id != 255 {
+            vec![CardId(card_id), CardId(second_card_id)]
+        } else {
+            vec![CardId(card_id)]
+        };
+        game.execute_move(from_ref, to_ref, &cards).is_ok()
     } else {
         false
     }
