@@ -27,6 +27,7 @@ export const App: React.FC = () => {
   const [moveCount, setMoveCount] = useState(0);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Pyramid selection stored in ref so tap handler always reads live value
   const selectedPyramidCardRef = useRef<CardBounds | null>(null);
@@ -514,6 +515,7 @@ export const App: React.FC = () => {
     particleSystemRef.current.clear();
     setIsAutoPlaying(false);
     setMoveCount(0); setTimerSeconds(0);
+    setToastMessage(null);
     updateLayout(type);
     requestAnimationFrame(() => updateLayout(type));
   }, [updateLayout]);
@@ -537,6 +539,9 @@ export const App: React.FC = () => {
         setTimeout(nextStep, 350);
       } else {
         setIsAutoPlaying(false);
+        if (!checkWinWasm()) {
+          setToastMessage("No moves available.");
+        }
       }
     };
     setIsAutoPlaying(true);
@@ -604,6 +609,16 @@ export const App: React.FC = () => {
       </div>
       <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      
+      {toastMessage && (
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "rgba(19,19,19,0.9)", backdropFilter: "blur(16px)", padding: "24px", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.2)", zIndex: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+          <div style={{ color: "#e5e2e1", fontFamily: "Manrope,sans-serif", fontSize: "18px", fontWeight: 600 }}>{toastMessage}</div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button onClick={() => { setToastMessage(null); startNewGame(); }} style={{ background: currentTheme.accentColor, color: "#111", border: "none", borderRadius: "8px", padding: "10px 20px", fontWeight: 700, cursor: "pointer", fontFamily: "Inter,sans-serif" }}>New Game</button>
+            <button onClick={() => setToastMessage(null)} style={{ background: "transparent", color: "#e5e2e1", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", padding: "10px 20px", fontWeight: 600, cursor: "pointer", fontFamily: "Inter,sans-serif" }}>Dismiss</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
