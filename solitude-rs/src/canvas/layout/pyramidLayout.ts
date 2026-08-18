@@ -22,7 +22,7 @@ export function calculatePyramidLayout(
   const bottomRowHeight = cardHeight + 16;
   const totalContentHeight = pyramidHeight + bottomRowHeight + 20;
 
-  const topPadding = Math.max(8, Math.min(40, (viewportHeight - totalContentHeight) / 3));
+  const topPadding = Math.max(85, Math.min(120, 80 + (viewportHeight - totalContentHeight - 80) / 3));
   const centerX = viewportWidth / 2;
   const bottomY = viewportHeight - cardHeight - 24;
 
