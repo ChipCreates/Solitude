@@ -340,3 +340,28 @@ Reference: `lib/features/game/widgets/victory_card_animation.dart` (461 lines).
 - [x] No network-related capability present in any Tauri capabilities file
 - [x] No telemetry/analytics/crash-reporter dependency introduced anywhere in the new stack
 - [x] Existing Flutter app (`lib/`) archived or clearly marked superseded, not deleted outright — keep it as a reference until confidence in the new stack is high
+
+## Phase 6 — Advanced AI Solver & Autocomplete
+
+**PREAMBLE: Verification & Review**
+*Before completing any task in this phase, the agent must explicitly review the implemented code for correctness, compile and run the engine tests, and verify that the solver performs accurately across the targeted solitaire variants. No task will be marked complete without a corresponding terminal output confirming a successful compilation or passing test suite.*
+
+### 6.1 Core API Expansion
+- [ ] Add `get_available_moves(&self) -> Vec<HintMove>` to the `GameRules` trait.
+- [ ] Implement a default `get_available_moves` algorithm that iterates over face-up cards and tests `is_valid_move` against all other piles to prevent massive boilerplate.
+- [ ] Override `get_available_moves` for games with unique mechanics (e.g., Pyramid pair matching, TriPeaks discard matching, Stock tapping).
+
+### 6.2 Best-First Search Engine
+- [ ] Rebuild `crates/engine-core/src/solver/mod.rs` to execute an actual Best-First Search.
+- [ ] Implement state cycle detection using `GameSnapshot`.
+- [ ] Introduce search constraints (e.g., maximum depth or node evaluation limits) to maintain 60FPS when called from WASM.
+
+### 6.3 Game-Specific Move Generators
+- [ ] Verify/Implement Klondike & FreeCell move generation.
+- [ ] Verify/Implement Spider, Scorpion, Yukon, Forty Thieves, Canfield, & Golf move generation.
+- [ ] Verify/Implement Pyramid & TriPeaks specific move generation.
+
+### 6.4 WASM Integration & UI Verification
+- [ ] Update `get_hint_json` to return the first move from the solver's optimal path.
+- [ ] Ensure `auto_play_step_wasm` seamlessly advances the game using the solver engine without lagging the main thread.
+- [ ] Run `cargo test` on engine-core to definitively prove the solver can solve trivial layouts.

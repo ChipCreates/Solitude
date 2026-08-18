@@ -218,6 +218,10 @@ impl GameRules for KlondikeGame {
         Ok(Move::new(from, to, cards.to_vec()).with_flipped_card(will_flip))
     }
 
+    fn can_tap_stock(&self) -> bool {
+        !self.piles[0].is_empty() || (!self.piles[1].is_empty() && self.can_recycle_stock())
+    }
+
     fn tap_stock(&mut self) -> Result<Option<Move>, EngineError> {
         self.history.push(self.snapshot());
 
