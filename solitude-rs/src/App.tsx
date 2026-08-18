@@ -57,7 +57,13 @@ export const App: React.FC = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
+    // Guard: if the canvas hasn't been laid out yet, retry on next frame
+    if (rect.width === 0 || rect.height === 0) {
+      requestAnimationFrame(() => updateLayout(type));
+      return;
+    }
     const piles = getPilesLayout();
+    if (piles.length === 0) return; // engine not yet initialized
     const boundsList: CardBounds[] = [];
 
     const pushSlot = (pileKind: number, pileIndex: number, x: number, y: number, w: number, h: number) =>
@@ -171,16 +177,21 @@ export const App: React.FC = () => {
         });
       });
     } else if (type === 4) {
-      // GOLF
+      // GOLF: 7 tableau columns, stock + waste on the right
       const layout = calculateGridLayout(rect.width, rect.height, 7);
-      pushSlot(0, 0, layout.startX, layout.topOffset, layout.cardWidth, layout.cardHeight);
-      pushSlot(1, 0, layout.startX + layout.cardWidth + layout.gap, layout.topOffset, layout.cardWidth, layout.cardHeight);
-      for (let t = 0; t < 7; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      const totalW = 7 * layout.cardWidth + 6 * layout.gap;
+      const tStartX = (rect.width - totalW) / 2;
+      const rightX = tStartX + totalW - layout.cardWidth;
+      const rightX2 = rightX - layout.cardWidth - layout.gap;
+      // Stock and Waste sit above the tableau on the right
+      pushSlot(0, 0, rightX2, layout.topOffset, layout.cardWidth, layout.cardHeight);
+      pushSlot(1, 0, rightX, layout.topOffset, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 7; t++) pushSlot(3, t, tStartX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
       piles.forEach((pile) => {
-        let bx = layout.startX, by = layout.topOffset;
-        if (pile.kind === 0) bx = layout.startX;
-        else if (pile.kind === 1) bx = layout.startX + layout.cardWidth + layout.gap;
-        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        let bx = tStartX, by = layout.topOffset;
+        if (pile.kind === 0) { bx = rightX2; }
+        else if (pile.kind === 1) { bx = rightX; }
+        else if (pile.kind === 3) { bx = tStartX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
         pile.cards.forEach((card, ci) => {
           boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
         });
@@ -369,28 +380,30 @@ export const App: React.FC = () => {
       return;
     }
 
-    // Klondike / FreeCell: double-tap auto-move
-    // (handled in handleDoubleTap; single tap does nothing for non-stock)
+    if (type === 4 || type === 5) {
+      // GOLF (4) & TRIPEAKS (5): single tap moves card to Waste (kind 1, index 0)
+      if (executeMoveWasm(card.pileKind, card.pileIndex, 1, 0, card.cardId)) {
+        setMoveCount((m) => m + 1); audioService.playCardMove();
+        updateLayout(); return;
+      }
+    }
   }, [updateLayout]);
 
   const handleDoubleTap = useCallback((card: CardBounds) => {
     if (card.cardId === -1) return;
     const type = gameTypeRef.current;
-    if (type === 0) {
-      for (let f = 0; f < 4; f++) {
+    const foundationCount = (type === 7) ? 8 : 4;
+    if (type === 0 || type === 2 || type === 6 || type === 7 || type === 8) {
+      for (let f = 0; f < foundationCount; f++) {
         if (executeMoveWasm(card.pileKind, card.pileIndex, 2, f, card.cardId)) {
           setMoveCount((m) => m + 1); audioService.playCardMove(); updateLayout(); return;
         }
       }
-    } else if (type === 2) {
-      for (let f = 0; f < 4; f++) {
-        if (executeMoveWasm(card.pileKind, card.pileIndex, 2, f, card.cardId)) {
-          setMoveCount((m) => m + 1); audioService.playCardMove(); updateLayout(); return;
-        }
-      }
-      for (let c = 0; c < 4; c++) {
-        if (executeMoveWasm(card.pileKind, card.pileIndex, 4, c, card.cardId)) {
-          setMoveCount((m) => m + 1); audioService.playCardMove(); updateLayout(); return;
+      if (type === 2) {
+        for (let c = 0; c < 4; c++) {
+          if (executeMoveWasm(card.pileKind, card.pileIndex, 4, c, card.cardId)) {
+            setMoveCount((m) => m + 1); audioService.playCardMove(); updateLayout(); return;
+          }
         }
       }
     }
@@ -473,11 +486,13 @@ export const App: React.FC = () => {
   // ─── Game Management ──────────────────────────────────────────────────────
   const startNewGame = useCallback((typeCode?: number) => {
     const type = typeCode !== undefined ? typeCode : gameTypeRef.current;
+    setGameTypeCode(type);
     initializeGame(type, BigInt(Date.now()));
     animatedCardsRef.current.clear();
     setSelectedPyramidCard(null);
     setMoveCount(0); setTimerSeconds(0);
-    updateLayout(type);
+    // Defer layout update one frame so canvas dimensions are finalized
+    requestAnimationFrame(() => updateLayout(type));
   }, [updateLayout]);
 
   useEffect(() => {
