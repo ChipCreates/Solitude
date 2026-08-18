@@ -1,3 +1,5 @@
+pub mod mcts;
+
 use crate::game::{GameRules, HintMove};
 use crate::history::GameSnapshot;
 use crate::pile::{Pile, PileType};
@@ -34,10 +36,27 @@ impl PartialOrd for SolverNode {
     }
 }
 
+use std::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
+use std::cell::RefCell;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct StateSignature {
     piles: Vec<Pile>,
     stock_recycle_count: u32,
+}
+
+thread_local! {
+    static CACHED_PATH: RefCell<Vec<HintMove>> = RefCell::new(Vec::new());
+    static EXPECTED_STATE_HASH: RefCell<u64> = RefCell::new(0);
+}
+
+fn calculate_hash(game: &dyn GameRules) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    let snap = game.snapshot();
+    snap.piles.hash(&mut hasher);
+    snap.stock_recycle_count.hash(&mut hasher);
+    hasher.finish()
 }
 
 pub struct SolverEngine;
@@ -53,6 +72,52 @@ impl SolverEngine {
 
     /// Explores the game tree to find the best immediate move using Best-First Search.
     pub fn find_best_move(game: &mut dyn GameRules) -> Option<HintMove> {
+        let current_hash = calculate_hash(game);
+        
+        // Check cache
+        let cached_move = EXPECTED_STATE_HASH.with(|expected| {
+            if *expected.borrow() == current_hash {
+                CACHED_PATH.with(|path| {
+                    let mut p = path.borrow_mut();
+                    if !p.is_empty() {
+                        return Some(p.remove(0));
+                    }
+                    None
+                })
+            } else {
+                CACHED_PATH.with(|p| p.borrow_mut().clear());
+                None
+            }
+        });
+
+        if let Some(m) = cached_move {
+            // Verify it's actually valid before returning
+            let mut valid = false;
+            if m.cards.is_empty() && m.from.kind == PileType::Stock {
+                valid = game.can_tap_stock();
+            } else {
+                valid = game.is_valid_move(m.from, m.to, &m.cards);
+            }
+            
+            if valid {
+                // Update expected hash for the NEXT turn
+                let initial_snap = game.snapshot();
+                let initial_hist = game.snapshot_history();
+                if m.cards.is_empty() && m.from.kind == PileType::Stock {
+                    let _ = game.tap_stock();
+                } else {
+                    let _ = game.execute_move(m.from, m.to, &m.cards);
+                }
+                EXPECTED_STATE_HASH.with(|e| *e.borrow_mut() = calculate_hash(game));
+                game.restore(initial_snap);
+                game.restore_history(initial_hist);
+                
+                return Some(m);
+            } else {
+                CACHED_PATH.with(|p| p.borrow_mut().clear());
+            }
+        }
+
         let initial_snapshot = game.snapshot();
         let initial_history = game.snapshot_history();
         let initial_score = Self::calculate_heuristic(game);
@@ -72,6 +137,7 @@ impl SolverEngine {
         let mut iterations = 0;
         let mut best_score_seen = initial_score;
         let mut best_move_found = None;
+        let mut best_path_found = None;
 
         while let Some(node) = open_set.pop() {
             if iterations >= max_iterations {
@@ -82,7 +148,8 @@ impl SolverEngine {
             game.restore(node.snapshot.clone());
 
             if game.check_win() {
-                best_move_found = node.path.into_iter().next();
+                best_move_found = node.path.first().cloned();
+                best_path_found = Some(node.path.clone());
                 break;
             }
 
@@ -122,6 +189,7 @@ impl SolverEngine {
                     if new_score > best_score_seen {
                         best_score_seen = new_score;
                         best_move_found = new_path.first().cloned();
+                        best_path_found = Some(new_path.clone());
                     }
                     
                     open_set.push(SolverNode {
@@ -138,11 +206,35 @@ impl SolverEngine {
         }
 
         // Restore exact initial board state and undo history
-        game.restore(initial_snapshot);
-        game.restore_history(initial_history);
+        game.restore(initial_snapshot.clone());
+        game.restore_history(initial_history.clone());
 
         if best_move_found.is_none() {
             best_move_found = game.get_hint();
+        } else if let Some(ref m) = best_move_found {
+            // Save the remaining path to cache
+            CACHED_PATH.with(|p| {
+                let mut path = p.borrow_mut();
+                path.clear();
+                // The first move is returned, the rest are cached
+                if let Some(best_path) = best_path_found {
+                    if best_path.len() > 1 {
+                        path.extend(best_path.into_iter().skip(1));
+                    }
+                }
+            });
+            
+            // Calculate what the hash WILL be after this move
+            if m.cards.is_empty() && m.from.kind == PileType::Stock {
+                let _ = game.tap_stock();
+            } else {
+                let _ = game.execute_move(m.from, m.to, &m.cards);
+            }
+            EXPECTED_STATE_HASH.with(|e| *e.borrow_mut() = calculate_hash(game));
+            
+            // Restore again
+            game.restore(initial_snapshot);
+            game.restore_history(initial_history);
         }
 
         best_move_found

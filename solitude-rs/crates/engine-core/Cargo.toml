@@ -13,3 +13,8 @@ getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 proptest = "1.4"
+
+[[bin]]
+name = "gym"
+path = "src/bin/gym.rs"
+
