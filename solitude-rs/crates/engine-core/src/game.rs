@@ -50,8 +50,11 @@ pub trait GameRules: Send {
 
         for pile in self.piles() {
             match pile.kind {
-                crate::pile::PileType::Foundation | crate::pile::PileType::Discard => {
+                crate::pile::PileType::Foundation => {
                     score += (pile.len() as i32) * 50;
+                }
+                crate::pile::PileType::Discard => {
+                    // Do not artificially inflate discard pile score
                 }
                 crate::pile::PileType::Tableau => {
                     let mut has_face_down = false;

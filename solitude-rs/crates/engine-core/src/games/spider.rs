@@ -353,12 +353,36 @@ impl GameRules for SpiderGame {
             }
         }
 
-        if !self.piles[0].is_empty() && (0..10).all(|t| !self.piles[9 + t].is_empty()) {
-            return Some(HintMove {
-                from: PileRef::new(PileType::Stock, 0),
-                to: PileRef::new(PileType::Tableau, 0),
-                cards: vec![],
-            });
+        if !self.piles[0].is_empty() {
+            let empty_cols: Vec<usize> = (0..10).filter(|&t| self.piles[9 + t].is_empty()).collect();
+            if !empty_cols.is_empty() {
+                // Return a move to fill the first empty column
+                let to_t = empty_cols[0];
+                let to_ref = PileRef::new(PileType::Tableau, to_t as u8);
+                
+                for from_t in 0..10 {
+                    if from_t == to_t { continue; }
+                    let from_ref = PileRef::new(PileType::Tableau, from_t as u8);
+                    let pile = &self.piles[9 + from_t as usize];
+                    if pile.is_empty() { continue; }
+                    
+                    if let Some(card) = pile.top_card() {
+                        if self.is_valid_move(from_ref, to_ref, &[card.id]) {
+                            return Some(HintMove {
+                                from: from_ref,
+                                to: to_ref,
+                                cards: vec![card.id],
+                            });
+                        }
+                    }
+                }
+            } else {
+                return Some(HintMove {
+                    from: PileRef::new(PileType::Stock, 0),
+                    to: PileRef::new(PileType::Tableau, 0),
+                    cards: vec![],
+                });
+            }
         }
 
         None

@@ -68,7 +68,7 @@ impl SolverEngine {
         });
 
         // Limit the search to ensure it stays fast enough for 60FPS UI rendering
-        let max_iterations = 5000;
+        let max_iterations = 25000;
         let mut iterations = 0;
         let mut best_score_seen = initial_score;
         let mut best_move_found = None;
@@ -140,6 +140,10 @@ impl SolverEngine {
         // Restore exact initial board state and undo history
         game.restore(initial_snapshot);
         game.restore_history(initial_history);
+
+        if best_move_found.is_none() {
+            best_move_found = game.get_hint();
+        }
 
         best_move_found
     }
