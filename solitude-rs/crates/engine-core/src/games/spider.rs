@@ -92,15 +92,6 @@ impl SpiderGame {
             }
         }
     }
-
-    fn snapshot(&self) -> GameSnapshot {
-        GameSnapshot::new(self.piles.clone(), self.move_count, 0)
-    }
-
-    fn restore(&mut self, snapshot: GameSnapshot) {
-        self.piles = snapshot.piles;
-        self.move_count = snapshot.move_count;
-    }
 }
 
 impl Default for SpiderGame {
@@ -110,6 +101,15 @@ impl Default for SpiderGame {
 }
 
 impl GameRules for SpiderGame {
+
+    fn snapshot(&self) -> GameSnapshot {
+        GameSnapshot::new(self.piles.clone(), self.move_count, 0)
+    }
+
+    fn restore(&mut self, snapshot: GameSnapshot) {
+        self.piles = snapshot.piles;
+        self.move_count = snapshot.move_count;
+    }
     fn game_type(&self) -> GameType {
         GameType::Spider
     }
@@ -235,6 +235,18 @@ impl GameRules for SpiderGame {
         self.move_count += 1;
 
         Ok(Move::new(from, to, cards.to_vec()))
+    }
+    fn can_tap_stock(&self) -> bool {
+        if self.piles[0].is_empty() {
+            return false;
+        }
+        // Spider rule: all tableau columns must be non-empty to deal
+        for t in 0..10 {
+            if self.piles[9 + t].is_empty() {
+                return false;
+            }
+        }
+        true
     }
 
     fn tap_stock(&mut self) -> Result<Option<Move>, EngineError> {

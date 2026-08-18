@@ -70,15 +70,6 @@ impl CanfieldGame {
             }
         }
     }
-
-    fn snapshot(&self) -> GameSnapshot {
-        GameSnapshot::new(self.piles.clone(), self.move_count, 0)
-    }
-
-    fn restore(&mut self, snapshot: GameSnapshot) {
-        self.piles = snapshot.piles;
-        self.move_count = snapshot.move_count;
-    }
 }
 
 impl Default for CanfieldGame {
@@ -88,6 +79,15 @@ impl Default for CanfieldGame {
 }
 
 impl GameRules for CanfieldGame {
+
+    fn snapshot(&self) -> GameSnapshot {
+        GameSnapshot::new(self.piles.clone(), self.move_count, 0)
+    }
+
+    fn restore(&mut self, snapshot: GameSnapshot) {
+        self.piles = snapshot.piles;
+        self.move_count = snapshot.move_count;
+    }
     fn game_type(&self) -> GameType {
         GameType::Canfield
     }
@@ -235,6 +235,9 @@ impl GameRules for CanfieldGame {
         self.auto_fill_tableau();
 
         Ok(Move::new(from, to, cards.to_vec()))
+    }
+    fn can_tap_stock(&self) -> bool {
+        !self.piles[0].is_empty() || !self.piles[1].is_empty()
     }
 
     fn tap_stock(&mut self) -> Result<Option<Move>, EngineError> {

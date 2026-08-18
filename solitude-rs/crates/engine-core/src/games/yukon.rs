@@ -45,15 +45,6 @@ impl YukonGame {
             _ => None,
         }
     }
-
-    fn snapshot(&self) -> GameSnapshot {
-        GameSnapshot::new(self.piles.clone(), self.move_count, 0)
-    }
-
-    fn restore(&mut self, snapshot: GameSnapshot) {
-        self.piles = snapshot.piles;
-        self.move_count = snapshot.move_count;
-    }
 }
 
 impl Default for YukonGame {
@@ -63,6 +54,15 @@ impl Default for YukonGame {
 }
 
 impl GameRules for YukonGame {
+
+    fn snapshot(&self) -> GameSnapshot {
+        GameSnapshot::new(self.piles.clone(), self.move_count, 0)
+    }
+
+    fn restore(&mut self, snapshot: GameSnapshot) {
+        self.piles = snapshot.piles;
+        self.move_count = snapshot.move_count;
+    }
     fn game_type(&self) -> GameType {
         GameType::Yukon
     }

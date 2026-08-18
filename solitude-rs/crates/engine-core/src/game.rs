@@ -38,6 +38,8 @@ pub trait GameRules: Send {
     fn is_lost(&self) -> bool {
         false
     }
+    fn snapshot(&self) -> crate::history::GameSnapshot;
+    fn restore(&mut self, snapshot: crate::history::GameSnapshot);
     fn tap_stock(&mut self) -> Result<Option<Move>, EngineError>;
     fn can_tap_stock(&self) -> bool {
         false

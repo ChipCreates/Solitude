@@ -89,15 +89,6 @@ impl TriPeaksGame {
             }
         }
     }
-
-    fn snapshot(&self) -> GameSnapshot {
-        GameSnapshot::new(self.piles.clone(), self.move_count, 0)
-    }
-
-    fn restore(&mut self, snapshot: GameSnapshot) {
-        self.piles = snapshot.piles;
-        self.move_count = snapshot.move_count;
-    }
 }
 
 impl Default for TriPeaksGame {
@@ -107,6 +98,15 @@ impl Default for TriPeaksGame {
 }
 
 impl GameRules for TriPeaksGame {
+
+    fn snapshot(&self) -> GameSnapshot {
+        GameSnapshot::new(self.piles.clone(), self.move_count, 0)
+    }
+
+    fn restore(&mut self, snapshot: GameSnapshot) {
+        self.piles = snapshot.piles;
+        self.move_count = snapshot.move_count;
+    }
     fn game_type(&self) -> GameType {
         GameType::TriPeaks
     }
@@ -255,6 +255,41 @@ impl GameRules for TriPeaksGame {
             }
         }
         true
+    }
+
+    fn can_tap_stock(&self) -> bool {
+        !self.piles[0].is_empty()
+    }
+
+    fn get_available_moves(&self) -> Vec<HintMove> {
+        let mut moves = Vec::new();
+        let discard_ref = PileRef::new(PileType::Discard, 0);
+
+        if let Some(waste_top) = self.piles[1].top_card() {
+            for i in 0..28 {
+                if self.is_card_uncovered(i) {
+                    let card = self.piles[2 + i].top_card().unwrap();
+                    let diff = (card.rank.value() as i32 - waste_top.rank.value() as i32).abs();
+                    if diff == 1 || diff == 12 {
+                        moves.push(HintMove {
+                            from: PileRef::new(PileType::Pyramid, i as u8),
+                            to: discard_ref,
+                            cards: vec![card.id],
+                        });
+                    }
+                }
+            }
+        }
+
+        if self.can_tap_stock() {
+            moves.push(HintMove {
+                from: PileRef::new(PileType::Stock, 0),
+                to: PileRef::new(PileType::Waste, 0),
+                cards: vec![],
+            });
+        }
+
+        moves
     }
 
     fn get_hint(&self) -> Option<HintMove> {

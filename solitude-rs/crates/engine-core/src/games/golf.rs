@@ -54,15 +54,6 @@ impl GolfGame {
             diff == 1
         }
     }
-
-    fn snapshot(&self) -> GameSnapshot {
-        GameSnapshot::new(self.piles.clone(), self.move_count, 0)
-    }
-
-    fn restore(&mut self, snapshot: GameSnapshot) {
-        self.piles = snapshot.piles;
-        self.move_count = snapshot.move_count;
-    }
 }
 
 impl Default for GolfGame {
@@ -72,6 +63,15 @@ impl Default for GolfGame {
 }
 
 impl GameRules for GolfGame {
+
+    fn snapshot(&self) -> GameSnapshot {
+        GameSnapshot::new(self.piles.clone(), self.move_count, 0)
+    }
+
+    fn restore(&mut self, snapshot: GameSnapshot) {
+        self.piles = snapshot.piles;
+        self.move_count = snapshot.move_count;
+    }
     fn game_type(&self) -> GameType {
         GameType::Golf
     }
@@ -154,6 +154,9 @@ impl GameRules for GolfGame {
 
         self.move_count += 1;
         Ok(Move::new(from, to, cards.to_vec()))
+    }
+    fn can_tap_stock(&self) -> bool {
+        !self.piles[0].is_empty()
     }
 
     fn tap_stock(&mut self) -> Result<Option<Move>, EngineError> {

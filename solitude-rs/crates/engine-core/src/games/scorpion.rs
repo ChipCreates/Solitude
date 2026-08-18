@@ -73,6 +73,15 @@ impl ScorpionGame {
             }
         }
     }
+}
+
+impl Default for ScorpionGame {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GameRules for ScorpionGame {
 
     fn snapshot(&self) -> GameSnapshot {
         GameSnapshot::new(self.piles.clone(), self.move_count, self.completed_suits)
@@ -83,15 +92,6 @@ impl ScorpionGame {
         self.move_count = snapshot.move_count;
         self.completed_suits = snapshot.stock_recycle_count;
     }
-}
-
-impl Default for ScorpionGame {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl GameRules for ScorpionGame {
     fn game_type(&self) -> GameType {
         GameType::Scorpion
     }
@@ -207,6 +207,9 @@ impl GameRules for ScorpionGame {
         self.check_and_remove_complete_suits();
 
         Ok(Move::new(from, to, cards.to_vec()))
+    }
+    fn can_tap_stock(&self) -> bool {
+        !self.piles[0].is_empty()
     }
 
     fn tap_stock(&mut self) -> Result<Option<Move>, EngineError> {

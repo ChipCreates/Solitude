@@ -5,6 +5,7 @@ use engine_core::card::{CardId, Suit};
 use engine_core::factory::GameFactory;
 use engine_core::game::{GameRules, GameType};
 use engine_core::pile::{PileRef, PileType};
+use engine_core::solver::SolverEngine;
 use std::sync::Mutex;
 use wasm_bindgen::prelude::*;
 
@@ -206,9 +207,9 @@ pub fn execute_pair_move_wasm(
 
 #[wasm_bindgen]
 pub fn get_hint_json() -> String {
-    let lock = CURRENT_GAME.lock().unwrap();
-    if let Some(game) = lock.as_ref() {
-        if let Some(hint) = game.get_hint() {
+    let mut lock = CURRENT_GAME.lock().unwrap();
+    if let Some(game) = lock.as_mut() {
+        if let Some(hint) = SolverEngine::find_best_move(&mut **game) {
             return serde_json::to_string(&hint).unwrap_or_default();
         }
     }
@@ -219,12 +220,13 @@ pub fn get_hint_json() -> String {
 pub fn auto_play_step_wasm() -> bool {
     let mut lock = CURRENT_GAME.lock().unwrap();
     if let Some(game) = lock.as_mut() {
-        if let Some(hint) = game.get_hint() {
-            let card_ids: Vec<CardId> = hint.cards;
-            return game.execute_move(hint.from, hint.to, &card_ids).is_ok();
-        } else {
-            // Fallback: tap stock if available
-            return game.tap_stock().is_ok();
+        if let Some(hint) = SolverEngine::find_best_move(&mut **game) {
+            if hint.cards.is_empty() && hint.from.kind == PileType::Stock {
+                return game.tap_stock().is_ok();
+            } else {
+                let card_ids: Vec<CardId> = hint.cards;
+                return game.execute_move(hint.from, hint.to, &card_ids).is_ok();
+            }
         }
     }
     false
@@ -237,9 +239,13 @@ pub fn auto_complete_step_wasm() -> bool {
         if game.check_win() {
             return false;
         }
-        if let Some(hint) = game.get_hint() {
-            let card_ids: Vec<CardId> = hint.cards;
-            return game.execute_move(hint.from, hint.to, &card_ids).is_ok();
+        if let Some(hint) = SolverEngine::find_best_move(&mut **game) {
+            if hint.cards.is_empty() && hint.from.kind == PileType::Stock {
+                return game.tap_stock().is_ok();
+            } else {
+                let card_ids: Vec<CardId> = hint.cards;
+                return game.execute_move(hint.from, hint.to, &card_ids).is_ok();
+            }
         }
     }
     false

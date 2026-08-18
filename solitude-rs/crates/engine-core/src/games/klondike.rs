@@ -77,6 +77,9 @@ impl KlondikeGame {
             true
         }
     }
+}
+
+impl GameRules for KlondikeGame {
 
     fn snapshot(&self) -> GameSnapshot {
         GameSnapshot::new(self.piles.clone(), self.move_count, self.stock_recycle_count)
@@ -87,9 +90,6 @@ impl KlondikeGame {
         self.move_count = snapshot.move_count;
         self.stock_recycle_count = snapshot.stock_recycle_count;
     }
-}
-
-impl GameRules for KlondikeGame {
     fn game_type(&self) -> GameType {
         GameType::Klondike
     }

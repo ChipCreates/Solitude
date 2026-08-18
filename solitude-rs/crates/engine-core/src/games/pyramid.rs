@@ -132,6 +132,15 @@ impl PyramidGame {
 
         None
     }
+}
+
+impl Default for PyramidGame {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GameRules for PyramidGame {
 
     fn snapshot(&self) -> GameSnapshot {
         GameSnapshot::new(self.piles.clone(), self.move_count, self.stock_recycle_count)
@@ -142,15 +151,6 @@ impl PyramidGame {
         self.move_count = snapshot.move_count;
         self.stock_recycle_count = snapshot.stock_recycle_count;
     }
-}
-
-impl Default for PyramidGame {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl GameRules for PyramidGame {
     fn game_type(&self) -> GameType {
         GameType::Pyramid
     }
@@ -372,6 +372,71 @@ impl GameRules for PyramidGame {
         }
 
         true
+    }
+
+    fn can_tap_stock(&self) -> bool {
+        !self.piles[0].is_empty() || (!self.piles[1].is_empty() && self.stock_recycle_count < 2)
+    }
+
+    fn get_available_moves(&self) -> Vec<HintMove> {
+        let mut moves = Vec::new();
+        let discard_ref = PileRef::new(PileType::Discard, 0);
+
+        // Gather all accessible cards (Waste + uncovered Pyramid)
+        let mut accessible = Vec::new();
+        
+        let waste_ref = PileRef::new(PileType::Waste, 0);
+        if let Some(w_top) = self.piles[1].top_card() {
+            accessible.push((waste_ref, w_top));
+        }
+
+        for i in 0..28 {
+            if self.is_card_uncovered(i) {
+                let pyr_ref = PileRef::new(PileType::Pyramid, i);
+                if let Some(top) = self.piles[3 + i as usize].top_card() {
+                    accessible.push((pyr_ref, top));
+                }
+            }
+        }
+
+        // Single King moves
+        for (pref, card) in &accessible {
+            if card.rank == Rank::King {
+                moves.push(HintMove {
+                    from: *pref,
+                    to: discard_ref,
+                    cards: vec![card.id],
+                });
+            }
+        }
+
+        // Pair moves
+        for i in 0..accessible.len() {
+            for j in (i + 1)..accessible.len() {
+                if accessible[i].1.rank.value() + accessible[j].1.rank.value() == 13 {
+                    moves.push(HintMove {
+                        from: accessible[i].0, // Use the first card's origin
+                        to: discard_ref,
+                        cards: vec![accessible[i].1.id, accessible[j].1.id],
+                    });
+                    moves.push(HintMove {
+                        from: accessible[j].0, // Order shouldn't matter but this covers both from directions
+                        to: discard_ref,
+                        cards: vec![accessible[j].1.id, accessible[i].1.id],
+                    });
+                }
+            }
+        }
+
+        if self.can_tap_stock() {
+            moves.push(HintMove {
+                from: PileRef::new(PileType::Stock, 0),
+                to: waste_ref,
+                cards: vec![],
+            });
+        }
+
+        moves
     }
 
     fn get_hint(&self) -> Option<HintMove> {
