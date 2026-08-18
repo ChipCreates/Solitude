@@ -2,6 +2,7 @@ import React from "react";
 import { THEME_PRESETS } from "../theme/presets";
 import { useUIStore } from "../store/uiStore";
 import { store } from "../persistence/store";
+import { getBackPatternCss, getBackPatternSize, getBackPatternPosition } from "./CardWidget";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -13,12 +14,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const {
     drawMode,
     themeId,
+    themeOverlayIntensities,
+    cardBackPattern,
+    cardBackColor,
     soundEnabled,
     soundVolume,
     leftHandMode,
     victoryPattern,
     setDrawMode,
     setThemeId,
+    setThemeOverlayIntensity,
+    setCardBackPattern,
+    setCardBackColor,
     setSoundEnabled,
     setSoundVolume,
     setLeftHandMode,
@@ -107,25 +114,84 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
         {/* Content */}
         {activeTab === "theme" && (
-          <div>
-            <h3 style={{ fontSize: "16px", marginBottom: "12px", color: "#c2c8c0" }}>Select Table Theme</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "12px" }}>
-              {Object.values(THEME_PRESETS).map((preset) => (
-                <div
-                  key={preset.id}
-                  onClick={() => handleSelectTheme(preset.id)}
-                  style={{
-                    background: preset.tableColor,
-                    border: themeId === preset.id ? "2px solid #e9c349" : "1px solid rgba(255, 255, 255, 0.1)",
-                    borderRadius: "12px",
-                    padding: "16px",
-                    cursor: "pointer",
-                    textAlign: "center",
-                  }}
-                >
-                  <div style={{ fontSize: "14px", fontWeight: 600, color: "#ffffff" }}>{preset.name}</div>
-                </div>
-              ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: "24px", maxHeight: "60vh", overflowY: "auto", paddingRight: "8px" }}>
+            <div>
+              <h3 style={{ fontSize: "16px", marginBottom: "12px", color: "#c2c8c0" }}>Select Table Theme</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "12px" }}>
+                {Object.values(THEME_PRESETS).map((preset) => (
+                  <div
+                    key={preset.id}
+                    onClick={() => handleSelectTheme(preset.id)}
+                    style={{
+                      background: preset.tableColor,
+                      border: themeId === preset.id ? "2px solid #e9c349" : "1px solid rgba(255, 255, 255, 0.1)",
+                      borderRadius: "12px",
+                      padding: "16px",
+                      cursor: "pointer",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#ffffff" }}>{preset.name}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <h3 style={{ fontSize: "16px", marginBottom: "12px", color: "#c2c8c0" }}>Card Face Tint Intensity</h3>
+              <input 
+                type="range" 
+                min="0" max="1" step="0.01" 
+                value={themeOverlayIntensities[themeId] ?? THEME_PRESETS[themeId]?.defaultOverlayIntensity ?? 0} 
+                onChange={(e) => setThemeOverlayIntensity(themeId, parseFloat(e.target.value))}
+                style={{ width: "100%" }}
+              />
+            </div>
+
+            <div>
+              <h3 style={{ fontSize: "16px", marginBottom: "12px", color: "#c2c8c0" }}>Card Back Pattern</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+                {["diamond", "crosshatch", "dots", "waves", "bicycle", "filigree", "botanical", "mystic"].map(pattern => (
+                   <button
+                     key={pattern}
+                     onClick={() => setCardBackPattern(pattern)}
+                     style={{
+                       display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
+                       padding: "12px 8px", borderRadius: "12px", textTransform: "capitalize",
+                       background: cardBackPattern === pattern ? "rgba(233,195,73,0.15)" : "rgba(255,255,255,0.05)",
+                       border: cardBackPattern === pattern ? "2px solid #e9c349" : "2px solid transparent",
+                       color: cardBackPattern === pattern ? "#e9c349" : "#e5e2e1",
+                       fontWeight: 600, cursor: "pointer", fontSize: "12px", transition: "all 0.2s"
+                     }}
+                   >
+                     <div style={{
+                       width: "40px", height: "56px", borderRadius: "4px",
+                       backgroundColor: cardBackColor,
+                       backgroundImage: getBackPatternCss(pattern),
+                       backgroundSize: getBackPatternSize(pattern),
+                       backgroundPosition: getBackPatternPosition(pattern),
+                       boxShadow: "0 2px 8px rgba(0,0,0,0.3)"
+                     }} />
+                     {pattern}
+                   </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 style={{ fontSize: "16px", marginBottom: "12px", color: "#c2c8c0" }}>Card Back Color</h3>
+              <div style={{ display: "flex", gap: "12px" }}>
+                {["#1e3a2b", "#1a2a47", "#471a24", "#1a1a1a", "#d4af37"].map(color => (
+                   <div
+                     key={color}
+                     onClick={() => setCardBackColor(color)}
+                     style={{
+                       width: "40px", height: "40px", borderRadius: "50%", background: color, cursor: "pointer",
+                       border: cardBackColor === color ? "3px solid #e9c349" : "2px solid rgba(255,255,255,0.2)"
+                     }}
+                   />
+                ))}
+              </div>
             </div>
           </div>
         )}

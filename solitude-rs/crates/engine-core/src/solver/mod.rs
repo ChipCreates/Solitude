@@ -210,7 +210,11 @@ impl SolverEngine {
         game.restore_history(initial_history.clone());
 
         if best_move_found.is_none() {
-            best_move_found = game.get_hint();
+            best_move_found = mcts::MctsSolver::find_best_move(game, 10_000);
+            
+            if best_move_found.is_none() {
+                best_move_found = game.get_hint();
+            }
         } else if let Some(ref m) = best_move_found {
             // Save the remaining path to cache
             CACHED_PATH.with(|p| {

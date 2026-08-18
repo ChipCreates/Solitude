@@ -10,6 +10,7 @@ import { CardBounds } from "./input/pointerController";
 import { setupKeyboardNav } from "./input/keyboardNav";
 import { THEME_PRESETS } from "./theme/presets";
 import { useUIStore } from "./store/uiStore";
+import { CardWidget } from "./components/CardWidget";
 import { SettingsModal } from "./components/SettingsModal";
 import { audioService } from "./audio/audioService";
 import { ParticleSystem } from "./canvas/renderParticles";
@@ -26,6 +27,7 @@ export const App: React.FC = () => {
 
   const [moveCount, setMoveCount] = useState(0);
   const [timerSeconds, setTimerSeconds] = useState(0);
+  const [, setLayoutTick] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -49,8 +51,9 @@ export const App: React.FC = () => {
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const isWonRef = useRef(false);
 
-  const { themeId, soundEnabled, soundVolume, victoryPattern } = useUIStore();
+  const { themeId, themeOverlayIntensities, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern } = useUIStore();
   const currentTheme = THEME_PRESETS[themeId] || THEME_PRESETS.classic_felt;
+  const overlayIntensity = themeOverlayIntensities[themeId] ?? currentTheme.defaultOverlayIntensity;
 
   useEffect(() => { audioService.setConfig(soundEnabled, soundVolume); }, [soundEnabled, soundVolume]);
   useEffect(() => {
@@ -276,6 +279,7 @@ export const App: React.FC = () => {
       });
     }
     cardBoundsListRef.current = boundsList;
+    setLayoutTick((t) => t + 1);
   }, []);
 
   // ─── Render Loop ──────────────────────────────────────────────────────────
@@ -328,11 +332,13 @@ export const App: React.FC = () => {
       });
 
       cardsToDraw.sort((a, b) => ds ? (a.cardId === ds.cardId ? 1 : b.cardId === ds.cardId ? -1 : 0) : 0);
-      cardsToDraw.forEach((b) => {
+      cardsToDraw.forEach((b, idx) => {
         const anim = animatedCardsRef.current.get(b.cardId)!;
-        const isSel = selectedPyramidCardRef.current?.cardId === b.cardId;
-        const isHint = hintCardIdRef.current === b.cardId;
-        drawCard(ctx, b, anim.x, anim.y, b.width, b.height, b.width < 60, currentTheme.accentColor, isSel || isHint);
+        const node = document.getElementById(`card-wrapper-${b.cardId}`);
+        if (node) {
+          node.style.transform = `translate3d(${anim.x}px, ${anim.y}px, 0)`;
+          node.style.zIndex = ds && ds.cardId === b.cardId ? "1000" : idx.toString();
+        }
       });
 
       if (checkWinWasm()) {
@@ -607,7 +613,28 @@ export const App: React.FC = () => {
           <button onClick={() => setIsSettingsOpen(true)} title="Settings (Esc)" style={HUD_BTN}><SettingsIcon size={18} /></button>
         </div>
       </div>
-      <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
+      <div style={{ position: "relative", width: "100%", height: "100%", touchAction: "none" }}>
+        <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", position: "absolute", top: 0, left: 0 }} />
+        <div id="cards-layer" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+          {cardBoundsListRef.current.filter(b => b.cardId !== -1).map(b => (
+            <CardWidget
+              key={b.cardId}
+              id={b.cardId}
+              rank={b.rank}
+              suit={b.suit}
+              faceUp={b.faceUp}
+              width={b.width}
+              height={b.height}
+              theme={currentTheme}
+              overlayIntensity={overlayIntensity}
+              cardBackPattern={cardBackPattern}
+              cardBackColor={cardBackColor}
+              isSelected={selectedPyramidCardRef.current?.cardId === b.cardId}
+              isHint={hintCardIdRef.current === b.cardId}
+            />
+          ))}
+        </div>
+      </div>
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       
       {toastMessage && (
@@ -622,32 +649,6 @@ export const App: React.FC = () => {
     </div>
   );
 };
-
-function drawCard(ctx: CanvasRenderingContext2D, card: CardBounds, x: number, y: number, w: number, h: number, compact: boolean, accent: string, selected: boolean) {
-  ctx.save();
-  ctx.beginPath(); ctx.roundRect(x, y, w, h, 8);
-  if (!card.faceUp) {
-    ctx.fillStyle = "#1e3a2b"; ctx.fill();
-    ctx.strokeStyle = selected ? "#ffd700" : accent; ctx.lineWidth = selected ? 2.5 : 1; ctx.stroke();
-  } else {
-    ctx.fillStyle = selected ? "#fffde7" : "#ffffff"; ctx.fill();
-    ctx.strokeStyle = selected ? "#ffd700" : "rgba(0,0,0,0.15)"; ctx.lineWidth = selected ? 3 : 1; ctx.stroke();
-    const red = card.suit === 0 || card.suit === 1;
-    ctx.fillStyle = red ? "#cc3333" : "#111111";
-    const rank = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"][card.rank - 1];
-    const suit = ["♥","♦","♣","♠"][card.suit];
-    if (compact) {
-      ctx.font = "bold 14px Inter,sans-serif"; ctx.fillText(`${rank}${suit}`, x + 6, y + 18);
-    } else {
-      ctx.font = "bold 16px Manrope,sans-serif"; ctx.fillText(rank, x + 8, y + 20);
-      ctx.font = "14px Inter,sans-serif"; ctx.fillText(suit, x + 8, y + 36);
-      ctx.font = "28px Inter,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(suit, x + w / 2, y + h / 2);
-      ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
-    }
-  }
-  ctx.restore();
-}
 
 const HUD_BTN: React.CSSProperties = { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "8px", color: "#e5e2e1", padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" };
 export default App;
