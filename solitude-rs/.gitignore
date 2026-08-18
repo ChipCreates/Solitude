@@ -1,0 +1,17 @@
+# Rust build artifacts
+target/
+
+# Node dependencies and build outputs
+node_modules/
+dist/
+dist-web/
+
+# WASM build pkg
+src/wasm/pkg/
+
+# IDE files
+.vscode/
+.idea/
+
+# Environment files
+.env*

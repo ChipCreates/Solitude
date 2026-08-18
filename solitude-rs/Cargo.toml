@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/engine-core",
+    "crates/engine-wasm",
+    "crates/tauri-backend",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Plotworx <contact@plotworx.org>"]
+license = "GPL-3.0-only"

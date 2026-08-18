@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop-capability",
+  "description": "Capability for desktop targets, scoped strictly to local app data persistence with no network permissions.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile-capability",
+  "description": "Capability for Android and mobile targets, scoped strictly to local app data persistence with no network permissions.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}
