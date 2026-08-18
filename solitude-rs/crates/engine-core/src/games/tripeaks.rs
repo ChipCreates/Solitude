@@ -105,7 +105,20 @@ impl GameRules for TriPeaksGame {
         self.history = history;
     }
 
-
+    fn heuristic_score(&self) -> i32 {
+        let mut score = 1000;
+        for pile in self.piles() {
+            if pile.kind == crate::pile::PileType::Pyramid {
+                score -= (pile.len() as i32) * 50;
+                for card in pile.cards() {
+                    if card.face_up {
+                        score += 10;
+                    }
+                }
+            }
+        }
+        score
+    }
     fn snapshot(&self) -> GameSnapshot {
         GameSnapshot::new(self.piles.clone(), self.move_count, 0)
     }

@@ -89,6 +89,23 @@ impl GameRules for ScorpionGame {
         self.history = history;
     }
 
+    fn heuristic_score(&self) -> i32 {
+        let mut score = (self.completed_suits as i32) * 1300; // Large reward for completing a suit (13 * 100)
+        
+        for pile in self.piles() {
+            if pile.kind == crate::pile::PileType::Tableau {
+                for card in pile.cards() {
+                    if card.face_up {
+                        score += 10;
+                    }
+                }
+                if pile.is_empty() {
+                    score += 5;
+                }
+            }
+        }
+        score
+    }
 
     fn snapshot(&self) -> GameSnapshot {
         GameSnapshot::new(self.piles.clone(), self.move_count, self.completed_suits)

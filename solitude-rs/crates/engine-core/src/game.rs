@@ -44,6 +44,40 @@ pub trait GameRules: Send {
         crate::history::History::new()
     }
     fn restore_history(&mut self, _history: crate::history::History) {}
+    
+    fn heuristic_score(&self) -> i32 {
+        let mut score = 0;
+
+        for pile in self.piles() {
+            match pile.kind {
+                crate::pile::PileType::Foundation | crate::pile::PileType::Discard => {
+                    score += (pile.len() as i32) * 50;
+                }
+                crate::pile::PileType::Tableau => {
+                    for card in pile.cards() {
+                        if card.face_up {
+                            score += 10;
+                        }
+                    }
+                    if pile.is_empty() {
+                        score += 5;
+                    }
+                }
+                crate::pile::PileType::Cell => {
+                    if pile.is_empty() {
+                        score += 5;
+                    }
+                }
+                crate::pile::PileType::Pyramid => {
+                    // Lower cards in pyramid cleared means higher score
+                    score += 1;
+                }
+                _ => {}
+            }
+        }
+        score
+    }
+
     fn tap_stock(&mut self) -> Result<Option<Move>, EngineError>;
     fn can_tap_stock(&self) -> bool {
         false

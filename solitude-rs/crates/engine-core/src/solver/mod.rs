@@ -48,41 +48,7 @@ impl SolverEngine {
         if game.check_win() {
             return 10_000;
         }
-
-        let snap = game.snapshot();
-        let mut score = 0;
-
-        // Reward completed suits / completed progress (Spider, Scorpion, Klondike recycles)
-        score += (snap.stock_recycle_count as i32) * 100;
-
-        for pile in game.piles() {
-            match pile.kind {
-                PileType::Foundation | PileType::Discard => {
-                    score += (pile.len() as i32) * 50; // Increased value of moving to foundation
-                }
-                PileType::Tableau => {
-                    for card in pile.cards() {
-                        if card.face_up {
-                            score += 10; // Face up cards are very important
-                        }
-                    }
-                    if pile.is_empty() {
-                        score += 5; // Empty tableau spots are valuable, but net +5 when turning a card face-up (-5 + 10 = +5)
-                    }
-                }
-                PileType::Cell => {
-                    if pile.is_empty() {
-                        score += 5; // Empty cells are valuable in FreeCell
-                    }
-                }
-                PileType::Pyramid => {
-                    // Lower cards in pyramid cleared means higher score
-                    score += 1;
-                }
-                _ => {}
-            }
-        }
-        score
+        game.heuristic_score()
     }
 
     /// Explores the game tree to find the best immediate move using Best-First Search.
