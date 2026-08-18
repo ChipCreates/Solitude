@@ -203,8 +203,8 @@ Reference: `lib/features/game/games/pyramid/pyramid_game.dart` (712 lines).
 ### 2.2 Pyramid layout + rendering
 Reference: `lib/features/game/layouts/pyramid_layout_strategy.dart`.
 
-- [ ] `canvas/layout/pyramidLayout.ts`: port the coordinate formula verbatim — `x = centerX + (col - row/2) * cardWidth * 1.1 - cardWidth/2`, `y = topPadding + row * cardHeight * 0.4`
-- [ ] Verify the compact tier's 44px touch-target minimum still fits Pyramid's dense 28-card triangular layout at phone width — adjust the card-size floor if the grid formula's clamp is too aggressive here
+- [x] `canvas/layout/pyramidLayout.ts`: port the coordinate formula verbatim — `x = centerX + (col - row/2) * cardWidth * 1.1 - cardWidth/2`, `y = topPadding + row * cardHeight * 0.4`
+- [x] Verify the compact tier's 44px touch-target minimum still fits Pyramid's dense 28-card triangular layout at phone width — adjust the card-size floor if the grid formula's clamp is too aggressive here
 
 ### 2.3 FreeCell (`engine-core`)
 Reference: `lib/features/game/games/freecell/freecell_game.dart` (697 lines).
@@ -217,7 +217,7 @@ Reference: `lib/features/game/games/freecell/freecell_game.dart` (697 lines).
 - [x] `MoveExtra::FreecellSupermove { cells_used, columns_used }` variant
 
 ### 2.4 FreeCell layout + rendering
-- [ ] Confirm the 8-column grid works via the existing `gridLayout.ts` math with no code changes — verify the layout correctly omits stock/waste rendering slots when a game has neither
+- [x] Confirm the 8-column grid works via the existing `gridLayout.ts` math with no code changes — verify the layout correctly omits stock/waste rendering slots when a game has neither
 
 ### 2.5 Persistence
 - [ ] `VariantData::Pyramid` and `VariantData::FreeCell` variants — audit whether either needs extra saved state beyond piles/move_count (FreeCell likely needs `None`, given no stock/waste state to track)
