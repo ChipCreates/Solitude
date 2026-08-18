@@ -94,10 +94,23 @@ impl GameRules for ScorpionGame {
         
         for pile in self.piles() {
             if pile.kind == crate::pile::PileType::Tableau {
+                let mut has_face_down = false;
+                let mut prev_card: Option<&crate::card::Card> = None;
                 for card in pile.cards() {
                     if card.face_up {
                         score += 10;
+                        if has_face_down {
+                            score -= 1;
+                        }
+                        if let Some(prev) = prev_card {
+                            if prev.suit == card.suit && prev.rank.value() == card.rank.value() + 1 {
+                                score += 2; // Same suit sequence
+                            }
+                        }
+                    } else {
+                        has_face_down = true;
                     }
+                    prev_card = Some(card);
                 }
                 if pile.is_empty() {
                     score += 5;

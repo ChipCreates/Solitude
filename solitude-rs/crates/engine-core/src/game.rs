@@ -54,10 +54,27 @@ pub trait GameRules: Send {
                     score += (pile.len() as i32) * 50;
                 }
                 crate::pile::PileType::Tableau => {
+                    let mut has_face_down = false;
+                    let mut prev_card: Option<&crate::card::Card> = None;
                     for card in pile.cards() {
                         if card.face_up {
                             score += 10;
+                            if has_face_down {
+                                score -= 1; // Encourage moving cards off face-down cards
+                            }
+                            if let Some(prev) = prev_card {
+                                if prev.rank.value() == card.rank.value() + 1 {
+                                    if prev.suit == card.suit {
+                                        score += 2; // Same suit sequence (Spider/Scorpion)
+                                    } else if prev.is_red() != card.is_red() {
+                                        score += 1; // Alternating color sequence (Klondike)
+                                    }
+                                }
+                            }
+                        } else {
+                            has_face_down = true;
                         }
+                        prev_card = Some(card);
                     }
                     if pile.is_empty() {
                         score += 5;

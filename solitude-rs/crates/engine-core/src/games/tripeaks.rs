@@ -1,4 +1,4 @@
-use crate::card::{CardId, Rank};
+use crate::card::CardId;
 use crate::deck::Deck;
 use crate::error::EngineError;
 use crate::game::{GameRules, GameType, HintMove};
