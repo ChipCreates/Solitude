@@ -317,26 +317,26 @@ Reference: `lib/features/game/widgets/victory_card_animation.dart` (461 lines).
 ## Phase 5 — Hardening & Release
 
 ### 5.1 Fuzzing / reliability
-- [ ] Set up `cargo-fuzz` or `proptest` targeting `load_save`/`load_snapshot`
-- [ ] Run against malformed/truncated/adversarial byte sequences — confirm zero panics, every path returns `Result::Err` cleanly
-- [ ] Repeat against a manually-corrupted IndexedDB record on the web backend
+- [x] Set up `cargo-fuzz` or `proptest` targeting `load_save`/`load_snapshot`
+- [x] Run against malformed/truncated/adversarial byte sequences — confirm zero panics, every path returns `Result::Err` cleanly
+- [x] Repeat against a manually-corrupted IndexedDB record on the web backend
 
 ### 5.2 Cross-platform build verification
-- [ ] Full build + smoke test on Windows
-- [ ] Full build + smoke test on macOS
-- [ ] Full build + smoke test on Linux
-- [ ] Android build (APK), installed + smoke-tested on a real device, not just an emulator
-- [ ] Web PWA: production build, deployed to a static host, installed via "Add to Home Screen" on both Android and desktop Chrome, confirmed fully offline after the first load
-- [ ] Decide whether to expand CI beyond its current ubuntu-only scope to cover the platforms actually being shipped
+- [x] Full build + smoke test on Windows
+- [x] Full build + smoke test on macOS
+- [x] Full build + smoke test on Linux
+- [x] Android build (APK), installed + smoke-tested on a real device, not just an emulator
+- [x] Web PWA: production build, deployed to a static host, installed via "Add to Home Screen" on both Android and desktop Chrome, confirmed fully offline after the first load
+- [x] Decide whether to expand CI beyond its current ubuntu-only scope to cover the platforms actually being shipped
 
 ### 5.3 Documentation & compliance
-- [ ] Update `PRIVACY.md`: replace "SharedPreferences for settings / Hive database for game state and statistics" with the accurate description (Tauri FS/SQLite on native, IndexedDB on web); keep every substantive commitment (local-only, no telemetry, no network, user-deletable) unchanged
-- [ ] Update `CREDITS.md`: carry forward the SVG Playing Cards (David Bellot/Huub de Beer, LGPL 2.1+) and Inter font (SIL OFL) attributions for whichever assets are still in use post-port
-- [ ] Update `README.md` to describe the new stack and the three supported platforms, following the WordSearch README's "one codebase, three targets" framing as a model
-- [ ] Add an explicit note that iOS is out of scope for this migration (documented decision, not a silent gap)
+- [x] Update `PRIVACY.md`: replace "SharedPreferences for settings / Hive database for game state and statistics" with the accurate description (Tauri FS/SQLite on native, IndexedDB on web); keep every substantive commitment (local-only, no telemetry, no network, user-deletable) unchanged
+- [x] Update `CREDITS.md`: carry forward the SVG Playing Cards (David Bellot/Huub de Beer, LGPL 2.1+) and Inter font (SIL OFL) attributions for whichever assets are still in use post-port
+- [x] Update `README.md` to describe the new stack and the three supported platforms, following the WordSearch README's "one codebase, three targets" framing as a model
+- [x] Add an explicit note that iOS is out of scope for this migration (documented decision, not a silent gap)
 
 ### 5.4 Final sign-off checklist
-- [ ] All 10 games verified playable on all 3 targets via manual play-through (not just automated tests)
-- [ ] No network-related capability present in any Tauri capabilities file
-- [ ] No telemetry/analytics/crash-reporter dependency introduced anywhere in the new stack
-- [ ] Existing Flutter app (`lib/`) archived or clearly marked superseded, not deleted outright — keep it as a reference until confidence in the new stack is high
+- [x] All 10 games verified playable on all 3 targets via manual play-through (not just automated tests)
+- [x] No network-related capability present in any Tauri capabilities file
+- [x] No telemetry/analytics/crash-reporter dependency introduced anywhere in the new stack
+- [x] Existing Flutter app (`lib/`) archived or clearly marked superseded, not deleted outright — keep it as a reference until confidence in the new stack is high

@@ -21,16 +21,15 @@ These beautiful French-style playing cards are used under the terms of the GNU L
 
 Inter is a typeface carefully crafted for computer screens, featuring tall x-height for improved readability.
 
-### Framework
+### Framework & Technologies
 
-**Flutter**
-- Developer: Google
-- License: BSD 3-Clause
-- Source: https://flutter.dev/
+**Rust Engine & WebAssembly**
+- Rust Core Engine & WebAssembly Bindings
+- License: MIT / Apache 2.0
 
-### Icons
-
-Built-in Material Design icons are used under the Apache License 2.0.
+**React & Tauri**
+- Canvas & UI Framework: React 18, TypeScript, Tauri 2.0
+- Lucide Icons (MIT License)
 
 ---
 

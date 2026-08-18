@@ -1,183 +1,95 @@
 # Solitude
 
-A beautiful, open-source solitaire card game built with Flutter.
+A high-performance, open-source solitaire card game built with **Rust (WASM & Core Engine)**, **React 18**, and **Tauri 2.0**.
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Android%20%7C%20iOS%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
-![Flutter](https://img.shields.io/badge/Flutter-3.0+-02569B.svg)
+![Platform](https://img.shields.io/badge/platform-Web%20%7C%20PWA%20%7C%20Linux%20%7C%20Windows%20%7C%20macOS-lightgrey.svg)
+![Rust](https://img.shields.io/badge/Rust-1.75+-orange.svg)
+![Tauri](https://img.shields.io/badge/Tauri-2.0-blue.svg)
+
+> **Note on Scope**: This project adopts the *"one codebase, three targets"* model (Desktop Native, Web/PWA, Android Native via Tauri). iOS is explicitly out of scope for this release. The original Flutter implementation remains in `lib/` as an archived reference.
+
+## Supported Games (10 Solitaire Variants)
+
+- **Klondike** (Draw 1 & Draw 3)
+- **Spider** (1, 2, or 4 Suits)
+- **FreeCell**
+- **Pyramid**
+- **Golf**
+- **TriPeaks**
+- **Yukon**
+- **Forty Thieves**
+- **Canfield**
+- **Scorpion**
 
 ## Features
 
-- **Cross-Platform**: Runs on Web, Android, iOS, Windows, macOS, and Linux
-- **Offline-First**: No internet connection required
-- **Accessible**: Large, readable cards optimized for all ages
-- **Beautiful**: Custom platform-agnostic UI with elegant card table aesthetic
-- **Extensible**: Architecture designed for adding new game types
-- **Privacy-Respecting**: All data stored locally, never transmitted
+- **Blazing-Fast Engine**: High-performance Rust backend compiled to WebAssembly for sub-millisecond move evaluation.
+- **AI Solver & Autoplay**: Best-first search solver utilizing `BinaryHeap` heuristics for instant hints and automated solver execution.
+- **Structure-of-Arrays (SoA) Particle System**: 60 FPS HTML5 Canvas victory particle celebrations (Cascade, Fountain, Scatter, Vortex).
+- **Glassmorphism UI**: Premium dark mode design system with customizable felt themes, card backs, and animation speeds.
+- **Offline-First & Local-Only**: Zero telemetry, zero tracking, zero external network requests. All data saved locally.
 
-## Screenshots
+## Development & Building
 
-*Coming soon*
+### Prerequisites
 
-## Installation
+- **Rust** (1.75 or higher)
+- **Node.js** (v18 or higher) & `pnpm` / `npm`
+- **wasm-pack** (`cargo install wasm-pack`)
 
-### From Source
+### Quick Start
 
-1. **Prerequisites**
-   - Flutter SDK 3.0 or higher
-   - Dart SDK 3.0 or higher
-
-2. **Clone the repository**
+1. **Clone the repository**
    ```bash
    git clone https://github.com/plotworx/solitude.git
-   cd solitude
+   cd solitude/solitude-rs
    ```
 
-3. **Get dependencies**
+2. **Build WASM Engine**
    ```bash
-   flutter pub get
+   npm run build:wasm
    ```
 
-4. **Download card assets**
+3. **Run Web Dev Server**
    ```bash
-   # Download the SVG cards from htdebeer/SVG-cards
-   # Place svg-cards.svg in assets/cards/
+   npm run dev
    ```
 
-5. **Download Inter font**
+4. **Run Desktop App (Tauri)**
    ```bash
-   # Download from https://rsms.me/inter/
-   # Place font files in assets/fonts/
+   npm run tauri dev
    ```
 
-6. **Run the app**
-   ```bash
-   # For web
-   flutter run -d chrome
-   
-   # For desktop
-   flutter run -d windows  # or macos, linux
-   
-   # For mobile
-   flutter run -d android  # or ios
-   ```
-
-### Pre-built Releases
-
-Download the latest release for your platform from the [Releases](https://github.com/plotworx/solitude/releases) page.
-
-## Game Rules (Klondike)
-
-### Objective
-Move all 52 cards to the four foundation piles, building each from Ace to King by suit.
-
-### Layout
-- **Stock**: Face-down cards to draw from
-- **Waste**: Cards drawn from stock
-- **Foundations**: Four piles (one per suit) to build Ace → King
-- **Tableau**: Seven columns of cards
-
-### Rules
-1. Draw 1 or 3 cards from stock to waste
-2. Move cards between tableau columns in descending order, alternating colors
-3. Only Kings can be placed on empty tableau columns
-4. Move cards from tableau or waste to foundations in ascending order by suit
-
-## Settings
-
-- **Draw Mode**: Draw 1 or 3 cards at a time
-- **Auto-Complete**: Automatically complete game when all cards are face-up
-- **Theme**: Light or Dark mode
-
-## Statistics Tracked
-
-- Games Played
-- Games Won
-- Win Percentage
-- Current Win Streak
-- Best Win Streak
-- Best Time
-- Fewest Moves
-
-## Building for Distribution
-
-### Web (PWA)
-```bash
-flutter build web --release
-```
-
-### Android
-```bash
-# APK
-flutter build apk --release
-
-# App Bundle (for Play Store)
-flutter build appbundle --release
-```
-
-### iOS
-```bash
-flutter build ios --release
-```
-
-### Windows
-```bash
-flutter build windows --release
-```
-
-### macOS
-```bash
-flutter build macos --release
-```
-
-### Linux
-```bash
-flutter build linux --release
-```
-
-## Project Structure
+## Project Architecture
 
 ```
 solitude/
-├── lib/
-│   ├── main.dart              # App entry point
-│   ├── models/                # Data models
-│   │   ├── card.dart
-│   │   ├── deck.dart
-│   │   ├── pile.dart
-│   │   └── move.dart
-│   ├── games/                 # Game implementations
-│   │   ├── game_interface.dart
-│   │   └── klondike/
-│   ├── widgets/               # Custom UI widgets
-│   ├── screens/               # App screens
-│   ├── services/              # Business logic
-│   └── theme/                 # Theming
-├── assets/
-│   ├── cards/                 # SVG card graphics
-│   └── fonts/                 # Inter font
-├── LICENSE                    # GPL v3
+├── solitude-rs/
+│   ├── crates/
+│   │   ├── engine-core/       # Core Rust game engines (10 variants, solver, snapshots)
+│   │   └── engine-wasm/       # WASM bindings & Serde bridge
+│   ├── src/
+│   │   ├── canvas/            # Canvas renderer, SoA particle system & custom layouts
+│   │   ├── components/        # React glassmorphism UI & settings modal
+│   │   ├── store/             # Zustand persistent UI state
+│   │   └── wasm/              # TypeScript engine wrappers & types
+│   ├── src-tauri/             # Tauri 2.0 desktop shell & native packaging
+│   └── package.json
+├── lib/                       # Legacy Flutter codebase (Archived reference)
+├── PRIVACY.md                 # Privacy Policy
 ├── CREDITS.md                 # Asset attributions
 └── README.md
 ```
 
-## Future Plans
+## Testing
 
-- [ ] Spider Solitaire
-- [ ] FreeCell
-- [ ] Sound effects (optional)
-- [ ] Additional card back designs
-- [ ] Landscape optimization improvements
-- [ ] Accessibility improvements
+Run cargo unit tests across all 10 game engines and property/fuzz testing:
 
-## Contributing
-
-Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+```bash
+cd solitude-rs
+cargo test -p engine-core
+```
 
 ## License
 
@@ -187,12 +99,6 @@ This project is licensed under the **GNU General Public License v3.0** - see the
 
 - **Card Graphics**: [SVG Playing Cards](https://github.com/htdebeer/SVG-cards) by David Bellot / Huub de Beer - LGPL 2.1+
 - **Font**: [Inter](https://rsms.me/inter/) by Rasmus Andersson - SIL Open Font License
-
-## Acknowledgments
-
-- David Bellot and Huub de Beer for the beautiful SVG playing cards
-- Rasmus Andersson for the Inter typeface
-- The Flutter team for an excellent cross-platform framework
 
 ---
 

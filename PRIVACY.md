@@ -39,9 +39,9 @@ The following data is stored locally on your device only:
 ### Where Data is Stored
 
 All data is stored locally using:
-- **SharedPreferences** for settings
-- **Hive** database for game state and statistics
-- Storage location: App's private data directory on your device
+- **Tauri FS / SQLite** on Desktop & Native targets
+- **IndexedDB** on Web & PWA builds
+- Storage location: App's private local data directory on your device
 
 ### What We DON'T Do
 
