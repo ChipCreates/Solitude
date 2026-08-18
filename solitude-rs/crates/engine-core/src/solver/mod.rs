@@ -58,16 +58,16 @@ impl SolverEngine {
         for pile in game.piles() {
             match pile.kind {
                 PileType::Foundation | PileType::Discard => {
-                    score += (pile.len() as i32) * 15;
+                    score += (pile.len() as i32) * 50; // Increased value of moving to foundation
                 }
                 PileType::Tableau => {
                     for card in pile.cards() {
                         if card.face_up {
-                            score += 2;
+                            score += 10; // Face up cards are very important
                         }
                     }
                     if pile.is_empty() {
-                        score += 5; // Empty tableau spots are valuable
+                        score += 5; // Empty tableau spots are valuable, but net +5 when turning a card face-up (-5 + 10 = +5)
                     }
                 }
                 PileType::Cell => {
@@ -102,7 +102,7 @@ impl SolverEngine {
         });
 
         // Limit the search to ensure it stays fast enough for 60FPS UI rendering
-        let max_iterations = 200;
+        let max_iterations = 5000;
         let mut iterations = 0;
         let mut best_score_seen = initial_score;
         let mut best_move_found = None;
@@ -131,7 +131,7 @@ impl SolverEngine {
             }
             visited.insert(state_sig);
 
-            if node.depth >= 15 {
+            if node.depth >= 30 {
                 continue;
             }
 
