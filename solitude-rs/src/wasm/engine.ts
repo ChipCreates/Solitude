@@ -18,6 +18,8 @@ import init, {
   shelve_top_card_wasm,
   unshelve_card_wasm,
   get_shelved_card_json,
+  get_snapshot_json,
+  restore_snapshot_json,
 } from "./pkg/engine_wasm.js";
 
 let isInitialized = false;
@@ -213,4 +215,23 @@ export function getShelvedCard(): ShelvedCard | null {
   } catch {
     return null;
   }
+}
+
+// --- Save / Resume ---
+
+/** Full pile layout + undo/redo history, or null if no game is in progress. */
+export function getSnapshotJson(): string | null {
+  if (!isInitialized) return null;
+  const json = get_snapshot_json();
+  return json || null;
+}
+
+/**
+ * Restores piles + undo/redo history from `getSnapshotJson()`'s output.
+ * Must be called right after `initializeGame()` with the same game type and
+ * variant options the snapshot was taken under.
+ */
+export function restoreSnapshotJson(json: string): boolean {
+  if (!isInitialized) return false;
+  return restore_snapshot_json(json);
 }

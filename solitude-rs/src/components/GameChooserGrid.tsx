@@ -1,10 +1,13 @@
 import React, { useState } from "react";
-import { Layers, Bug, Triangle, FlagTriangleRight, LayoutGrid, Mountain, Trees, Shield, Dices, Scissors } from "lucide-react";
+import { Layers, Bug, Triangle, FlagTriangleRight, LayoutGrid, Mountain, Trees, Shield, Dices, Scissors, PlayCircle } from "lucide-react";
 import { useUIStore } from "../store/uiStore";
 import { GameVariantModal } from "./GameVariantModal";
+import type { SaveEnvelope } from "../persistence/store";
 
 interface GameChooserGridProps {
   onSelectGame: (gameType: number) => void;
+  resumableSave?: SaveEnvelope | null;
+  onResumeGame?: () => void;
 }
 
 const GAMES = [
@@ -70,7 +73,14 @@ const GAMES = [
   }
 ];
 
-export const GameChooserGrid: React.FC<GameChooserGridProps> = ({ onSelectGame }) => {
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+export const GameChooserGrid: React.FC<GameChooserGridProps> = ({ onSelectGame, resumableSave, onResumeGame }) => {
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   const themeId = useUIStore((s) => s.themeId);
@@ -91,6 +101,24 @@ export const GameChooserGrid: React.FC<GameChooserGridProps> = ({ onSelectGame }
         <h2 style={{ fontSize: "36px", fontWeight: 800, color: accentColor, marginBottom: "12px", fontFamily: "Manrope, sans-serif" }}>Choose Your Game</h2>
         <p style={{ fontSize: "16px", color: "#a5b8a9" }}>Select a solitaire variant to play</p>
       </div>
+
+      {resumableSave && onResumeGame && (
+        <button
+          onClick={onResumeGame}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "12px",
+            maxWidth: "1200px", width: "100%", margin: "0 auto 32px", padding: "16px 24px",
+            background: "rgba(233,195,73,0.1)", border: `1px solid ${accentColor}`, borderRadius: "12px",
+            color: accentColor, cursor: "pointer", fontFamily: "Inter, sans-serif"
+          }}
+        >
+          <PlayCircle size={22} />
+          <span style={{ fontSize: "16px", fontWeight: 700 }}>Continue {resumableSave.game_type}</span>
+          <span style={{ fontSize: "13px", opacity: 0.7 }}>
+            {resumableSave.move_count} moves · {formatElapsed(resumableSave.elapsed_ms)}
+          </span>
+        </button>
+      )}
 
       <div
         style={{

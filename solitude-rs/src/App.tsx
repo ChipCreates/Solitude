@@ -5,6 +5,7 @@ import {
   getHintWasm, autoPlayStepWasm, checkWinWasm, isLostWasm,
   reshuffleStockWasteWasm, resetTableauColumnWasm,
   shelveTopCardWasm, unshelveCardWasm, getShelvedCard, ShelvedCard,
+  getSnapshotJson, restoreSnapshotJson,
 } from "./wasm/engine";
 import { calculateGridLayout } from "./canvas/layout/gridLayout";
 import { calculatePyramidLayout, getPyramidCardPosition } from "./canvas/layout/pyramidLayout";
@@ -16,6 +17,7 @@ import { useProfileStore } from "./store/profileStore";
 import { useStatisticsStore } from "./store/statisticsStore";
 import { GAME_TYPE_NAMES } from "./data/gameTypes";
 import { checkWinAchievements } from "./achievements/checkAchievements";
+import type { SaveEnvelope } from "./persistence/store";
 import { MUSIC_TRACKS, CUSTOM_TRACK_ID } from "./data/musicTracks";
 import { CardWidget } from "./components/CardWidget";
 import { SettingsModal } from "./components/SettingsModal";
@@ -130,6 +132,14 @@ export const App: React.FC = () => {
   // be committed either on win (render loop) or on New Game (startNewGame),
   // whichever happens first for a given round.
   const vegasRoundCommittedRef = useRef(false);
+
+  // ─── Save / Resume ────────────────────────────────────────────────────────
+  // The variant options actually baked into the current WASM game instance
+  // (frozen at startNewGame/resumeGame time) -- NOT read from uiStore at
+  // save time, since the player could change Draw Mode etc. in Settings
+  // mid-game without that affecting the game already in progress.
+  const currentVariantOptionsRef = useRef({ klondikeDrawMode: 1, spiderSuitCount: 4, golfWrapAround: false });
+  const [resumableSave, setResumableSave] = useState<SaveEnvelope | null>(null);
 
   const {
     themeId, themeOverlayIntensities, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern, scoringMode, vegasBankroll,
@@ -427,6 +437,7 @@ export const App: React.FC = () => {
       if (checkWinWasm()) {
         if (!isWonRef.current) {
           isWonRef.current = true;
+          clearSavedGame(); // a completed game has nothing left to resume
           audioService.playWin();
           particleSystemRef.current.spawnVictoryPattern(victoryPattern, rect.width, rect.height);
           
@@ -470,6 +481,7 @@ export const App: React.FC = () => {
       } else if (isLostWasm()) {
         if (!isLostRef.current) {
           isLostRef.current = true;
+          clearSavedGame(); // a lost game has nothing left to resume
           if (gameTypeRef.current !== null) {
             useStatisticsStore.getState().recordLoss(GAME_TYPE_NAMES[gameTypeRef.current]);
           }
@@ -661,6 +673,31 @@ export const App: React.FC = () => {
   }, [handleTap, handleDoubleTap, updateLayout]);
 
   // ─── Game Management ──────────────────────────────────────────────────────
+  // Shared between startNewGame and resumeGame -- everything except the
+  // WASM game state itself and the move/timer counters, which the two
+  // callers seed differently (zeroed vs. restored from a save).
+  const resetUiStateForRound = useCallback(() => {
+    animatedCardsRef.current.clear();
+    setSelectedPyramidCard(null);
+    hintCardIdRef.current = null;
+    isWonRef.current = false;
+    isLostRef.current = false;
+    usedHintOrUndoRef.current = false;
+    activePowerUpRef.current = null;
+    setPowerUpToast(null);
+    setPowerUpReveal(null);
+    setShelvedCard(null); // initializeGame() already clears the Rust-side shelf
+    particleSystemRef.current.clear();
+    setIsAutoPlaying(false);
+    setToastMessage(null);
+  }, []);
+
+  const clearSavedGame = useCallback(() => {
+    const profileId = useProfileStore.getState().activeProfileId;
+    import("./persistence/store").then(({ store }) => store.clearGame(profileId));
+    setResumableSave(null);
+  }, []);
+
   const startNewGame = useCallback((typeCode?: number | null) => {
     const type = typeCode !== undefined ? typeCode : gameTypeRef.current;
     if (type === null) return;
@@ -681,29 +718,85 @@ export const App: React.FC = () => {
     }
     vegasRoundCommittedRef.current = false;
 
+    // Deliberately starting fresh abandons whatever was in progress.
+    clearSavedGame();
+
     setGameTypeCode(type);
-    initializeGame(type, BigInt(Date.now()), {
+    const variantOptions = {
       klondikeDrawMode: uiState.drawMode,
       spiderSuitCount: spiderSuitCountForDifficulty(uiState.difficulty),
       golfWrapAround: uiState.golfWrapAround,
-    });
-    animatedCardsRef.current.clear();
-    setSelectedPyramidCard(null);
-    hintCardIdRef.current = null;
-    isWonRef.current = false;
-    isLostRef.current = false;
-    usedHintOrUndoRef.current = false;
-    activePowerUpRef.current = null;
-    setPowerUpToast(null);
-    setPowerUpReveal(null);
-    setShelvedCard(null); // initializeGame() already clears the Rust-side shelf
-    particleSystemRef.current.clear();
-    setIsAutoPlaying(false);
+    };
+    currentVariantOptionsRef.current = variantOptions;
+    initializeGame(type, BigInt(Date.now()), variantOptions);
+    resetUiStateForRound();
     setMoveCount(0); setTimerSeconds(0);
-    setToastMessage(null);
     updateLayout(type);
     requestAnimationFrame(() => updateLayout(type));
-  }, [updateLayout]);
+  }, [updateLayout, clearSavedGame, resetUiStateForRound]);
+
+  const resumeGame = useCallback((envelope: SaveEnvelope) => {
+    const type = GAME_TYPE_NAMES.indexOf(envelope.game_type);
+    if (type === -1) return;
+    const vd = envelope.variant_data as {
+      klondikeDrawMode?: number; spiderSuitCount?: number; golfWrapAround?: boolean;
+      stockRecycleCount?: number; history?: unknown;
+    };
+    const variantOptions = {
+      klondikeDrawMode: vd.klondikeDrawMode ?? 1,
+      spiderSuitCount: vd.spiderSuitCount ?? 4,
+      golfWrapAround: vd.golfWrapAround ?? false,
+    };
+    currentVariantOptionsRef.current = variantOptions;
+
+    setGameTypeCode(type);
+    initializeGame(type, BigInt(Date.now()), variantOptions);
+    restoreSnapshotJson(JSON.stringify({
+      snapshot: { piles: envelope.piles, move_count: envelope.move_count, stock_recycle_count: vd.stockRecycleCount ?? 0 },
+      history: vd.history ?? { past: [], future: [] },
+    }));
+    resetUiStateForRound();
+    setResumableSave(null);
+    setMoveCount(envelope.move_count);
+    setTimerSeconds(Math.round(envelope.elapsed_ms / 1000));
+    updateLayout(type);
+    requestAnimationFrame(() => updateLayout(type));
+  }, [updateLayout, resetUiStateForRound]);
+
+  const autosaveGame = useCallback(() => {
+    if (gameTypeCode === null || isWonRef.current || isLostRef.current) return;
+    const snapshotJson = getSnapshotJson();
+    if (!snapshotJson) return;
+    let parsed: { snapshot: { piles: unknown[]; stock_recycle_count: number }; history: unknown };
+    try {
+      parsed = JSON.parse(snapshotJson);
+    } catch {
+      return;
+    }
+    const envelope: SaveEnvelope = {
+      schema_version: 1,
+      game_type: GAME_TYPE_NAMES[gameTypeCode],
+      piles: parsed.snapshot.piles,
+      move_count: moveCountRef.current,
+      elapsed_ms: timerSecondsRef.current * 1000,
+      saved_at: Date.now(),
+      variant_data: {
+        ...currentVariantOptionsRef.current,
+        stockRecycleCount: parsed.snapshot.stock_recycle_count,
+        history: parsed.history,
+      },
+    };
+    const profileId = useProfileStore.getState().activeProfileId;
+    import("./persistence/store").then(({ store }) => store.saveGame(profileId, envelope));
+  }, [gameTypeCode]);
+
+  // Autosave after every move -- moveCount already increments at every
+  // single move site (stock tap, card move, autoplay step), so watching it
+  // catches all of them without touching each call site individually.
+  useEffect(() => {
+    if (gameTypeCode === null || moveCount === 0) return;
+    autosaveGame();
+  }, [moveCount, gameTypeCode, autosaveGame]);
 
   const handleHint = useCallback(() => {
     if (isWonRef.current || isAutoPlaying) return;
@@ -924,7 +1017,13 @@ export const App: React.FC = () => {
   useEffect(() => {
     useProfileStore.getState().loadProfiles().then(() => {
       useUIStore.getState().initializeStore().then(() => {
-        initEngine().then(() => { setIsEngineReady(true); });
+        initEngine().then(() => {
+          setIsEngineReady(true);
+          const profileId = useProfileStore.getState().activeProfileId;
+          import("./persistence/store").then(({ store }) => {
+            store.loadGame(profileId).then(setResumableSave);
+          });
+        });
       });
     });
   }, []);
@@ -1056,7 +1155,7 @@ export const App: React.FC = () => {
           rightHeaderContent={rightHeaderContent}
         >
           {activeTab === "gameboard" && gameTypeCode === null ? (
-            <GameChooserGrid onSelectGame={handleGameSelect} />
+            <GameChooserGrid onSelectGame={handleGameSelect} resumableSave={resumableSave} onResumeGame={resumableSave ? () => resumeGame(resumableSave) : undefined} />
           ) : (
             <div
               style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", backgroundColor: currentTheme.tableColor, display: activeTab === "gameboard" ? "block" : "none" }}

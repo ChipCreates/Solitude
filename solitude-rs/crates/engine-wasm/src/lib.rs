@@ -194,6 +194,45 @@ pub fn get_shelved_card_json() -> String {
     }
 }
 
+/// Full save/resume state: the current pile layout plus the undo/redo
+/// history stack, so a resumed game keeps working Undo/Redo. Returns "" if
+/// there's no game in progress.
+#[wasm_bindgen]
+pub fn get_snapshot_json() -> String {
+    let lock = CURRENT_GAME.lock().unwrap();
+    match lock.as_ref() {
+        Some(game) => serde_json::json!({
+            "snapshot": game.snapshot(),
+            "history": game.snapshot_history(),
+        })
+        .to_string(),
+        None => String::new(),
+    }
+}
+
+/// Restores a game to the exact pile layout + undo/redo history captured by
+/// `get_snapshot_json`. Must be called right after `initialize_game` with
+/// the same game type and variant options the save was taken under --
+/// this only overwrites piles/history, not the game's own rule config.
+#[wasm_bindgen]
+pub fn restore_snapshot_json(json: &str) -> bool {
+    #[derive(serde::Deserialize)]
+    struct SavedState {
+        snapshot: engine_core::history::GameSnapshot,
+        history: engine_core::history::History,
+    }
+
+    let mut lock = CURRENT_GAME.lock().unwrap();
+    if let Some(game) = lock.as_mut() {
+        if let Ok(state) = serde_json::from_str::<SavedState>(json) {
+            game.restore(state.snapshot);
+            game.restore_history(state.history);
+            return true;
+        }
+    }
+    false
+}
+
 #[wasm_bindgen]
 pub fn check_win() -> bool {
     let lock = CURRENT_GAME.lock().unwrap();
