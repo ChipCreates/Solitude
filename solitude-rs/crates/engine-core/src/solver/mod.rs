@@ -40,11 +40,39 @@ use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 use std::cell::RefCell;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+// `Pile` derives `Hash`/`Eq` including its internal `version` counter, which
+// increments on every mutation. Two content-identical boards reached via a
+// different number of pile mutations would otherwise hash/compare unequal,
+// so cycle detection never deduped transpositions. Implement Hash/Eq by hand
+// here, comparing pile kind/index/cards and skipping `version`.
+#[derive(Debug, Clone)]
 struct StateSignature {
     piles: Vec<Pile>,
     stock_recycle_count: u32,
 }
+
+impl Hash for StateSignature {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for pile in &self.piles {
+            pile.kind.hash(state);
+            pile.index.hash(state);
+            pile.cards().hash(state);
+        }
+        self.stock_recycle_count.hash(state);
+    }
+}
+
+impl PartialEq for StateSignature {
+    fn eq(&self, other: &Self) -> bool {
+        self.stock_recycle_count == other.stock_recycle_count
+            && self.piles.len() == other.piles.len()
+            && self.piles.iter().zip(other.piles.iter()).all(|(a, b)| {
+                a.kind == b.kind && a.index == b.index && a.cards() == b.cards()
+            })
+    }
+}
+
+impl Eq for StateSignature {}
 
 thread_local! {
     static CACHED_PATH: RefCell<Vec<HintMove>> = RefCell::new(Vec::new());
@@ -258,8 +286,41 @@ impl SolverEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::card::{Card, CardId, Rank, Suit};
     use crate::factory::GameFactory;
     use crate::game::GameType;
+    use crate::pile::PileType;
+
+    #[test]
+    fn test_state_signature_ignores_pile_version() {
+        // Two piles with identical content but different mutation counts
+        // (reached via a different number of add/remove calls) should be
+        // treated as the same state for cycle detection.
+        let card = Card::new(Suit::Hearts, Rank::Ace, CardId(0), true);
+
+        let mut pile_a = Pile::new(PileType::Tableau, 0);
+        pile_a.add_card(card.clone()); // version 1
+
+        let mut pile_b = Pile::new(PileType::Tableau, 0);
+        pile_b.add_card(card.clone());
+        let _ = pile_b.remove_top();
+        pile_b.add_card(card.clone()); // version 3, same final content
+
+        assert_ne!(pile_a.version(), pile_b.version());
+        assert_eq!(pile_a.cards(), pile_b.cards());
+
+        let sig_a = StateSignature { piles: vec![pile_a], stock_recycle_count: 0 };
+        let sig_b = StateSignature { piles: vec![pile_b], stock_recycle_count: 0 };
+
+        assert_eq!(sig_a, sig_b, "content-identical states must compare equal regardless of version");
+
+        let mut visited: HashSet<StateSignature> = HashSet::new();
+        visited.insert(sig_a);
+        assert!(
+            visited.contains(&sig_b),
+            "content-identical states must hash the same for cycle-detection dedup"
+        );
+    }
 
     #[test]
     fn test_solver_find_best_move() {
