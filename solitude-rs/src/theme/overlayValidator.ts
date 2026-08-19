@@ -1,3 +1,10 @@
+export function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace("#", "");
+  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  const num = parseInt(full, 16);
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
 export class OverlayValidator {
   public static relativeLuminance(r: number, g: number, b: number): number {
     const rsRGB = r / 255;
@@ -50,5 +57,19 @@ export class OverlayValidator {
     const redVsBlack = this.calculateContrast(blendedRed, blendedBlack);
 
     return redVsWhite >= 3.0 && blackVsWhite >= 3.0 && redVsBlack >= 2.0;
+  }
+
+  /**
+   * Highest intensity (in 0.01 steps) at which the overlay stays legible.
+   * Scans downward from 1.0 rather than assuming isLegible is monotonic in
+   * intensity, so it can't get stuck on a legible "island" above the real
+   * ceiling.
+   */
+  public static findMaxIntensity(overlayRgb: [number, number, number]): number {
+    for (let i = 100; i >= 0; i--) {
+      const intensity = i / 100;
+      if (this.isLegible(overlayRgb, intensity)) return intensity;
+    }
+    return 0;
   }
 }

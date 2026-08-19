@@ -1,5 +1,6 @@
 import React from "react";
 import { THEME_PRESETS } from "../theme/presets";
+import { OverlayValidator, hexToRgb } from "../theme/overlayValidator";
 import { useUIStore } from "../store/uiStore";
 
 import { getBackPatternCss, getBackPatternSize, getBackPatternPosition } from "./CardWidget";
@@ -12,6 +13,7 @@ interface SettingsModalProps {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, gameTypeCode }) => {
   const [activeTab, setActiveTab] = React.useState<"theme" | "gameplay" | "sound">("theme");
+  const [intensityWarning, setIntensityWarning] = React.useState(false);
   const {
     drawMode,
     themeId,
@@ -56,6 +58,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
 
   const handleSelectTheme = (id: string) => {
     setThemeId(id);
+    setIntensityWarning(false);
+  };
+
+  const handleIntensityChange = (intensity: number) => {
+    const theme = THEME_PRESETS[themeId];
+    if (theme && theme.cardFaceOverlay) {
+      const overlayRgb = hexToRgb(theme.cardFaceOverlay);
+      if (OverlayValidator.isLegible(overlayRgb, intensity)) {
+        setIntensityWarning(false);
+        setThemeOverlayIntensity(themeId, intensity);
+      } else {
+        setIntensityWarning(true);
+        setThemeOverlayIntensity(themeId, OverlayValidator.findMaxIntensity(overlayRgb));
+      }
+    } else {
+      setThemeOverlayIntensity(themeId, intensity);
+    }
   };
 
   return (
@@ -150,13 +169,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
             
             <div>
               <h3 style={{ fontSize: "16px", marginBottom: "12px", color: "#c2c8c0" }}>Card Face Tint Intensity</h3>
-              <input 
-                type="range" 
-                min="0" max="1" step="0.01" 
-                value={themeOverlayIntensities[themeId] ?? THEME_PRESETS[themeId]?.defaultOverlayIntensity ?? 0} 
-                onChange={(e) => setThemeOverlayIntensity(themeId, parseFloat(e.target.value))}
+              <input
+                type="range"
+                min="0" max="1" step="0.01"
+                value={themeOverlayIntensities[themeId] ?? THEME_PRESETS[themeId]?.defaultOverlayIntensity ?? 0}
+                onChange={(e) => handleIntensityChange(parseFloat(e.target.value))}
                 style={{ width: "100%" }}
               />
+              {intensityWarning && (
+                <p style={{ margin: "8px 0 0 0", fontSize: "13px", color: "#e9a53a" }}>
+                  ⚠️ Overlay intensity clamped to keep card suits legible
+                </p>
+              )}
             </div>
 
             <div>
