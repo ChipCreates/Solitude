@@ -237,18 +237,18 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                     <span style={{ color: "#fff", fontSize: "13px", fontWeight: 700 }}>Lv {gameProgress[gameTypeCode]?.level ?? 1}</span>
                   </div>
                 )}
-                <div style={{ width: "28px", height: "28px", borderRadius: "50%", overflow: "hidden", border: `1px solid ${activeAvatar.ringColor}88`, flexShrink: 0 }}>
-                  <img src={activeAvatar.src} alt={activeAvatar.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                {mobileGameHud && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fff", fontSize: "13px", fontFamily: "JetBrains Mono, monospace", flexShrink: 0 }}>
+                    <Clock size={14} color="#fff" /> {formatTimer(mobileGameHud.timerSeconds)}
+                  </div>
+                )}
+                <div style={{ width: "22px", height: "22px", borderRadius: "50%", overflow: "hidden", border: `1px solid ${activeAvatar.ringColor}88`, flexShrink: 0 }}>
+                  <img src={activeAvatar.src} alt={activeAvatar.label} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 </div>
                 {mobileGameHud && (
-                  <>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fff", fontSize: "13px", fontFamily: "JetBrains Mono, monospace", flexShrink: 0 }}>
-                      <Clock size={14} color="#fff" /> {formatTimer(mobileGameHud.timerSeconds)}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fff", fontSize: "13px", fontFamily: "JetBrains Mono, monospace", flexShrink: 0 }}>
-                      <RotateCw size={14} color="#fff" /> {mobileGameHud.moveCount}
-                    </div>
-                  </>
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fff", fontSize: "13px", fontFamily: "JetBrains Mono, monospace", flexShrink: 0 }}>
+                    <RotateCw size={14} color="#fff" /> {mobileGameHud.moveCount}
+                  </div>
                 )}
                 <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fff", fontSize: "13px", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", flexShrink: 0, marginLeft: "auto" }}>
                   <Coins size={14} color="#e9c349" /> {coins}
