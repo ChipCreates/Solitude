@@ -1187,6 +1187,20 @@ export const App: React.FC = () => {
   const showVegasScore = gameTypeCode === 0 && scoringMode !== "standard" && isEngineReady;
   const vegasScore = showVegasScore ? computeVegasScore() : 0;
 
+  // Feeds MetaGameHub's compact 2-row mobile header (separate from
+  // leftHeaderContent/rightHeaderContent, which stay desktop-shaped).
+  const mobileGameHud = activeTab === "gameboard" && gameTypeCode !== null ? {
+    timerSeconds,
+    moveCount,
+    isAutoPlaying,
+    onExitGame: () => setGameTypeCode(null),
+    onNewGame: () => startNewGame(),
+    onHint: handleHint,
+    onUndo: () => { usedHintOrUndoRef.current = true; undoWasm(); updateLayout(); },
+    onToggleAutoplay: handleAutoPlay,
+    onOpenHelp: () => setIsHelpOpen(true),
+  } : undefined;
+
   const rightHeaderContent = activeTab === "gameboard" && gameTypeCode !== null ? (
     <>
       <div style={{ display: "flex", gap: 16, fontFamily: "JetBrains Mono,monospace", fontSize: "14px", marginRight: "8px", alignItems: "center" }}>
@@ -1266,6 +1280,7 @@ export const App: React.FC = () => {
           leftHeaderContent={leftHeaderContent}
           rightHeaderContent={rightHeaderContent}
           activeGameName={gameTypeCode !== null ? GAME_TYPE_NAMES[gameTypeCode] : undefined}
+          mobileGameHud={mobileGameHud}
         >
           {activeTab === "gameboard" && gameTypeCode === null ? (
             <GameChooserGrid onSelectGame={handleGameSelect} resumableSave={resumableSave} onResumeGame={resumableSave ? () => resumeGame(resumableSave) : undefined} />
