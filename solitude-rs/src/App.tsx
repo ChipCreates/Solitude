@@ -1360,6 +1360,16 @@ export const App: React.FC = () => {
               <span style={{ color: "#e5e2e1", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}><Undo2 size={14} /> Return card</span>
             </button>
           )}
+
+          {toastMessage && (
+            <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "rgba(19,19,19,0.9)", backdropFilter: "blur(16px)", padding: "24px", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.2)", zIndex: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 16, pointerEvents: "auto" }}>
+              <div style={{ color: "#e5e2e1", fontFamily: "Manrope,sans-serif", fontSize: "18px", fontWeight: 600 }}>{toastMessage}</div>
+              <div style={{ display: "flex", gap: 12 }}>
+                <button onClick={() => { setToastMessage(null); startNewGame(); }} style={{ background: currentTheme.accentColor, color: "#111", border: "none", borderRadius: "8px", padding: "10px 20px", fontWeight: 700, cursor: "pointer", fontFamily: "Inter,sans-serif" }}>New Game</button>
+                <button onClick={() => setToastMessage(null)} style={{ background: "transparent", color: "#e5e2e1", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", padding: "10px 20px", fontWeight: 600, cursor: "pointer", fontFamily: "Inter,sans-serif" }}>Dismiss</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       )}
@@ -1369,16 +1379,6 @@ export const App: React.FC = () => {
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} gameTypeCode={gameTypeCode ?? undefined} />
       {gameTypeCode !== null && <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} gameType={gameTypeCode} />}
       <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
-
-      {toastMessage && (
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "rgba(19,19,19,0.9)", backdropFilter: "blur(16px)", padding: "24px", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.2)", zIndex: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-          <div style={{ color: "#e5e2e1", fontFamily: "Manrope,sans-serif", fontSize: "18px", fontWeight: 600 }}>{toastMessage}</div>
-          <div style={{ display: "flex", gap: 12 }}>
-            <button onClick={() => { setToastMessage(null); startNewGame(); }} style={{ background: currentTheme.accentColor, color: "#111", border: "none", borderRadius: "8px", padding: "10px 20px", fontWeight: 700, cursor: "pointer", fontFamily: "Inter,sans-serif" }}>New Game</button>
-            <button onClick={() => setToastMessage(null)} style={{ background: "transparent", color: "#e5e2e1", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", padding: "10px 20px", fontWeight: 600, cursor: "pointer", fontFamily: "Inter,sans-serif" }}>Dismiss</button>
-          </div>
-        </div>
-      )}
 
       {winData && gameTypeCode !== null && (
         <VictoryModal
