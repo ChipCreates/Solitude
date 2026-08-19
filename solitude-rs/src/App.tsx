@@ -477,35 +477,49 @@ export const App: React.FC = () => {
   const tapTimerRef = useRef<number | null>(null);
   const DOUBLE_TAP_MS = 280;
 
+  // Card bounds (cardBoundsListRef) and animated positions are stored in
+  // canvas-local coordinates (0,0 = canvas top-left), but pointer events
+  // report clientX/clientY in viewport coordinates. The canvas sits below
+  // a sidebar and header, so those never coincide — hit-testing against raw
+  // client coordinates silently missed every card. Convert to local space
+  // once, here, before any hit-testing or drag-offset math.
+  const toLocalPoint = (e: { clientX: number; clientY: number }): { x: number; y: number } => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    return { x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0) };
+  };
+
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    pointerDownRef.current = { x: e.clientX, y: e.clientY };
+    const { x, y } = toLocalPoint(e);
+    pointerDownRef.current = { x, y };
     movedRef.current = false;
-    const hit = findHit(e.clientX, e.clientY);
+    const hit = findHit(x, y);
     dragStartCardRef.current = hit;
     if (hit && hit.cardId !== -1) {
       const anim = animatedCardsRef.current.get(hit.cardId);
       dragStateRef.current = {
-        cardId: hit.cardId, ptrX: e.clientX, ptrY: e.clientY,
-        offsetX: e.clientX - (anim?.x ?? hit.x), offsetY: e.clientY - (anim?.y ?? hit.y),
+        cardId: hit.cardId, ptrX: x, ptrY: y,
+        offsetX: x - (anim?.x ?? hit.x), offsetY: y - (anim?.y ?? hit.y),
       };
     }
   }, []);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
+    const { x, y } = toLocalPoint(e);
     if (pointerDownRef.current && !movedRef.current) {
-      const dist = Math.hypot(e.clientX - pointerDownRef.current.x, e.clientY - pointerDownRef.current.y);
+      const dist = Math.hypot(x - pointerDownRef.current.x, y - pointerDownRef.current.y);
       if (dist > 8) movedRef.current = true;
     }
     if (dragStateRef.current) {
-      dragStateRef.current.ptrX = e.clientX;
-      dragStateRef.current.ptrY = e.clientY;
+      dragStateRef.current.ptrX = x;
+      dragStateRef.current.ptrY = y;
     }
   }, []);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     if (!pointerDownRef.current) return;
+    const { x, y } = toLocalPoint(e);
     const wasDrag = movedRef.current;
-    const hit = findHit(e.clientX, e.clientY);
+    const hit = findHit(x, y);
 
     if (wasDrag) {
       // Drag-and-drop
