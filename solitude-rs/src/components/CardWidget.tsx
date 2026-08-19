@@ -60,7 +60,7 @@ export const getBackPatternPosition = (pattern: string) => {
   }
 };
 
-export const CardWidget: React.FC<CardWidgetProps> = ({
+const CardWidgetComponent: React.FC<CardWidgetProps> = ({
   id, rank, suit, faceUp, width, height, theme, overlayIntensity, cardBackPattern, cardBackColor, isSelected, isHint, hideShadow
 }) => {
   const isRed = suit === 0 || suit === 1;
@@ -179,3 +179,11 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
     </div>
   );
 };
+
+// All props are primitives except `theme`, which is always one of the
+// module-level THEME_PRESETS entries (a stable reference per themeId, not a
+// fresh object per render) — so React.memo's default shallow comparison is
+// exactly the right check, correctly skipping re-render for the ~50 cards
+// that didn't change on any given move instead of re-running each card's
+// full front/back JSX tree.
+export const CardWidget = React.memo(CardWidgetComponent);
