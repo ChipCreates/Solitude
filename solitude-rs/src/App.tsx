@@ -31,7 +31,7 @@ import { MetaGameHub, STORE_ITEMS } from "./components/MetaGameHub";
 import { POWER_UP_CONFIG } from "./powerups/config";
 import { audioService } from "./audio/audioService";
 import { ParticleSystem } from "./canvas/renderParticles";
-import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles, HelpCircle, Zap, Undo2, Info } from "lucide-react";
+import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles, HelpCircle, Zap, Undo2, Info, Home } from "lucide-react";
 
 const POWER_UP_ITEMS = STORE_ITEMS.filter((i) => i.type === "power_up");
 const RANK_STRS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
@@ -1144,9 +1144,10 @@ export const App: React.FC = () => {
     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
       <button
         onClick={() => setGameTypeCode(null)}
-        style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", color: "#e5e2e1", padding: "6px 12px", fontFamily: "Inter,sans-serif", fontSize: "14px", fontWeight: 600, cursor: "pointer", outline: "none", marginLeft: "-8px" }}
+        title="Back to game chooser"
+        style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", color: "#e5e2e1", padding: "8px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", outline: "none", marginLeft: "-8px" }}
       >
-        {GAME_TYPE_NAMES[gameTypeCode] || "Choose Game"}
+        <Home size={18} />
       </button>
       <LevelBadge gameTypeCode={gameTypeCode} />
     </div>
@@ -1236,6 +1237,7 @@ export const App: React.FC = () => {
           onOpenSettings={() => setIsSettingsOpen(true)}
           leftHeaderContent={leftHeaderContent}
           rightHeaderContent={rightHeaderContent}
+          activeGameName={gameTypeCode !== null ? GAME_TYPE_NAMES[gameTypeCode] : undefined}
         >
           {activeTab === "gameboard" && gameTypeCode === null ? (
             <GameChooserGrid onSelectGame={handleGameSelect} resumableSave={resumableSave} onResumeGame={resumableSave ? () => resumeGame(resumableSave) : undefined} />

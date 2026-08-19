@@ -13,6 +13,7 @@ interface MetaGameHubProps {
   onOpenSettings: () => void;
   leftHeaderContent?: React.ReactNode;
   rightHeaderContent?: React.ReactNode;
+  activeGameName?: string;
   children?: React.ReactNode;
 }
 
@@ -51,7 +52,7 @@ export const STORE_ITEMS = [
   { id: "reset_column", type: "power_up", name: "Reset Column", description: "Restacks one fully-dead-end column into a fresh random order.", price: 400, icon: "/assets/store/item_lucky_reshuffle_1787130533491.png" },
 ];
 
-export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange, onOpenSettings, leftHeaderContent, rightHeaderContent, children }) => {
+export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange, onOpenSettings, leftHeaderContent, rightHeaderContent, activeGameName, children }) => {
   const { coins, subtractCoins, unlockedItems, unlockItem, cardBackPattern, setCardBackPattern, themeId, setThemeId, unlockedAchievements, powerUpInventory, purchasePowerUp } = useUIStore();
   const { profiles, activeProfileId } = useProfileStore();
   const { statsByGameType, loadAllStats } = useStatisticsStore();
@@ -111,7 +112,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
           ) : leftHeaderContent}
         </div>
         <div style={{ fontSize: "28px", fontWeight: 800, color: "#e9c349", fontFamily: "Manrope, sans-serif", letterSpacing: "1px", flex: 1, textAlign: "center" }}>
-          Solitude
+          Solitude{activeTab === "gameboard" && activeGameName ? `: ${activeGameName}` : ""}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1, justifyContent: "flex-end" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(0,0,0,0.4)", padding: "4px 12px", borderRadius: "12px", border: "1px solid rgba(233, 195, 73, 0.3)" }}>

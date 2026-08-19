@@ -1,6 +1,5 @@
 import React from "react";
 import { useUIStore } from "../store/uiStore";
-import { User } from "lucide-react";
 
 interface LevelBadgeProps {
   gameTypeCode: number;
@@ -39,7 +38,7 @@ export const LevelBadge: React.FC<LevelBadgeProps> = ({ gameTypeCode }) => {
             strokeLinecap="round"
           />
         </svg>
-        <User size={16} color="#fff" />
+        <span style={{ fontSize: "13px", fontWeight: 800, color: "#fff", fontFamily: "JetBrains Mono, monospace" }}>{level}</span>
       </div>
       
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
