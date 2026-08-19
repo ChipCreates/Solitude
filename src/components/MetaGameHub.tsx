@@ -13,7 +13,6 @@ import { applyThemePack } from "../theme/presets";
 import { STORE_ITEMS } from "../data/storeItems";
 import { SettingsPage } from "./SettingsPage";
 import { ThemePackDetailPage } from "./ThemePackDetailPage";
-import { LevelBadge } from "./LevelBadge";
 
 export { STORE_ITEMS };
 
@@ -204,7 +203,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
           </div>
         </div>
       ) : (
-        <div style={{ flexShrink: 0, background: "#111111", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingTop: "env(safe-area-inset-top)" }}>
+        <div style={{ flexShrink: 0, background: "radial-gradient(circle at 50% 0%, #1e3a2b, #0d1a13)", borderBottom: "1px solid rgba(0,0,0,0.3)", paddingTop: "env(safe-area-inset-top)" }}>
           {/* Row 1: exit/back, title, menu */}
           <div style={{ height: isLandscape ? "44px" : "52px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px" }}>
             <div style={{ width: "36px" }}>
@@ -218,8 +217,8 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                 </button>
               ) : null}
             </div>
-            <div style={{ fontSize: "17px", fontWeight: 800, color: "#e9c349", fontFamily: "Manrope, sans-serif", letterSpacing: "0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              Solitude{activeTab === "gameboard" && activeGameName ? <span style={{ color: "#fff" }}>: {activeGameName}</span> : ""}
+            <div style={{ fontSize: "17px", fontWeight: 800, color: "#e5e2e1", fontFamily: "Manrope, sans-serif", letterSpacing: "0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              Solitude{activeTab === "gameboard" && activeGameName ? <span style={{ color: "#e9c349" }}>: {activeGameName}</span> : ""}
             </div>
             <button onClick={() => setIsAvatarMenuOpen(true)} data-testid="avatar-menu-button" style={{ width: "36px", background: "none", border: "none", color: "#e5e2e1", cursor: "pointer", padding: "6px", display: "flex", justifyContent: "flex-end" }}>
               <Menu size={22} />
@@ -229,25 +228,30 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
           {/* Row 2: stat pill */}
           {!isLandscape && (
             <div style={{ padding: "0 12px 10px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(0,0,0,0.3)", borderRadius: "999px", padding: "6px 14px", border: "1px solid rgba(255,255,255,0.08)", overflowX: "auto" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(0,0,0,0.35)", borderRadius: "999px", padding: "6px 14px", border: "1px solid rgba(255,255,255,0.08)", overflowX: "auto" }}>
                 {mobileGameHud && gameTypeCode !== undefined && (
-                  <div style={{ flexShrink: 0 }}><LevelBadge gameTypeCode={gameTypeCode} /></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                    <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#2e8b4f", border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 800, color: "#fff" }}>
+                      Lv
+                    </div>
+                    <span style={{ color: "#fff", fontSize: "13px", fontWeight: 700 }}>Lv {gameProgress[gameTypeCode]?.level ?? 1}</span>
+                  </div>
                 )}
                 <div style={{ width: "28px", height: "28px", borderRadius: "50%", overflow: "hidden", border: `1px solid ${activeAvatar.ringColor}88`, flexShrink: 0 }}>
                   <img src={activeAvatar.src} alt={activeAvatar.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
                 {mobileGameHud && (
                   <>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#e5e2e1", fontSize: "13px", fontFamily: "JetBrains Mono, monospace", flexShrink: 0 }}>
-                      <Clock size={14} color="#a5b8a9" /> {formatTimer(mobileGameHud.timerSeconds)}
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fff", fontSize: "13px", fontFamily: "JetBrains Mono, monospace", flexShrink: 0 }}>
+                      <Clock size={14} color="#fff" /> {formatTimer(mobileGameHud.timerSeconds)}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#e5e2e1", fontSize: "13px", fontFamily: "JetBrains Mono, monospace", flexShrink: 0 }}>
-                      <RotateCw size={14} color="#a5b8a9" /> {mobileGameHud.moveCount}
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fff", fontSize: "13px", fontFamily: "JetBrains Mono, monospace", flexShrink: 0 }}>
+                      <RotateCw size={14} color="#fff" /> {mobileGameHud.moveCount}
                     </div>
                   </>
                 )}
-                <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#e9c349", fontSize: "13px", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", flexShrink: 0, marginLeft: "auto" }}>
-                  <Coins size={14} /> {coins}
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fff", fontSize: "13px", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", flexShrink: 0, marginLeft: "auto" }}>
+                  <Coins size={14} color="#e9c349" /> {coins}
                 </div>
               </div>
             </div>
