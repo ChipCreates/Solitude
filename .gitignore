@@ -33,3 +33,4 @@ src/wasm/pkg/
 
 # Environment files
 .env*
+.vite/
