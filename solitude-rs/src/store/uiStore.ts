@@ -66,6 +66,7 @@ export interface SettingsState {
   unlockAchievement: (achievementId: string) => void;
   purchasePowerUp: (powerUpId: string, price: number) => boolean;
   consumePowerUp: (powerUpId: string) => boolean;
+  refundPowerUp: (powerUpId: string) => void;
   setDifficulty: (difficulty: "easy" | "normal" | "hard") => void;
   addXP: (gameType: string, amount: number) => { leveledUp: boolean, newLevel: number, newXP: number };
   initializeStore: () => Promise<void>;
@@ -205,6 +206,16 @@ export const useUIStore = create<SettingsState>((set, get) => ({
     }));
     import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, progressionSnapshot(get())));
     return true;
+  },
+  // Returns a consumed power-up's charge to inventory without touching
+  // coins, for when the underlying effect turned out to have no legal
+  // target (e.g. Undo Token with empty history) — the player shouldn't
+  // lose the item for something that had no effect.
+  refundPowerUp: (powerUpId) => {
+    set((state) => ({
+      powerUpInventory: { ...state.powerUpInventory, [powerUpId]: (state.powerUpInventory[powerUpId] ?? 0) + 1 },
+    }));
+    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, progressionSnapshot(get())));
   },
   setDifficulty: (difficulty) => {
     set({ difficulty });

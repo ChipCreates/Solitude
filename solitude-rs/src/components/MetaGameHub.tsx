@@ -23,7 +23,7 @@ function formatDuration(ms: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-const STORE_ITEMS = [
+export const STORE_ITEMS = [
   { id: "bicycle", type: "card_back", name: "Bicycle Blue", price: 0 },
   { id: "diamond", type: "card_back", name: "Classic Diamond", price: 0 },
   { id: "botanical", type: "card_back", name: "Botanical Garden", price: 500, icon: "/assets/cards/back_botanical.png" },

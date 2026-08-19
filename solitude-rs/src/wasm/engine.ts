@@ -13,6 +13,11 @@ import init, {
   get_hint_json,
   auto_play_step_wasm,
   auto_complete_step_wasm,
+  reshuffle_stock_waste_wasm,
+  reset_tableau_column_wasm,
+  shelve_top_card_wasm,
+  unshelve_card_wasm,
+  get_shelved_card_json,
 } from "./pkg/engine_wasm.js";
 
 let isInitialized = false;
@@ -167,4 +172,45 @@ export function autoPlayStepWasm(): boolean {
 export function autoCompleteStepWasm(): boolean {
   if (!isInitialized) return false;
   return auto_complete_step_wasm();
+}
+
+// --- Power-up primitives ---
+
+export function reshuffleStockWasteWasm(seed: bigint): boolean {
+  if (!isInitialized) return false;
+  return reshuffle_stock_waste_wasm(seed);
+}
+
+export function resetTableauColumnWasm(index: number, seed: bigint): boolean {
+  if (!isInitialized) return false;
+  return reset_tableau_column_wasm(index, seed);
+}
+
+export function shelveTopCardWasm(kind: number, idx: number, cardId: number): boolean {
+  if (!isInitialized) return false;
+  return shelve_top_card_wasm(kind, idx, cardId);
+}
+
+export function unshelveCardWasm(): boolean {
+  if (!isInitialized) return false;
+  return unshelve_card_wasm();
+}
+
+export interface ShelvedCard {
+  pileKind: number;
+  pileIndex: number;
+  id: number;
+  suit: number;
+  rank: number;
+}
+
+export function getShelvedCard(): ShelvedCard | null {
+  if (!isInitialized) return null;
+  const json = get_shelved_card_json();
+  if (!json) return null;
+  try {
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
 }

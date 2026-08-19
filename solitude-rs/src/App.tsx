@@ -3,6 +3,8 @@ import {
   initEngine, initializeGame, getPilesLayout, tapStockWasm,
   undoWasm, redoWasm, executeMoveWasm, executePairMoveWasm,
   getHintWasm, autoPlayStepWasm, checkWinWasm, isLostWasm,
+  reshuffleStockWasteWasm, resetTableauColumnWasm,
+  shelveTopCardWasm, unshelveCardWasm, getShelvedCard, ShelvedCard,
 } from "./wasm/engine";
 import { calculateGridLayout } from "./canvas/layout/gridLayout";
 import { calculatePyramidLayout, getPyramidCardPosition } from "./canvas/layout/pyramidLayout";
@@ -23,10 +25,15 @@ import { VictoryModal } from "./components/VictoryModal";
 import { HelpModal } from "./components/HelpModal";
 import { AboutModal } from "./components/AboutModal";
 import { SplashPage } from "./components/SplashPage";
-import { MetaGameHub } from "./components/MetaGameHub";
+import { MetaGameHub, STORE_ITEMS } from "./components/MetaGameHub";
+import { POWER_UP_CONFIG } from "./powerups/config";
 import { audioService } from "./audio/audioService";
 import { ParticleSystem } from "./canvas/renderParticles";
-import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles, HelpCircle } from "lucide-react";
+import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles, HelpCircle, Zap, Undo2 } from "lucide-react";
+
+const POWER_UP_ITEMS = STORE_ITEMS.filter((i) => i.type === "power_up");
+const RANK_STRS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+const SUIT_STRS = ["♥", "♦", "♣", "♠"];
 
 interface AnimatedCard { x: number; y: number; vx: number; vy: number; }
 
@@ -93,6 +100,21 @@ export const App: React.FC = () => {
   const dragStartCardRef = useRef<CardBounds | null>(null);
 
   const particleSystemRef = useRef(new ParticleSystem());
+
+  // ─── Power-ups ────────────────────────────────────────────────────────────
+  // Which power-up (if any) is awaiting a card/column tap to resolve its
+  // target. Set by activatePowerUp(), consumed by the onPointerDown guard.
+  const activePowerUpRef = useRef<string | null>(null);
+  // onPointerDown is a frozen (empty-deps) callback, so it can't safely call
+  // resolveTargetedPowerUp directly (that closure changes with updateLayout)
+  // without going stale — mirror it into a ref like moveCountRef/
+  // timerSecondsRef do for the same reason.
+  const resolveTargetedPowerUpRef = useRef<(id: string, hit: CardBounds) => void>(() => {});
+  const [powerUpTrayOpen, setPowerUpTrayOpen] = useState(false);
+  const [powerUpToast, setPowerUpToast] = useState<string | null>(null);
+  const [powerUpReveal, setPowerUpReveal] = useState<{ title: string; cards: { rank: number, suit: number }[] } | null>(null);
+  const [shelvedCard, setShelvedCard] = useState<ShelvedCard | null>(null);
+
   const hintCardIdRef = useRef<number | null>(null);
   const [hintGhost, setHintGhost] = useState<{startX: number, startY: number, endX: number, endY: number, width: number, height: number, rank: number, suit: number} | null>(null);
   const [ghostPos, setGhostPos] = useState({x: 0, y: 0});
@@ -111,7 +133,7 @@ export const App: React.FC = () => {
 
   const {
     themeId, themeOverlayIntensities, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern, scoringMode, vegasBankroll,
-    musicEnabled, musicVolume, musicTrackId, customMusicUrl,
+    musicEnabled, musicVolume, musicTrackId, customMusicUrl, powerUpInventory,
   } = useUIStore();
   const currentTheme = THEME_PRESETS[themeId] || THEME_PRESETS.classic_felt;
   const overlayIntensity = themeOverlayIntensities[themeId] ?? currentTheme.defaultOverlayIntensity;
@@ -558,6 +580,16 @@ export const App: React.FC = () => {
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     const { x, y } = toLocalPoint(e);
+
+    if (activePowerUpRef.current) {
+      const hit = findHit(x, y);
+      const id = activePowerUpRef.current;
+      activePowerUpRef.current = null;
+      setPowerUpToast(null);
+      if (hit) resolveTargetedPowerUpRef.current(id, hit);
+      return;
+    }
+
     pointerDownRef.current = { x, y };
     movedRef.current = false;
     const hit = findHit(x, y);
@@ -661,6 +693,10 @@ export const App: React.FC = () => {
     isWonRef.current = false;
     isLostRef.current = false;
     usedHintOrUndoRef.current = false;
+    activePowerUpRef.current = null;
+    setPowerUpToast(null);
+    setPowerUpReveal(null);
+    setShelvedCard(null); // initializeGame() already clears the Rust-side shelf
     particleSystemRef.current.clear();
     setIsAutoPlaying(false);
     setMoveCount(0); setTimerSeconds(0);
@@ -715,6 +751,132 @@ export const App: React.FC = () => {
       setToastMessage("No moves available.");
     }
   }, [isAutoPlaying]);
+
+  // ─── Power-up Effects ─────────────────────────────────────────────────────
+  // Instant-effect power-ups (POWER_UP_CONFIG[id].targeting === "none").
+  // Returns whether the effect actually did something, so the caller can
+  // refund the charge on a no-op (e.g. Undo Token with empty history).
+  const applyInstantPowerUp = useCallback((id: string): boolean => {
+    switch (id) {
+      case "unstick_wand": {
+        const moved = autoPlayStepWasm();
+        if (moved) { setMoveCount((m) => m + 1); audioService.playCardMove(); updateLayout(); }
+        return moved;
+      }
+      case "undo_token": {
+        const ok = undoWasm();
+        if (ok) updateLayout();
+        return ok;
+      }
+      case "extra_hint":
+      case "foundation_nudge": {
+        // Both re-skin the same underlying solver hint the free Hint button
+        // uses; the plan's own descriptions for these two overlap in effect.
+        const hint = getHintWasm();
+        if (!hint || !Array.isArray(hint.cards)) return false;
+        handleHint();
+        return true;
+      }
+      case "lucky_reshuffle": {
+        const ok = reshuffleStockWasteWasm(BigInt(Date.now()));
+        if (ok) updateLayout();
+        return ok;
+      }
+      case "deck_whisper": {
+        const stock = getPilesLayout().find((p) => p.kind === 0);
+        if (!stock || stock.cards.length === 0) return false;
+        const next = stock.cards.slice(-3).reverse();
+        setPowerUpReveal({ title: "Next From Stock", cards: next.map((c) => ({ rank: c.rank, suit: c.suit })) });
+        window.setTimeout(() => setPowerUpReveal(null), 3500);
+        return true;
+      }
+      case "second_look": {
+        const waste = getPilesLayout().find((p) => p.kind === 1);
+        if (!waste || waste.cards.length < 2) return false;
+        const beneath = waste.cards[waste.cards.length - 2];
+        setPowerUpReveal({ title: "Beneath the Waste", cards: [{ rank: beneath.rank, suit: beneath.suit }] });
+        window.setTimeout(() => setPowerUpReveal(null), 3500);
+        return true;
+      }
+      case "time_ease": {
+        if (timerSecondsRef.current <= 0) return false;
+        setTimerSeconds((t) => Math.max(0, t - 60));
+        return true;
+      }
+      default:
+        return false;
+    }
+  }, [updateLayout, handleHint]);
+
+  // Targeted power-ups (targeting === "card" | "column"): resolves against
+  // whatever CardBounds the player's next tap hits. Consumes-then-refunds
+  // rather than validating up front, so the logic for "did this do
+  // anything" lives in one place per power-up.
+  const resolveTargetedPowerUp = useCallback((id: string, hit: CardBounds) => {
+    const config = POWER_UP_CONFIG[id];
+    if (config?.compatibleGameTypes && gameTypeRef.current !== null && !config.compatibleGameTypes.includes(gameTypeRef.current)) {
+      setPowerUpToast("Not usable in this game.");
+      window.setTimeout(() => setPowerUpToast(null), 1800);
+      return;
+    }
+    if (!useUIStore.getState().consumePowerUp(id)) return;
+
+    let success = false;
+    if (id === "peek_charm") {
+      if (hit.cardId !== -1 && !hit.faceUp) {
+        setPowerUpReveal({ title: "Peek", cards: [{ rank: hit.rank, suit: hit.suit }] });
+        window.setTimeout(() => setPowerUpReveal(null), 3000);
+        success = true;
+      }
+    } else if (id === "column_breather") {
+      if (hit.pileKind === 3) {
+        const pile = getPilesLayout().find((p) => p.kind === 3 && p.index === hit.pileIndex);
+        const faceDown = pile ? pile.cards.filter((c) => !c.faceUp) : [];
+        if (faceDown.length > 0) {
+          const topTwo = faceDown.slice(-2).reverse();
+          setPowerUpReveal({ title: "Column Breather", cards: topTwo.map((c) => ({ rank: c.rank, suit: c.suit })) });
+          window.setTimeout(() => setPowerUpReveal(null), 3500);
+          success = true;
+        }
+      }
+    } else if (id === "reset_column") {
+      if (hit.pileKind === 3) {
+        success = resetTableauColumnWasm(hit.pileIndex, BigInt(Date.now()));
+        if (success) updateLayout();
+      }
+    } else if (id === "free_slot") {
+      if (hit.cardId !== -1 && hit.faceUp) {
+        success = shelveTopCardWasm(hit.pileKind, hit.pileIndex, hit.cardId);
+        if (success) { setShelvedCard(getShelvedCard()); updateLayout(); }
+      }
+    }
+
+    if (!success) useUIStore.getState().refundPowerUp(id);
+  }, [updateLayout]);
+  useEffect(() => { resolveTargetedPowerUpRef.current = resolveTargetedPowerUp; }, [resolveTargetedPowerUp]);
+
+  const activatePowerUp = useCallback((id: string) => {
+    const config = POWER_UP_CONFIG[id];
+    if (!config) return;
+    if (config.compatibleGameTypes && gameTypeRef.current !== null && !config.compatibleGameTypes.includes(gameTypeRef.current)) return;
+
+    setPowerUpTrayOpen(false);
+    if (config.targeting !== "none") {
+      activePowerUpRef.current = id;
+      setPowerUpToast(config.targeting === "card" ? "Tap a card to target…" : "Tap a column to target…");
+      return;
+    }
+
+    if (!useUIStore.getState().consumePowerUp(id)) return;
+    if (!applyInstantPowerUp(id)) useUIStore.getState().refundPowerUp(id);
+  }, [applyInstantPowerUp]);
+
+  const returnShelvedCard = useCallback(() => {
+    if (unshelveCardWasm()) {
+      setShelvedCard(null);
+      updateLayout();
+    }
+  }, [updateLayout]);
 
   const handleAutoPlay = useCallback(() => {
     if (isAutoPlaying) return; // Guard against re-entry (double click / repeated hotkey)
@@ -830,8 +992,44 @@ export const App: React.FC = () => {
           </div>
         )}
       </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", position: "relative" }}>
         <button onClick={() => setIsHelpOpen(true)} title="Help" style={HUD_BTN}><HelpCircle size={18} /></button>
+        <button onClick={() => setPowerUpTrayOpen((v) => !v)} title="Power-ups" style={{ ...HUD_BTN, position: "relative", color: powerUpTrayOpen ? currentTheme.accentColor : "#e5e2e1" }}>
+          <Zap size={18} />
+          {Object.values(powerUpInventory).some((n) => n > 0) && (
+            <span style={{ position: "absolute", top: 2, right: 2, width: 8, height: 8, borderRadius: "50%", background: "#d4af37" }} />
+          )}
+        </button>
+        {powerUpTrayOpen && (
+          <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 280, maxHeight: 360, overflowY: "auto", background: "rgba(19,19,19,0.97)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: 12, zIndex: 200, display: "flex", flexDirection: "column", gap: 8 }}>
+            {POWER_UP_ITEMS.filter((item) => (powerUpInventory[item.id] ?? 0) > 0).length === 0 ? (
+              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", padding: "12px 4px" }}>No power-ups owned. Visit The Emporium to buy some.</div>
+            ) : POWER_UP_ITEMS.filter((item) => (powerUpInventory[item.id] ?? 0) > 0).map((item) => {
+              const config = POWER_UP_CONFIG[item.id];
+              const compatible = !config?.compatibleGameTypes || gameTypeCode === null || config.compatibleGameTypes.includes(gameTypeCode);
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => activatePowerUp(item.id)}
+                  disabled={!compatible}
+                  title={!compatible ? "Not usable in this game" : item.description}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8,
+                    background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                    color: compatible ? "#e5e2e1" : "rgba(255,255,255,0.3)", textAlign: "left",
+                    cursor: compatible ? "pointer" : "not-allowed", fontFamily: "Inter, sans-serif",
+                  }}
+                >
+                  <span style={{ fontWeight: 700, color: compatible ? "#d4af37" : "rgba(255,255,255,0.3)", minWidth: 20 }}>×{powerUpInventory[item.id]}</span>
+                  <span style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{item.name}</div>
+                    <div style={{ fontSize: 11, opacity: 0.7, lineHeight: 1.3 }}>{item.description}</div>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
         <button onClick={handleHint} title="Hint (H)" style={HUD_BTN}><Lightbulb size={18} /></button>
         <button onClick={handleAutoPlay} title="Auto Play (A)" style={{ ...HUD_BTN, color: isAutoPlaying ? currentTheme.accentColor : "#e5e2e1" }}><Sparkles size={18} /></button>
         <button onClick={() => { usedHintOrUndoRef.current = true; undoWasm(); updateLayout(); }} title="Undo (U)" style={HUD_BTN}><RotateCcw size={18} /></button>
@@ -928,6 +1126,43 @@ export const App: React.FC = () => {
                 isSelected={false} isHint={false}
               />
             </div>
+          )}
+
+          {powerUpToast && (
+            <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(19,19,19,0.9)", backdropFilter: "blur(16px)", padding: "10px 20px", borderRadius: "999px", border: `1px solid ${currentTheme.accentColor}`, zIndex: 150, color: "#e5e2e1", fontFamily: "Manrope,sans-serif", fontSize: 14, fontWeight: 600, pointerEvents: "none" }}>
+              {powerUpToast}
+            </div>
+          )}
+
+          {powerUpReveal && (
+            <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "rgba(19,19,19,0.95)", backdropFilter: "blur(16px)", padding: "16px 20px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.2)", zIndex: 150, display: "flex", flexDirection: "column", alignItems: "center", gap: 10, pointerEvents: "none" }}>
+              <div style={{ color: "#d4af37", fontFamily: "Manrope,sans-serif", fontSize: 13, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>{powerUpReveal.title}</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {powerUpReveal.cards.map((c, i) => {
+                  const isRed = c.suit === 0 || c.suit === 1;
+                  return (
+                    <div key={i} style={{ width: 44, height: 62, borderRadius: 6, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", color: isRed ? "#cc3333" : "#111111", fontWeight: 800, fontFamily: "Manrope, sans-serif" }}>
+                      <div style={{ fontSize: 14 }}>{RANK_STRS[c.rank - 1]}</div>
+                      <div style={{ fontSize: 16 }}>{SUIT_STRS[c.suit]}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {shelvedCard && (
+            <button
+              onClick={returnShelvedCard}
+              title="Tap to return to its pile"
+              style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", zIndex: 150, display: "flex", alignItems: "center", gap: 8, background: "rgba(19,19,19,0.95)", border: `1px solid ${currentTheme.accentColor}`, borderRadius: 10, padding: "8px 14px", cursor: "pointer", pointerEvents: "auto" }}
+            >
+              <div style={{ width: 32, height: 45, borderRadius: 5, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", color: (shelvedCard.suit === 0 || shelvedCard.suit === 1) ? "#cc3333" : "#111111", fontWeight: 800, fontSize: 11, fontFamily: "Manrope, sans-serif" }}>
+                <div>{RANK_STRS[shelvedCard.rank - 1]}</div>
+                <div>{SUIT_STRS[shelvedCard.suit]}</div>
+              </div>
+              <span style={{ color: "#e5e2e1", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}><Undo2 size={14} /> Return card</span>
+            </button>
           )}
         </div>
       </div>

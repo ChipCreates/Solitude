@@ -11,6 +11,12 @@ use wasm_bindgen::prelude::*;
 
 static CURRENT_GAME: Mutex<Option<Box<dyn GameRules + Send>>> = Mutex::new(None);
 static LAYOUT_BUFFER: Mutex<Vec<u8>> = Mutex::new(Vec::new());
+// "Free Slot" power-up: holds at most one card lifted off the top of a pile,
+// outside the normal move-validation pipeline. Only ever restored back to
+// its own origin pile (never placed elsewhere), so it can't be used to make
+// an otherwise-illegal placement -- it just lets the player see and act on
+// what's underneath for a moment.
+static SHELVED_CARD: Mutex<Option<(PileType, u8, engine_core::card::Card)>> = Mutex::new(None);
 
 #[wasm_bindgen]
 pub fn init_panic_hook() {
@@ -59,6 +65,7 @@ pub fn initialize_game(
     drop(lock);
 
     engine_core::solver::clear_solver_cache();
+    *SHELVED_CARD.lock().unwrap() = None;
     true
 }
 
@@ -114,6 +121,76 @@ pub fn reset_tableau_column_wasm(index: u8, seed: u64) -> bool {
         game.reset_tableau_column(index, seed)
     } else {
         false
+    }
+}
+
+/// "Free Slot" power-up: lifts the top card off the given pile into a
+/// single-card holding slot, outside normal move validation. `card_id` must
+/// match the pile's actual current top card (guards against shelving the
+/// wrong card off a stale frontend hit-test). Fails (returns false) if that
+/// pile isn't currently the top card's pile, the top card's id doesn't
+/// match, or a card is already shelved (only one slot at a time).
+#[wasm_bindgen]
+pub fn shelve_top_card_wasm(kind: u8, idx: u8, card_id: u8) -> bool {
+    let pile_type = match u8_to_pile_type(kind) {
+        Some(t) => t,
+        None => return false,
+    };
+    let mut shelved = SHELVED_CARD.lock().unwrap();
+    if shelved.is_some() {
+        return false;
+    }
+    let mut lock = CURRENT_GAME.lock().unwrap();
+    if let Some(game) = lock.as_mut() {
+        if let Some(pile) = game.piles_mut().iter_mut().find(|p| p.kind == pile_type && p.index == idx) {
+            if pile.top_card().map(|c| c.id) != Some(CardId(card_id)) {
+                return false;
+            }
+            if let Some(card) = pile.remove_top() {
+                *shelved = Some((pile_type, idx, card));
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Restores the shelved card back onto its original pile. Returns false if
+/// nothing is shelved, or (unexpectedly) its origin pile no longer exists --
+/// in which case the card is kept shelved rather than lost.
+#[wasm_bindgen]
+pub fn unshelve_card_wasm() -> bool {
+    let mut shelved = SHELVED_CARD.lock().unwrap();
+    let (kind, idx, card) = match shelved.take() {
+        Some(v) => v,
+        None => return false,
+    };
+    let mut lock = CURRENT_GAME.lock().unwrap();
+    if let Some(game) = lock.as_mut() {
+        if let Some(pile) = game.piles_mut().iter_mut().find(|p| p.kind == kind && p.index == idx) {
+            pile.add_card(card);
+            return true;
+        }
+    }
+    *shelved = Some((kind, idx, card));
+    false
+}
+
+/// Returns `{"pileKind","pileIndex","id","suit","rank"}` describing the
+/// currently-shelved card, or `""` if none is shelved.
+#[wasm_bindgen]
+pub fn get_shelved_card_json() -> String {
+    let shelved = SHELVED_CARD.lock().unwrap();
+    match shelved.as_ref() {
+        Some((kind, idx, card)) => serde_json::json!({
+            "pileKind": pile_type_to_u8(*kind),
+            "pileIndex": idx,
+            "id": card.id.0,
+            "suit": suit_to_u8(card.suit),
+            "rank": card.rank.value(),
+        })
+        .to_string(),
+        None => String::new(),
     }
 }
 
