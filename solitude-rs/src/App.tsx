@@ -14,6 +14,8 @@ import { useProfileStore } from "./store/profileStore";
 import { CardWidget } from "./components/CardWidget";
 import { SettingsModal } from "./components/SettingsModal";
 import { GameChooserGrid } from "./components/GameChooserGrid";
+import { LevelBadge } from "./components/LevelBadge";
+import { VictoryModal } from "./components/VictoryModal";
 import { HelpModal } from "./components/HelpModal";
 import { AboutModal } from "./components/AboutModal";
 import { SplashPage } from "./components/SplashPage";
@@ -45,6 +47,7 @@ export const App: React.FC = () => {
   const [isEngineReady, setIsEngineReady] = useState(false);
   const [isSplashComplete, setIsSplashComplete] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [winData, setWinData] = useState<{ xpGained: number, leveledUp: boolean, newLevel: number, newXP: number } | null>(null);
 
   // Pyramid selection stored in ref so tap handler always reads live value
   const selectedPyramidCardRef = useRef<CardBounds | null>(null);
@@ -362,13 +365,22 @@ export const App: React.FC = () => {
           audioService.playWin();
           particleSystemRef.current.spawnVictoryPattern(victoryPattern, rect.width, rect.height);
           
-          // Reward Coins
+          // Reward XP & Coins
           const uiState = useUIStore.getState();
           const baseReward = 100;
           const diffMult = uiState.difficulty === "hard" ? 3 : uiState.difficulty === "normal" ? 2 : 1;
           const reward = baseReward * diffMult;
           uiState.addCoins(reward);
-          setToastMessage(`You won! +${reward} Coins (${uiState.difficulty})`);
+          
+          if (gameTypeRef.current !== null) {
+            const xpResult = uiState.addXP(gameTypeRef.current.toString(), reward);
+            setWinData({
+              xpGained: reward,
+              leveledUp: xpResult.leveledUp,
+              newLevel: xpResult.newLevel,
+              newXP: xpResult.newXP
+            });
+          }
         }
         particleSystemRef.current.updateAndRender(ctx, rect.width, rect.height, victoryPattern);
       }
@@ -604,7 +616,7 @@ export const App: React.FC = () => {
         setMoveCount((m) => m + 1);
         audioService.playCardMove();
         updateLayout();
-        setTimeout(nextStep, 350);
+        setTimeout(nextStep, 120);
       } else {
         setIsAutoPlaying(false);
         if (!checkWinWasm()) {
@@ -659,12 +671,15 @@ export const App: React.FC = () => {
   }, []);
 
   const leftHeaderContent = activeTab === "gameboard" && gameTypeCode !== null ? (
-    <button
-      onClick={() => setGameTypeCode(null)}
-      style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", color: "#e5e2e1", padding: "6px 12px", fontFamily: "Inter,sans-serif", fontSize: "14px", fontWeight: 600, cursor: "pointer", outline: "none", marginLeft: "-8px" }}
-    >
-      {["Klondike", "Spider", "FreeCell", "Pyramid", "Golf", "TriPeaks", "Yukon", "Forty Thieves", "Canfield", "Scorpion"][gameTypeCode] || "Choose Game"}
-    </button>
+    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+      <button
+        onClick={() => setGameTypeCode(null)}
+        style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", color: "#e5e2e1", padding: "6px 12px", fontFamily: "Inter,sans-serif", fontSize: "14px", fontWeight: 600, cursor: "pointer", outline: "none", marginLeft: "-8px" }}
+      >
+        {["Klondike", "Spider", "FreeCell", "Pyramid", "Golf", "TriPeaks", "Yukon", "Forty Thieves", "Canfield", "Scorpion"][gameTypeCode] || "Choose Game"}
+      </button>
+      <LevelBadge gameTypeCode={gameTypeCode} />
+    </div>
   ) : null;
 
   const rightHeaderContent = activeTab === "gameboard" && gameTypeCode !== null ? (
@@ -732,7 +747,7 @@ export const App: React.FC = () => {
                   position: "absolute", left: 0, top: 0, width: b.width, height: b.height,
                   transform: `translate(${x}px, ${y}px)`,
                   zIndex: isDragging ? 1000 : b.pileKind === 3 ? b.cardIndex : 10,
-                  transition: isDragging ? "none" : "transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)",
+                  transition: isDragging ? "none" : (isAutoPlaying ? "transform 0.1s linear" : "transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)"),
                 }}
               >
                 <CardWidget
@@ -790,6 +805,23 @@ export const App: React.FC = () => {
             <button onClick={() => setToastMessage(null)} style={{ background: "transparent", color: "#e5e2e1", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", padding: "10px 20px", fontWeight: 600, cursor: "pointer", fontFamily: "Inter,sans-serif" }}>Dismiss</button>
           </div>
         </div>
+      )}
+
+      {winData && gameTypeCode !== null && (
+        <VictoryModal
+          gameName={["Klondike", "Spider", "FreeCell", "Pyramid", "Golf", "TriPeaks", "Yukon", "Forty Thieves", "Canfield", "Scorpion"][gameTypeCode] || "Game"}
+          winData={winData}
+          onNewGame={() => {
+            setWinData(null);
+            setToastMessage(null);
+            startNewGame();
+          }}
+          onHome={() => {
+            setWinData(null);
+            setToastMessage(null);
+            setGameTypeCode(null);
+          }}
+        />
       )}
     </>
   );

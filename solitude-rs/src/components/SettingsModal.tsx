@@ -72,7 +72,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
       <div
         style={{
           width: "90%",
-          maxWidth: "640px",
+          maxWidth: "800px",
           background: "rgba(26, 26, 26, 0.9)",
           border: "1px solid rgba(255, 255, 255, 0.15)",
           borderRadius: "24px",
