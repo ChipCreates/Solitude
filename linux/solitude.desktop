@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=Solitude
-Comment=Beautiful solitaire card game
-Exec=solitude
-Icon=solitude
-Type=Application
-Categories=Game;CardGame;
-Terminal=false
-StartupNotify=true

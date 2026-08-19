@@ -1,46 +1,35 @@
 # Copilot instructions for Solitude (brief)
 
-This file gives targeted, actionable guidance to AI coding agents working on Solitude.
+This file gives targeted, actionable guidance to AI coding agents working on Solitude — a Rust (engine, compiled to WASM) + React/TypeScript solitaire game, packaged as a Tauri desktop/mobile app and a standalone PWA. See `CLAUDE.md` at the repo root for the full architecture rundown.
 
-+High-level architecture
-+ App entry: `lib/main.dart` — services are initialized and registered with Provider (`SettingsProvider`, `StatisticsService`, `GameController`).
-+ UI: Compose from `lib/screens/` and `lib/widgets/` (visual components live in `lib/widgets/`).
-+ Business logic: `lib/services/` holds ChangeNotifier services (game state, settings, statistics, audio). See `lib/services/game_controller.dart` for the core game flow.
-+ Models: Pure data types live in `lib/models/` (cards, piles, moves).
-+ Games: Game implementations are under `lib/games/` (Klondike is the reference implementation in `lib/games/klondike/`).
+High-level architecture
+- Rust workspace under `crates/`: `engine-core` (game rules + solver, no UI dependency), `engine-wasm` (wasm-bindgen bridge), `tauri-backend` (SQLite persistence + Tauri commands).
+- Frontend under `src/`: `App.tsx` is the whole game screen; `store/` holds Zustand stores; `persistence/` picks Tauri-backed or IndexedDB-backed storage at runtime; `components/` is the UI.
+- Two Vite configs consume the same `src/`: `vite.config.ts` (Tauri) and `vite.web.config.ts` (PWA/GitHub Pages).
 
 Key conventions and patterns (project-specific)
-- State management: `provider` with `ChangeNotifier`. Services are passed into `GameController` at app startup — avoid changing provider registration shape unless necessary. Example: providers are configured in `main()`.
-- Service responsibilities: keep UI code free of game rules — put move validation, auto-complete, timer, and statistics in `GameController` / game classes.
-- Assets: SVG card art and fonts are stored under `assets/cards/` and `assets/fonts/`. New assets must be referenced in `pubspec.yaml` (`flutter.assets` and `flutter.fonts`).
-- Audio: an `AudioService` abstraction exists; `GameController` defaults to `SilentAudioService`. Use the service interface when adding audio; don't hardcode playback in widgets.
-- Settings persistence: `SettingsProvider` uses `shared_preferences`. Load/save operations are async — follow the established async patterns used in `SettingsProvider`.
+- Game rules, move validation, and undo/redo live in `crates/engine-core/src/games/*.rs`, one file per variant, each implementing the shared `GameRules` trait — keep UI code free of game rules.
+- The solver (`crates/engine-core/src/solver/mod.rs`) is used by both the Hint button and AutoPlay, via separate cache namespaces per `SolverContext` (Hint vs AutoPlay) so interleaving the two can't desync either one's cached plan.
+- Persistence: `src/persistence/store.ts` exports a `GameStore` interface implemented by `tauriStore.ts` and `webStore.ts`; add new persisted fields to both, plus the shared `SaveEnvelope`/`Settings`/`Progression` types.
+- After any change under `crates/`, rebuild the WASM package with `npm run build:wasm` before testing the frontend.
 
-Build, run, and debug commands (from repo README)
-- Fetch deps: `flutter pub get`
-- Run (web): `flutter run -d chrome`
-- Run (desktop): `flutter run -d linux` (or `windows`, `macos`)
-- Build release: `flutter build web --release` (or `flutter build apk --release`, etc.)
+Build, run, and debug commands
+- Frontend dev server (iterate here, not full native builds): `npm run dev`
+- Rebuild WASM after Rust changes: `npm run build:wasm`
+- Native desktop app: `npm run tauri dev` / `npm run tauri build`
+- PWA build: `npm run build:web`
+- Rust tests: `cargo test --workspace`
+- TypeScript check: `npx tsc --noEmit`
 
 Change guidance for AI agents
-- Small, focused PRs: change one file or one small feature at a time. Keep public APIs stable.
-- Tests: repository has no tests; if you add tests, place them under `test/` and use `flutter test`.
-- Assets & pubspec: when adding assets, update `pubspec.yaml` and ensure paths match `assets/` entries.
-- Provider changes: if altering providers, update both `main.dart` and any code that calls `Provider.of` or consumes the type.
-- UI changes: prefer changes in `lib/widgets/*` and `lib/screens/*`. Avoid large refactors that touch many widgets in a single PR.
-
-Files to consult for examples
-- App setup and providers: `lib/main.dart`
-- Core game logic and patterns: `lib/services/game_controller.dart`
-- Settings persistence: `lib/services/settings_provider.dart`
-- Game implementation example: `lib/games/klondike/klondike_game.dart`
-- SVG card rendering: `lib/widgets/svg_card_renderer.dart`
+- Small, focused PRs: change one file or one small feature at a time. Keep public APIs (WASM exports, Zustand store shapes) stable.
+- Tests: Rust tests live alongside their modules (`#[cfg(test)] mod tests`); there is no frontend test runner configured, verify UI changes by running the dev server and testing manually (or via Playwright if available).
 
 What NOT to do (quick list)
 - Do not add remote telemetry or network calls — the project is offline-first and privacy-respecting.
-- Do not assume platform-specific assets exist; add them to `assets/` and `pubspec.yaml` first.
-- Avoid global mutable state outside `ChangeNotifier` services — follow the existing provider pattern.
+- Do not assume an asset exists in both the Tauri and PWA builds — check `public/assets/` and both Vite configs.
+- Avoid touching `crates/engine-wasm`'s exported function signatures without updating `src/wasm/engine.ts`'s wrappers in the same change.
 
-If anything is unclear, ask the maintainer which platform targets to prioritize, whether to add CI, or where to place integration tests.
+If anything is unclear, ask the maintainer which platform targets to prioritize or where to place new tests.
 
 — End of instructions —

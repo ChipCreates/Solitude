@@ -7,7 +7,7 @@ A high-performance, open-source solitaire card game built with **Rust (WASM & Co
 ![Rust](https://img.shields.io/badge/Rust-1.75+-orange.svg)
 ![Tauri](https://img.shields.io/badge/Tauri-2.0-blue.svg)
 
-> **Note on Scope**: This project adopts the *"one codebase, three targets"* model (Desktop Native, Web/PWA, Android Native via Tauri). iOS is explicitly out of scope for this release. The original Flutter implementation remains in `lib/` as an archived reference.
+> **Note on Scope**: This project adopts the *"one codebase, three targets"* model (Desktop Native, Web/PWA, Android Native via Tauri). iOS is explicitly out of scope for this release. The original Flutter implementation has been fully retired; this is the sole active codebase.
 
 ## Supported Games (10 Solitaire Variants)
 
@@ -43,7 +43,7 @@ A high-performance, open-source solitaire card game built with **Rust (WASM & Co
 1. **Clone the repository**
    ```bash
    git clone https://github.com/plotworx/solitude.git
-   cd solitude/solitude-rs
+   cd solitude
    ```
 
 2. **Build WASM Engine**
@@ -65,18 +65,16 @@ A high-performance, open-source solitaire card game built with **Rust (WASM & Co
 
 ```
 solitude/
-├── solitude-rs/
-│   ├── crates/
-│   │   ├── engine-core/       # Core Rust game engines (10 variants, solver, snapshots)
-│   │   └── engine-wasm/       # WASM bindings & Serde bridge
-│   ├── src/
-│   │   ├── canvas/            # Canvas renderer, SoA particle system & custom layouts
-│   │   ├── components/        # React glassmorphism UI & settings modal
-│   │   ├── store/             # Zustand persistent UI state
-│   │   └── wasm/              # TypeScript engine wrappers & types
-│   ├── src-tauri/             # Tauri 2.0 desktop shell & native packaging
-│   └── package.json
-├── lib/                       # Legacy Flutter codebase (Archived reference)
+├── crates/
+│   ├── engine-core/           # Core Rust game engines (10 variants, solver, snapshots)
+│   ├── engine-wasm/           # WASM bindings & Serde bridge
+│   └── tauri-backend/         # Tauri 2.0 desktop shell, SQLite persistence & native packaging
+├── src/
+│   ├── canvas/                # Canvas renderer, SoA particle system & custom layouts
+│   ├── components/            # React glassmorphism UI & settings modal
+│   ├── store/                 # Zustand persistent UI state
+│   └── wasm/                  # TypeScript engine wrappers & types
+├── docs/                      # Architecture notes and design plans
 ├── PRIVACY.md                 # Privacy Policy
 ├── CREDITS.md                 # Asset attributions
 └── README.md
@@ -87,8 +85,7 @@ solitude/
 Run cargo unit tests across all 10 game engines and property/fuzz testing:
 
 ```bash
-cd solitude-rs
-cargo test -p engine-core
+cargo test --workspace
 ```
 
 ## License

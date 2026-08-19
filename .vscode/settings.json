@@ -1,8 +1,4 @@
 {
     "terminal.integrated.automationProfile.linux": {},
-    "terminal.integrated.defaultProfile.linux": "bash",
-    "cmake.sourceDirectory": "/home/chip/Projects/Solitude/linux",
-    "terminal.integrated.env.linux": {
-        "PATH": "${env:PATH}:/home/user/flutter/bin"
-    }
+    "terminal.integrated.defaultProfile.linux": "bash"
 }
