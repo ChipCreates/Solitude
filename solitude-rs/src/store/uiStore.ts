@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { useProfileStore } from "./profileStore";
+import type { Settings, Progression } from "../persistence/store";
 
 export interface SettingsState {
   drawMode: number;
@@ -52,6 +53,40 @@ export interface SettingsState {
   initializeStore: () => Promise<void>;
 }
 
+// Zustand stores actions and data in one flat object. IndexedDB's structured
+// clone algorithm can't serialize functions, so persistence payloads must be
+// built from an explicit, data-only shape rather than spreading get().
+function settingsSnapshot(state: SettingsState): Settings {
+  return {
+    drawMode: state.drawMode,
+    autoComplete: state.autoComplete,
+    themeId: state.themeId,
+    themeOverlayIntensities: state.themeOverlayIntensities,
+    cardBack: state.cardBackPattern,
+    cardBackColor: state.cardBackColor,
+    soundEnabled: state.soundEnabled,
+    soundVolume: state.soundVolume,
+    musicEnabled: state.musicEnabled,
+    musicVolume: state.musicVolume,
+    leftHandMode: state.leftHandMode,
+    victoryPattern: state.victoryPattern,
+    showTimer: state.showTimer,
+    autoplay: state.autoplay,
+    scoringMode: state.scoringMode,
+    vegasBankroll: state.vegasBankroll,
+  };
+}
+
+function progressionSnapshot(state: SettingsState): Progression {
+  return {
+    coins: state.coins,
+    unlockedItems: state.unlockedItems,
+    unlockedAchievements: state.unlockedAchievements,
+    difficulty: state.difficulty,
+    gameProgress: state.gameProgress,
+  };
+}
+
 export const useUIStore = create<SettingsState>((set, get) => ({
   drawMode: 1,
   autoComplete: true,
@@ -76,36 +111,36 @@ export const useUIStore = create<SettingsState>((set, get) => ({
   musicEnabled: false,
   musicVolume: 0.5,
 
-  setDrawMode: (drawMode) => { set({ drawMode }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
-  setAutoComplete: (autoComplete) => { set({ autoComplete }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
-  setThemeId: (themeId) => { set({ themeId }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
+  setDrawMode: (drawMode) => { set({ drawMode }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setAutoComplete: (autoComplete) => { set({ autoComplete }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setThemeId: (themeId) => { set({ themeId }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setThemeOverlayIntensity: (themeId, intensity) => {
     set((state) => ({ themeOverlayIntensities: { ...state.themeOverlayIntensities, [themeId]: intensity } }));
-    import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern }));
+    import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get())));
   },
-  setCardBackPattern: (cardBackPattern) => { set({ cardBackPattern }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
-  setCardBackColor: (cardBackColor) => { set({ cardBackColor }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
-  setSoundEnabled: (soundEnabled) => { set({ soundEnabled }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
-  setSoundVolume: (soundVolume) => { set({ soundVolume }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
-  setLeftHandMode: (leftHandMode) => { set({ leftHandMode }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
-  setVictoryPattern: (victoryPattern) => { set({ victoryPattern }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
+  setCardBackPattern: (cardBackPattern) => { set({ cardBackPattern }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setCardBackColor: (cardBackColor) => { set({ cardBackColor }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setSoundEnabled: (soundEnabled) => { set({ soundEnabled }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setSoundVolume: (soundVolume) => { set({ soundVolume }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setLeftHandMode: (leftHandMode) => { set({ leftHandMode }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setVictoryPattern: (victoryPattern) => { set({ victoryPattern }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   
-  setShowTimer: (showTimer) => { set({ showTimer }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
-  setAutoplay: (autoplay) => { set({ autoplay }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
-  setScoringMode: (scoringMode) => { set({ scoringMode }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
-  resetVegasBankroll: () => { set({ vegasBankroll: 0 }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
-  setMusicEnabled: (musicEnabled) => { set({ musicEnabled }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
-  setMusicVolume: (musicVolume) => { set({ musicVolume }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, { ...get(), cardBack: get().cardBackPattern })); },
+  setShowTimer: (showTimer) => { set({ showTimer }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setAutoplay: (autoplay) => { set({ autoplay }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setScoringMode: (scoringMode) => { set({ scoringMode }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  resetVegasBankroll: () => { set({ vegasBankroll: 0 }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setMusicEnabled: (musicEnabled) => { set({ musicEnabled }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setMusicVolume: (musicVolume) => { set({ musicVolume }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
 
   addCoins: (amount) => {
     set((state) => ({ coins: state.coins + amount }));
-    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, get()));
+    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, progressionSnapshot(get())));
   },
   subtractCoins: (amount) => {
     const { coins } = get();
     if (coins >= amount) {
       set({ coins: coins - amount });
-      import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, get()));
+      import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, progressionSnapshot(get())));
       return true;
     }
     return false;
@@ -114,17 +149,17 @@ export const useUIStore = create<SettingsState>((set, get) => ({
     set((state) => ({ 
       unlockedItems: state.unlockedItems.includes(itemId) ? state.unlockedItems : [...state.unlockedItems, itemId] 
     }));
-    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, get()));
+    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, progressionSnapshot(get())));
   },
   unlockAchievement: (achievementId) => {
     set((state) => ({
       unlockedAchievements: state.unlockedAchievements.includes(achievementId) ? state.unlockedAchievements : [...state.unlockedAchievements, achievementId]
     }));
-    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, get()));
+    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, progressionSnapshot(get())));
   },
   setDifficulty: (difficulty) => {
     set({ difficulty });
-    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, get()));
+    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, progressionSnapshot(get())));
   },
   
   addXP: (gameType, amount) => {
@@ -152,7 +187,7 @@ export const useUIStore = create<SettingsState>((set, get) => ({
       }
     });
     
-    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, get()));
+    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, progressionSnapshot(get())));
     
     return { leveledUp, newLevel, newXP };
   },
@@ -167,11 +202,20 @@ export const useUIStore = create<SettingsState>((set, get) => ({
         drawMode: settings.drawMode,
         autoComplete: settings.autoComplete,
         themeId: settings.themeId,
+        themeOverlayIntensities: settings.themeOverlayIntensities ?? {},
         cardBackPattern: settings.cardBack,
+        cardBackColor: settings.cardBackColor ?? "#1e3a2b",
         soundEnabled: settings.soundEnabled,
         soundVolume: settings.soundVolume,
+        musicEnabled: settings.musicEnabled ?? false,
+        musicVolume: settings.musicVolume ?? 0.5,
         leftHandMode: settings.leftHandMode,
-        
+        victoryPattern: (settings.victoryPattern as SettingsState["victoryPattern"]) ?? "cascade",
+        showTimer: settings.showTimer ?? true,
+        autoplay: settings.autoplay ?? false,
+        scoringMode: (settings.scoringMode as SettingsState["scoringMode"]) ?? "standard",
+        vegasBankroll: settings.vegasBankroll ?? 0,
+
         coins: progression.coins,
         unlockedItems: progression.unlockedItems,
         unlockedAchievements: progression.unlockedAchievements,
