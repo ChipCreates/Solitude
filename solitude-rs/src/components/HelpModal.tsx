@@ -151,7 +151,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, gameType 
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 200,
+        zIndex: 1500,
         padding: "24px"
       }}
       onClick={onClose}

@@ -9,6 +9,9 @@ export interface KeyboardNavActions {
 
 export function setupKeyboardNav(actions: KeyboardNavActions): () => void {
   const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      return;
+    }
     if (e.key === "u" || (e.ctrlKey && e.key.toLowerCase() === "z")) {
       e.preventDefault();
       actions.onUndo();

@@ -10,6 +10,7 @@ export const SplashPage: React.FC<SplashPageProps> = ({ onLoadComplete }) => {
   useEffect(() => {
     let start = performance.now();
     const duration = 2000; // 2 seconds minimum splash duration
+    let frameId: number;
 
     const updateProgress = (time: number) => {
       const elapsed = time - start;
@@ -17,15 +18,20 @@ export const SplashPage: React.FC<SplashPageProps> = ({ onLoadComplete }) => {
       setProgress(t);
 
       if (t < 1) {
-        requestAnimationFrame(updateProgress);
+        frameId = requestAnimationFrame(updateProgress);
       } else {
         // Wait a tiny bit after reaching 100% before firing complete
         setTimeout(onLoadComplete, 200);
       }
     };
 
-    requestAnimationFrame(updateProgress);
-  }, [onLoadComplete]);
+    frameId = requestAnimationFrame(updateProgress);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div style={{
@@ -51,8 +57,7 @@ export const SplashPage: React.FC<SplashPageProps> = ({ onLoadComplete }) => {
           width: `${progress * 100}%`,
           height: "100%",
           backgroundColor: "#fff",
-          boxShadow: "0 0 10px rgba(255,255,255,0.8)",
-          transition: "width 0.05s linear"
+          boxShadow: "0 0 10px rgba(255,255,255,0.8)"
         }} />
       </div>
 

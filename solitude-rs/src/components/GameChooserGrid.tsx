@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Layers, Bug, Triangle, FlagTriangleRight, LayoutGrid, Mountain, Trees, Shield, Dices, Scissors } from "lucide-react";
 import { useUIStore } from "../store/uiStore";
+import { GameVariantModal } from "./GameVariantModal";
 
-interface GameChooserModalProps {
-  isOpen: boolean;
+interface GameChooserGridProps {
   onSelectGame: (gameType: number) => void;
 }
 
@@ -70,101 +70,100 @@ const GAMES = [
   }
 ];
 
-export const GameChooserModal: React.FC<GameChooserModalProps> = ({ isOpen, onSelectGame }) => {
+export const GameChooserGrid: React.FC<GameChooserGridProps> = ({ onSelectGame }) => {
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   const themeId = useUIStore((s) => s.themeId);
   const accentColor = themeId === "classic" ? "#166534" : (themeId === "midnight" ? "#818cf8" : "#e9c349");
-
-  if (!isOpen) return null;
 
   return (
     <div
       style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        backdropFilter: "blur(8px)",
+        width: "100%",
+        height: "100%",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 200,
-        padding: "24px"
+        flexDirection: "column",
+        padding: "48px 48px",
+        overflowY: "auto"
       }}
     >
+      <div style={{ textAlign: "center", marginBottom: "40px" }}>
+        <h2 style={{ fontSize: "36px", fontWeight: 800, color: accentColor, marginBottom: "12px", fontFamily: "Manrope, sans-serif" }}>Choose Your Game</h2>
+        <p style={{ fontSize: "16px", color: "#a5b8a9" }}>Select a solitaire variant to play</p>
+      </div>
+
       <div
         style={{
-          width: "100%",
-          maxWidth: "1000px",
-          height: "85vh",
-          display: "flex",
-          flexDirection: "column",
+          flex: 1,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: "24px",
+          maxWidth: "1200px",
+          margin: "0 auto",
+          width: "100%"
         }}
       >
-        <div style={{ textAlign: "center", marginBottom: "24px" }}>
-          <h2 style={{ fontSize: "32px", fontWeight: 800, color: accentColor, marginBottom: "8px" }}>Choose Your Game</h2>
-          <p style={{ fontSize: "16px", color: "#a1a1aa" }}>Select a solitaire variant to play</p>
-        </div>
-
-        <div
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: "16px",
-            padding: "8px"
-          }}
-        >
-          {GAMES.map((game) => {
-            const isHovered = hoveredId === game.id;
-            return (
+        {GAMES.map((game) => {
+          const isHovered = hoveredId === game.id;
+          return (
+            <div
+              key={game.id}
+              onMouseEnter={() => setHoveredId(game.id)}
+              onMouseLeave={() => setHoveredId(null)}
+              onClick={() => setSelectedGameId(game.id)}
+              style={{
+                backgroundColor: isHovered ? "rgba(212, 175, 55, 0.1)" : "#0f1c15",
+                borderRadius: "16px",
+                padding: "24px",
+                cursor: "pointer",
+                border: isHovered ? `1px solid ${accentColor}` : "1px solid rgba(255,255,255,0.05)",
+                transition: "all 0.2s ease-out",
+                transform: isHovered ? "translateY(-4px)" : "none",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                textAlign: "center"
+              }}
+            >
               <div
-                key={game.id}
-                onMouseEnter={() => setHoveredId(game.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                onClick={() => onSelectGame(game.id)}
                 style={{
-                  backgroundColor: isHovered ? "rgba(255,255,255,0.1)" : "rgba(30, 30, 30, 0.9)",
-                  borderRadius: "16px",
-                  padding: "20px",
-                  cursor: "pointer",
-                  border: isHovered ? `2px solid ${accentColor}` : "2px solid rgba(255,255,255,0.1)",
-                  transition: "all 0.2s ease-out",
-                  transform: isHovered ? "translateY(-4px)" : "none",
-                  boxShadow: isHovered ? `0 8px 24px rgba(0,0,0,0.5)` : "0 4px 12px rgba(0,0,0,0.3)",
+                  width: "64px",
+                  height: "64px",
+                  borderRadius: "50%",
+                  backgroundColor: isHovered ? `${accentColor}33` : "rgba(255,255,255,0.05)",
                   display: "flex",
-                  flexDirection: "column",
                   alignItems: "center",
-                  textAlign: "center"
+                  justifyContent: "center",
+                  color: isHovered ? accentColor : "#a5b8a9",
+                  marginBottom: "20px",
+                  transition: "all 0.2s ease-out",
+                  border: isHovered ? `1px solid ${accentColor}` : "1px solid transparent"
                 }}
               >
-                <h3 style={{ fontSize: "18px", fontWeight: 700, color: isHovered ? accentColor : "#fff", marginBottom: "16px" }}>
-                  {game.name}
-                </h3>
-                <div
-                  style={{
-                    width: "80px",
-                    height: "80px",
-                    borderRadius: "50%",
-                    backgroundColor: isHovered ? `${accentColor}33` : "rgba(255,255,255,0.05)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: isHovered ? accentColor : "#a1a1aa",
-                    marginBottom: "16px",
-                    transition: "all 0.2s ease-out"
-                  }}
-                >
-                  {game.icon}
-                </div>
-                <p style={{ fontSize: "13px", lineHeight: 1.5, color: "#a1a1aa", flex: 1 }}>
-                  {game.description}
-                </p>
+                {game.icon}
               </div>
-            );
-          })}
-        </div>
+              <h3 style={{ fontSize: "18px", fontWeight: 700, color: isHovered ? accentColor : "#fff", marginBottom: "12px", fontFamily: "Manrope, sans-serif" }}>
+                {game.name}
+              </h3>
+              <p style={{ fontSize: "13px", lineHeight: 1.5, color: "#a5b8a9", flex: 1 }}>
+                {game.description}
+              </p>
+            </div>
+          );
+        })}
       </div>
+      
+      {selectedGameId !== null && (
+        <GameVariantModal
+          gameId={selectedGameId}
+          gameName={GAMES.find(g => g.id === selectedGameId)?.name || "Game"}
+          onPlay={() => {
+            onSelectGame(selectedGameId);
+            setSelectedGameId(null);
+          }}
+          onCancel={() => setSelectedGameId(null)}
+        />
+      )}
     </div>
   );
 };

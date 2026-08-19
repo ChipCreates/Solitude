@@ -10,32 +10,38 @@ import { CardBounds } from "./input/pointerController";
 import { setupKeyboardNav } from "./input/keyboardNav";
 import { THEME_PRESETS } from "./theme/presets";
 import { useUIStore } from "./store/uiStore";
+import { useProfileStore } from "./store/profileStore";
 import { CardWidget } from "./components/CardWidget";
 import { SettingsModal } from "./components/SettingsModal";
-import { GameChooserModal } from "./components/GameChooserModal";
+import { GameChooserGrid } from "./components/GameChooserGrid";
 import { HelpModal } from "./components/HelpModal";
 import { AboutModal } from "./components/AboutModal";
 import { SplashPage } from "./components/SplashPage";
+import { MetaGameHub } from "./components/MetaGameHub";
 import { audioService } from "./audio/audioService";
 import { ParticleSystem } from "./canvas/renderParticles";
-import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles, HelpCircle, Info } from "lucide-react";
+import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles, HelpCircle } from "lucide-react";
 
 interface AnimatedCard { x: number; y: number; vx: number; vy: number; }
 
 export const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // Use a ref for gameTypeCode so async callbacks always read the live value
-  const gameTypeRef = useRef<number>(0);
-  const [gameTypeCode, setGameTypeCodeState] = useState<number>(0);
-  const setGameTypeCode = (n: number) => { gameTypeRef.current = n; setGameTypeCodeState(n); };
+  const gameTypeRef = useRef<number | null>(null);
+  const [gameTypeCode, setGameTypeCodeState] = useState<number | null>(null);
+  const setGameTypeCode = (n: number | null) => { 
+    if (n !== null) gameTypeRef.current = n; 
+    setGameTypeCodeState(n); 
+  };
 
   const [moveCount, setMoveCount] = useState(0);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [, setLayoutTick] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isGameChooserOpen, setIsGameChooserOpen] = useState(false);
+
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"gameboard" | "store" | "trophy">("gameboard");
   const [isEngineReady, setIsEngineReady] = useState(false);
   const [isSplashComplete, setIsSplashComplete] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -73,8 +79,9 @@ export const App: React.FC = () => {
   }, []);
 
   // ─── Layout (type-agnostic) ───────────────────────────────────────────────
-  const updateLayout = useCallback((typeCode?: number) => {
+  const updateLayout = useCallback((typeCode?: number | null) => {
     const type = typeCode !== undefined ? typeCode : gameTypeRef.current;
+    if (type === null) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -354,6 +361,14 @@ export const App: React.FC = () => {
           isWonRef.current = true;
           audioService.playWin();
           particleSystemRef.current.spawnVictoryPattern(victoryPattern, rect.width, rect.height);
+          
+          // Reward Coins
+          const uiState = useUIStore.getState();
+          const baseReward = 100;
+          const diffMult = uiState.difficulty === "hard" ? 3 : uiState.difficulty === "normal" ? 2 : 1;
+          const reward = baseReward * diffMult;
+          uiState.addCoins(reward);
+          setToastMessage(`You won! +${reward} Coins (${uiState.difficulty})`);
         }
         particleSystemRef.current.updateAndRender(ctx, rect.width, rect.height, victoryPattern);
       }
@@ -518,8 +533,9 @@ export const App: React.FC = () => {
   }, [handleTap, handleDoubleTap, updateLayout]);
 
   // ─── Game Management ──────────────────────────────────────────────────────
-  const startNewGame = useCallback((typeCode?: number) => {
+  const startNewGame = useCallback((typeCode?: number | null) => {
     const type = typeCode !== undefined ? typeCode : gameTypeRef.current;
+    if (type === null) return;
     setGameTypeCode(type);
     initializeGame(type, BigInt(Date.now()));
     animatedCardsRef.current.clear();
@@ -601,11 +617,15 @@ export const App: React.FC = () => {
   }, [updateLayout]);
 
   useEffect(() => {
-    initEngine().then(() => { setIsEngineReady(true); });
+    useProfileStore.getState().loadProfiles().then(() => {
+      useUIStore.getState().initializeStore().then(() => {
+        initEngine().then(() => { setIsEngineReady(true); });
+      });
+    });
   }, []);
 
   useEffect(() => {
-    if (isEngineReady && isSplashComplete) startNewGame(0);
+    // if (isEngineReady && isSplashComplete) startNewGame(0);
   }, [isEngineReady, isSplashComplete]);
 
   // Animate ghost from source -> dest -> source
@@ -634,43 +654,62 @@ export const App: React.FC = () => {
 
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
+  const handleSplashComplete = useCallback(() => {
+    setIsSplashComplete(true);
+  }, []);
+
+  const leftHeaderContent = activeTab === "gameboard" && gameTypeCode !== null ? (
+    <button
+      onClick={() => setGameTypeCode(null)}
+      style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", color: "#e5e2e1", padding: "6px 12px", fontFamily: "Inter,sans-serif", fontSize: "14px", fontWeight: 600, cursor: "pointer", outline: "none", marginLeft: "-8px" }}
+    >
+      {["Klondike", "Spider", "FreeCell", "Pyramid", "Golf", "TriPeaks", "Yukon", "Forty Thieves", "Canfield", "Scorpion"][gameTypeCode] || "Choose Game"}
+    </button>
+  ) : null;
+
+  const rightHeaderContent = activeTab === "gameboard" && gameTypeCode !== null ? (
+    <>
+      <div style={{ display: "flex", gap: 16, fontFamily: "JetBrains Mono,monospace", fontSize: "14px", marginRight: "8px", alignItems: "center" }}>
+        <div><span style={{ opacity: 0.6, color: "#e5e2e1" }}>TIME: </span><span style={{ color: "#fff" }}>{formatTime(timerSeconds)}</span></div>
+        <div><span style={{ opacity: 0.6, color: "#e5e2e1" }}>MOVES: </span><span style={{ color: "#fff" }}>{moveCount}</span></div>
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button onClick={() => setIsHelpOpen(true)} title="Help" style={HUD_BTN}><HelpCircle size={18} /></button>
+        <button onClick={handleHint} title="Hint (H)" style={HUD_BTN}><Lightbulb size={18} /></button>
+        <button onClick={handleAutoPlay} title="Auto Play (A)" style={{ ...HUD_BTN, color: isAutoPlaying ? currentTheme.accentColor : "#e5e2e1" }}><Sparkles size={18} /></button>
+        <button onClick={() => { undoWasm(); updateLayout(); }} title="Undo (U)" style={HUD_BTN}><RotateCcw size={18} /></button>
+        <button onClick={() => startNewGame()} title="New Game (N)" style={HUD_BTN}><Play size={18} /></button>
+      </div>
+    </>
+  ) : (
+    <>
+      <button className="mobile-only-flex" onClick={() => setIsSettingsOpen(true)} style={{ background: "none", border: "none", color: "#e5e2e1", cursor: "pointer", display: "flex", alignItems: "center" }}><SettingsIcon size={20} /></button>
+    </>
+  );
+
   return (
     <>
       {(!isEngineReady || !isSplashComplete) && (
-        <SplashPage onLoadComplete={() => setIsSplashComplete(true)} />
+        <SplashPage onLoadComplete={handleSplashComplete} />
       )}
-      <div
-        style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden", backgroundColor: currentTheme.tableColor, visibility: (isEngineReady && isSplashComplete) ? "visible" : "hidden" }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={onPointerUp}
-      >
-      <div style={{ position: "absolute", top: 16, left: 24, right: 24, display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(19,19,19,0.65)", backdropFilter: "blur(16px)", borderRadius: "16px", padding: "12px 24px", border: "1px solid rgba(255,255,255,0.12)", zIndex: 10, color: "#e5e2e1" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <h1 style={{ fontFamily: "Manrope,sans-serif", fontSize: "20px", fontWeight: 800, color: currentTheme.accentColor }}>Solitude</h1>
-          <button
-            onClick={() => setIsGameChooserOpen(true)}
-            style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", color: "#e5e2e1", padding: "6px 12px", fontFamily: "Inter,sans-serif", fontSize: "14px", fontWeight: 600, cursor: "pointer", outline: "none" }}
-          >
-            {["Klondike", "Spider", "FreeCell", "Pyramid", "Golf", "TriPeaks", "Yukon", "Forty Thieves", "Canfield", "Scorpion"][gameTypeCode] || "Choose Game"}
-          </button>
-        </div>
-        <div style={{ display: "flex", gap: 24, fontFamily: "JetBrains Mono,monospace", fontSize: "14px" }}>
-          <div><span style={{ opacity: 0.6 }}>TIME: </span>{formatTime(timerSeconds)}</div>
-          <div><span style={{ opacity: 0.6 }}>MOVES: </span>{moveCount}</div>
-        </div>
-        <div style={{ display: "flex", gap: 12 }}>
-          <button onClick={() => setIsAboutOpen(true)} title="About" style={HUD_BTN}><Info size={18} /></button>
-          <button onClick={() => setIsHelpOpen(true)} title="How to Play" style={HUD_BTN}><HelpCircle size={18} /></button>
-          <button onClick={handleHint} title="Hint (H)" style={HUD_BTN}><Lightbulb size={18} /></button>
-          <button onClick={handleAutoPlay} title="Auto Play (A)" style={{ ...HUD_BTN, color: isAutoPlaying ? currentTheme.accentColor : "#e5e2e1" }}><Sparkles size={18} /></button>
-          <button onClick={() => { undoWasm(); updateLayout(); }} title="Undo (U)" style={HUD_BTN}><RotateCcw size={18} /></button>
-          <button onClick={() => startNewGame()} title="New Game (N)" style={HUD_BTN}><Play size={18} /></button>
-          <button onClick={() => setIsSettingsOpen(true)} title="Settings (Esc)" style={HUD_BTN}><SettingsIcon size={18} /></button>
-        </div>
-      </div>
-      <div style={{ position: "relative", width: "100%", height: "100%", touchAction: "none" }}>
+      {isEngineReady && isSplashComplete && (
+        <MetaGameHub 
+          activeTab={activeTab} 
+          onTabChange={setActiveTab} 
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          leftHeaderContent={leftHeaderContent}
+          rightHeaderContent={rightHeaderContent}
+        >
+          {activeTab === "gameboard" && gameTypeCode === null ? (
+            <GameChooserGrid onSelectGame={handleGameSelect} />
+          ) : (
+            <div
+              style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", backgroundColor: currentTheme.tableColor, display: activeTab === "gameboard" ? "block" : "none" }}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerLeave={onPointerUp}
+            >
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", position: "absolute", top: 0, left: 0 }} />
         <div id="cards-layer" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
           {/* Render Slots (empty piles) */}
@@ -735,11 +774,13 @@ export const App: React.FC = () => {
           )}
         </div>
       </div>
+      )}
+    </MetaGameHub>
+  )}
 
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} gameType={gameTypeCode} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} gameTypeCode={gameTypeCode ?? undefined} />
+      {gameTypeCode !== null && <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} gameType={gameTypeCode} />}
       <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
-      <GameChooserModal isOpen={isGameChooserOpen} onSelectGame={(id) => { setIsGameChooserOpen(false); handleGameSelect(id); }} />
 
       {toastMessage && (
         <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "rgba(19,19,19,0.9)", backdropFilter: "blur(16px)", padding: "24px", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.2)", zIndex: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
@@ -750,7 +791,6 @@ export const App: React.FC = () => {
           </div>
         </div>
       )}
-      </div>
     </>
   );
 };
