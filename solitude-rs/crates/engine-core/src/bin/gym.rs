@@ -1,7 +1,7 @@
 use engine_core::factory::GameFactory;
 use engine_core::game::GameType;
 use engine_core::solver::mcts::MctsSolver;
-use engine_core::solver::SolverEngine;
+use engine_core::solver::{SolverContext, SolverEngine};
 use std::time::Instant;
 
 /// Headless Rust Gym for Machine Learning Heuristic Tuning
@@ -40,7 +40,7 @@ fn main() {
             }
             None => {
                 // Try fallback to standard BFS with caching
-                match SolverEngine::find_best_move(game.as_mut()) {
+                match SolverEngine::find_best_move(game.as_mut(), SolverContext::AutoPlay) {
                     Some(m) => {
                         if m.cards.is_empty() {
                             let _ = game.tap_stock();

@@ -74,19 +74,34 @@ impl PartialEq for StateSignature {
 
 impl Eq for StateSignature {}
 
-thread_local! {
-    static CACHED_PATH: RefCell<Vec<HintMove>> = RefCell::new(Vec::new());
-    static EXPECTED_STATE_HASH: RefCell<u64> = RefCell::new(0);
+/// Distinguishes which UI feature is driving a solver search. Hint (one-shot,
+/// user-triggered) and AutoPlay/AutoComplete (continuous stepping) each get
+/// their own cache namespace so interleaving the two — e.g. a hint request
+/// arriving mid-autoplay — can't desync the other's cached move path against
+/// a state hash it was never computed from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SolverContext {
+    Hint,
+    AutoPlay,
 }
 
-/// Clears the solver's cached move path and expected-state hash.
+thread_local! {
+    static HINT_CACHED_PATH: RefCell<Vec<HintMove>> = RefCell::new(Vec::new());
+    static HINT_EXPECTED_STATE_HASH: RefCell<u64> = RefCell::new(0);
+    static AUTOPLAY_CACHED_PATH: RefCell<Vec<HintMove>> = RefCell::new(Vec::new());
+    static AUTOPLAY_EXPECTED_STATE_HASH: RefCell<u64> = RefCell::new(0);
+}
+
+/// Clears both solver caches (Hint and AutoPlay).
 ///
 /// Must be called whenever a new game is initialized: a stale cache from
 /// the previous game could otherwise be replayed against the new state if
 /// the state hashes happen to collide.
 pub fn clear_solver_cache() {
-    CACHED_PATH.with(|p| p.borrow_mut().clear());
-    EXPECTED_STATE_HASH.with(|e| *e.borrow_mut() = 0);
+    HINT_CACHED_PATH.with(|p| p.borrow_mut().clear());
+    HINT_EXPECTED_STATE_HASH.with(|e| *e.borrow_mut() = 0);
+    AUTOPLAY_CACHED_PATH.with(|p| p.borrow_mut().clear());
+    AUTOPLAY_EXPECTED_STATE_HASH.with(|e| *e.borrow_mut() = 0);
 }
 
 fn calculate_hash(game: &dyn GameRules) -> u64 {
@@ -109,13 +124,18 @@ impl SolverEngine {
     }
 
     /// Explores the game tree to find the best immediate move using Best-First Search.
-    pub fn find_best_move(game: &mut dyn GameRules) -> Option<HintMove> {
+    pub fn find_best_move(game: &mut dyn GameRules, context: SolverContext) -> Option<HintMove> {
+        let (cached_path, expected_state_hash) = match context {
+            SolverContext::Hint => (&HINT_CACHED_PATH, &HINT_EXPECTED_STATE_HASH),
+            SolverContext::AutoPlay => (&AUTOPLAY_CACHED_PATH, &AUTOPLAY_EXPECTED_STATE_HASH),
+        };
+
         let current_hash = calculate_hash(game);
-        
+
         // Check cache
-        let cached_move = EXPECTED_STATE_HASH.with(|expected| {
+        let cached_move = expected_state_hash.with(|expected| {
             if *expected.borrow() == current_hash {
-                CACHED_PATH.with(|path| {
+                cached_path.with(|path| {
                     let mut p = path.borrow_mut();
                     if !p.is_empty() {
                         return Some(p.remove(0));
@@ -123,7 +143,7 @@ impl SolverEngine {
                     None
                 })
             } else {
-                CACHED_PATH.with(|p| p.borrow_mut().clear());
+                cached_path.with(|p| p.borrow_mut().clear());
                 None
             }
         });
@@ -146,13 +166,13 @@ impl SolverEngine {
                 } else {
                     let _ = game.execute_move(m.from, m.to, &m.cards);
                 }
-                EXPECTED_STATE_HASH.with(|e| *e.borrow_mut() = calculate_hash(game));
+                expected_state_hash.with(|e| *e.borrow_mut() = calculate_hash(game));
                 game.restore(initial_snap);
                 game.restore_history(initial_hist);
-                
+
                 return Some(m);
             } else {
-                CACHED_PATH.with(|p| p.borrow_mut().clear());
+                cached_path.with(|p| p.borrow_mut().clear());
             }
         }
 
@@ -255,7 +275,7 @@ impl SolverEngine {
             }
         } else if let Some(ref m) = best_move_found {
             // Save the remaining path to cache
-            CACHED_PATH.with(|p| {
+            cached_path.with(|p| {
                 let mut path = p.borrow_mut();
                 path.clear();
                 // The first move is returned, the rest are cached
@@ -265,14 +285,14 @@ impl SolverEngine {
                     }
                 }
             });
-            
+
             // Calculate what the hash WILL be after this move
             if m.cards.is_empty() && m.from.kind == PileType::Stock {
                 let _ = game.tap_stock();
             } else {
                 let _ = game.execute_move(m.from, m.to, &m.cards);
             }
-            EXPECTED_STATE_HASH.with(|e| *e.borrow_mut() = calculate_hash(game));
+            expected_state_hash.with(|e| *e.borrow_mut() = calculate_hash(game));
             
             // Restore again
             game.restore(initial_snapshot);
@@ -328,7 +348,7 @@ mod tests {
         game.initialize(12345);
 
         let initial_history_len = game.snapshot_history().can_undo();
-        let hint = SolverEngine::find_best_move(game.as_mut());
+        let hint = SolverEngine::find_best_move(game.as_mut(), SolverContext::Hint);
         let _ = hint;
 
         // Should not panic and should restore the exact initial state & history
@@ -342,9 +362,9 @@ mod tests {
         game.initialize(12345);
 
         // Populate the cache with a real search.
-        let _ = SolverEngine::find_best_move(game.as_mut());
-        let had_cached_path = CACHED_PATH.with(|p| !p.borrow().is_empty());
-        let had_expected_hash = EXPECTED_STATE_HASH.with(|e| *e.borrow() != 0);
+        let _ = SolverEngine::find_best_move(game.as_mut(), SolverContext::Hint);
+        let had_cached_path = HINT_CACHED_PATH.with(|p| !p.borrow().is_empty());
+        let had_expected_hash = HINT_EXPECTED_STATE_HASH.with(|e| *e.borrow() != 0);
         assert!(
             had_cached_path || had_expected_hash,
             "expected a real search to populate the solver cache"
@@ -352,8 +372,10 @@ mod tests {
 
         clear_solver_cache();
 
-        CACHED_PATH.with(|p| assert!(p.borrow().is_empty(), "CACHED_PATH should be empty"));
-        EXPECTED_STATE_HASH.with(|e| assert_eq!(*e.borrow(), 0, "EXPECTED_STATE_HASH should be reset"));
+        HINT_CACHED_PATH.with(|p| assert!(p.borrow().is_empty(), "HINT_CACHED_PATH should be empty"));
+        HINT_EXPECTED_STATE_HASH.with(|e| assert_eq!(*e.borrow(), 0, "HINT_EXPECTED_STATE_HASH should be reset"));
+        AUTOPLAY_CACHED_PATH.with(|p| assert!(p.borrow().is_empty(), "AUTOPLAY_CACHED_PATH should be empty"));
+        AUTOPLAY_EXPECTED_STATE_HASH.with(|e| assert_eq!(*e.borrow(), 0, "AUTOPLAY_EXPECTED_STATE_HASH should be reset"));
     }
 
     #[test]
@@ -363,7 +385,7 @@ mod tests {
         // replayed against game N+1's state.
         let mut game_a = GameFactory::create_game(GameType::Klondike);
         game_a.initialize(111);
-        let _ = SolverEngine::find_best_move(game_a.as_mut());
+        let _ = SolverEngine::find_best_move(game_a.as_mut(), SolverContext::Hint);
 
         // New game starts; without clearing, EXPECTED_STATE_HASH from game_a
         // could coincidentally match game_b's hash and return a stale move.
@@ -372,11 +394,57 @@ mod tests {
         let mut game_b = GameFactory::create_game(GameType::Klondike);
         game_b.initialize(222);
 
-        EXPECTED_STATE_HASH.with(|e| assert_eq!(*e.borrow(), 0));
-        CACHED_PATH.with(|p| assert!(p.borrow().is_empty()));
+        HINT_EXPECTED_STATE_HASH.with(|e| assert_eq!(*e.borrow(), 0));
+        HINT_CACHED_PATH.with(|p| assert!(p.borrow().is_empty()));
 
         // Sanity: solver still works normally on the fresh game.
-        let _ = SolverEngine::find_best_move(game_b.as_mut());
+        let _ = SolverEngine::find_best_move(game_b.as_mut(), SolverContext::Hint);
         assert_eq!(game_b.snapshot().move_count, 0);
+    }
+
+    #[test]
+    fn test_hint_and_autoplay_caches_are_isolated() {
+        // Interleave Hint and AutoPlay searches on the same game state and
+        // verify each context's cache only ever contains moves computed
+        // under that context's own expected-state hash — i.e. a hint
+        // request mid-autoplay can't desync the autoplay cache or vice
+        // versa.
+        let mut game = GameFactory::create_game(GameType::Klondike);
+        game.initialize(999);
+
+        let hint_move = SolverEngine::find_best_move(game.as_mut(), SolverContext::Hint);
+        let autoplay_move = SolverEngine::find_best_move(game.as_mut(), SolverContext::AutoPlay);
+
+        // Both contexts searched from the same identical state, so they
+        // must agree on the best move.
+        assert_eq!(
+            hint_move.map(|m| (m.from, m.to, m.cards)),
+            autoplay_move.clone().map(|m| (m.from, m.to, m.cards)),
+            "hint and autoplay should find the same best move from the same state"
+        );
+
+        // Actually advance the game via the autoplay move, then take a
+        // second autoplay step. If the caches were shared, the first
+        // find_best_move(Hint) call above would have already populated a
+        // cache keyed to a state hash that autoplay's second call could
+        // mistakenly reuse; verifying it still returns a legal move after a
+        // real state change confirms no cross-contamination occurred.
+        if let Some(m) = autoplay_move {
+            if m.cards.is_empty() && m.from.kind == PileType::Stock {
+                let _ = game.tap_stock();
+            } else {
+                let _ = game.execute_move(m.from, m.to, &m.cards);
+            }
+        }
+        let next_autoplay_move = SolverEngine::find_best_move(game.as_mut(), SolverContext::AutoPlay);
+        if let Some(ref m) = next_autoplay_move {
+            let mut valid = false;
+            if m.cards.is_empty() && m.from.kind == PileType::Stock {
+                valid = game.can_tap_stock();
+            } else {
+                valid = game.is_valid_move(m.from, m.to, &m.cards);
+            }
+            assert!(valid, "autoplay's next move must be valid against the actual post-move state");
+        }
     }
 }

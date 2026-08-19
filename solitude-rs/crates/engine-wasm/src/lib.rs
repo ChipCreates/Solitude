@@ -5,7 +5,7 @@ use engine_core::card::{CardId, Suit};
 use engine_core::factory::{GameFactory, VariantOptions};
 use engine_core::game::{GameRules, GameType};
 use engine_core::pile::{PileRef, PileType};
-use engine_core::solver::SolverEngine;
+use engine_core::solver::{SolverContext, SolverEngine};
 use std::sync::Mutex;
 use wasm_bindgen::prelude::*;
 
@@ -224,7 +224,7 @@ pub fn execute_pair_move_wasm(
 pub fn get_hint_json() -> String {
     let mut lock = CURRENT_GAME.lock().unwrap();
     if let Some(game) = lock.as_mut() {
-        if let Some(hint) = SolverEngine::find_best_move(&mut **game) {
+        if let Some(hint) = SolverEngine::find_best_move(&mut **game, SolverContext::Hint) {
             return serde_json::to_string(&hint).unwrap_or_default();
         }
     }
@@ -235,7 +235,7 @@ pub fn get_hint_json() -> String {
 pub fn auto_play_step_wasm() -> bool {
     let mut lock = CURRENT_GAME.lock().unwrap();
     if let Some(game) = lock.as_mut() {
-        if let Some(hint) = SolverEngine::find_best_move(&mut **game) {
+        if let Some(hint) = SolverEngine::find_best_move(&mut **game, SolverContext::AutoPlay) {
             if hint.cards.is_empty() && hint.from.kind == PileType::Stock {
                 return game.tap_stock().is_ok();
             } else {
@@ -254,7 +254,7 @@ pub fn auto_complete_step_wasm() -> bool {
         if game.check_win() {
             return false;
         }
-        if let Some(hint) = SolverEngine::find_best_move(&mut **game) {
+        if let Some(hint) = SolverEngine::find_best_move(&mut **game, SolverContext::AutoPlay) {
             if hint.cards.is_empty() && hint.from.kind == PileType::Stock {
                 return game.tap_stock().is_ok();
             } else {
