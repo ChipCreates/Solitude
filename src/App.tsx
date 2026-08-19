@@ -31,7 +31,7 @@ import { POWER_UP_CONFIG } from "./powerups/config";
 import { audioService } from "./audio/audioService";
 import { ParticleSystem } from "./canvas/renderParticles";
 import { getCachedImage } from "./canvas/boardTexture";
-import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles, HelpCircle, Zap, Undo2, Info, Home } from "lucide-react";
+import { RotateCcw, Play, Lightbulb, Sparkles, HelpCircle, Zap, Undo2, Info, Home } from "lucide-react";
 
 const POWER_UP_ITEMS = STORE_ITEMS.filter((i) => i.type === "power_up");
 const RANK_STRS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
@@ -386,6 +386,28 @@ export const App: React.FC = () => {
     }
     cardBoundsListRef.current = boundsList;
   }, []);
+
+  // updateLayout normally only re-runs after a game action (deal/move/undo),
+  // so resizing the window or rotating a mobile device mid-game wouldn't
+  // relayout the board until the next move. rAF-throttled so a drag-resize
+  // doesn't spam layout recalculation every pixel.
+  useEffect(() => {
+    let rafId: number | null = null;
+    const scheduleRelayout = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updateLayout();
+      });
+    };
+    window.addEventListener("resize", scheduleRelayout);
+    window.addEventListener("orientationchange", scheduleRelayout);
+    return () => {
+      window.removeEventListener("resize", scheduleRelayout);
+      window.removeEventListener("orientationchange", scheduleRelayout);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [updateLayout]);
 
   // ─── Render Loop ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1228,11 +1250,7 @@ export const App: React.FC = () => {
         <button onClick={() => startNewGame()} title="New Game (N)" style={HUD_BTN}><Play size={18} /></button>
       </div>
     </>
-  ) : (
-    <>
-      <button className="mobile-only-flex" onClick={() => setActiveTab("settings")} style={{ background: "none", border: "none", color: "#e5e2e1", cursor: "pointer", display: "flex", alignItems: "center" }}><SettingsIcon size={20} /></button>
-    </>
-  );
+  ) : null;
 
   return (
     <>
@@ -1253,7 +1271,7 @@ export const App: React.FC = () => {
             <GameChooserGrid onSelectGame={handleGameSelect} resumableSave={resumableSave} onResumeGame={resumableSave ? () => resumeGame(resumableSave) : undefined} />
           ) : (
             <div
-              style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", backgroundColor: currentTheme.tableColor, display: activeTab === "gameboard" ? "block" : "none" }}
+              style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", backgroundColor: currentTheme.tableColor, display: activeTab === "gameboard" ? "block" : "none", touchAction: "none" }}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}

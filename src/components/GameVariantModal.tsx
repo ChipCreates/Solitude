@@ -51,7 +51,8 @@ export const GameVariantModal: React.FC<GameVariantModalProps> = ({ gameId, game
       display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000
     }}>
       <div style={{
-        width: "90%", maxWidth: "360px",
+        width: "90%", maxWidth: "360px", maxHeight: "90vh",
+        display: "flex", flexDirection: "column",
         backgroundColor: "#0d2016",
         borderRadius: "16px",
         overflow: "hidden",
@@ -60,7 +61,7 @@ export const GameVariantModal: React.FC<GameVariantModalProps> = ({ gameId, game
       }}>
         {/* Header */}
         <div style={{
-          backgroundColor: "#1e3a2b", padding: "16px", display: "flex", alignItems: "center", borderBottom: `4px solid ${accentColor}`
+          backgroundColor: "#1e3a2b", padding: "16px", display: "flex", alignItems: "center", borderBottom: `4px solid ${accentColor}`, flexShrink: 0
         }}>
           {/* Avatar Placeholder */}
           <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.2)", marginRight: "12px" }}></div>
@@ -79,7 +80,7 @@ export const GameVariantModal: React.FC<GameVariantModalProps> = ({ gameId, game
         </div>
 
         {/* Content */}
-        <div style={{ padding: "20px", backgroundColor: "#0b1810" }}>
+        <div style={{ padding: "20px", backgroundColor: "#0b1810", overflowY: "auto", flex: "1 1 auto", minHeight: 0 }}>
           {variants ? (
             <div style={{ 
               backgroundColor: "rgba(255,255,255,0.05)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", overflow: "hidden" 
@@ -118,7 +119,7 @@ export const GameVariantModal: React.FC<GameVariantModalProps> = ({ gameId, game
         </div>
 
         {/* Footer */}
-        <div style={{ padding: "16px", display: "flex", gap: "12px", backgroundColor: "#1e3a2b" }}>
+        <div style={{ padding: "16px", display: "flex", gap: "12px", backgroundColor: "#1e3a2b", flexShrink: 0 }}>
           <button 
             onClick={handlePlay}
             style={{

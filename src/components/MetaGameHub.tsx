@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Trophy, Store, Settings as SettingsIcon, ArrowLeft, LayoutGrid, Coins, PanelLeftClose, PanelLeftOpen, Info, Eye } from "lucide-react";
+import { Trophy, Store, Settings as SettingsIcon, ArrowLeft, LayoutGrid, Coins, PanelLeftClose, PanelLeftOpen, Info, Eye, Users, X } from "lucide-react";
+import { useViewport } from "../hooks/useViewport";
 import { useUIStore } from "../store/uiStore";
 import { useProfileStore } from "../store/profileStore";
 import { useStatisticsStore } from "../store/statisticsStore";
@@ -35,6 +36,14 @@ function formatDuration(ms: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+const STORE_CATEGORIES = [
+  { id: "card_back", label: "CARD BACKS" },
+  { id: "theme", label: "THEMES" },
+  { id: "theme_pack", label: "THEME PACKS" },
+  { id: "power_up", label: "POWER UPS" },
+  { id: "victory", label: "ANIMATIONS" },
+];
+
 export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange, onOpenAbout, gameTypeCode, leftHeaderContent, rightHeaderContent, activeGameName, children }) => {
   const { coins, subtractCoins, unlockedItems, unlockItem, cardBackPattern, setCardBackPattern, themeId, setThemeId, setSfxSetId, setMusicTrackId, unlockedAchievements, powerUpInventory, purchasePowerUp, gameProgress } = useUIStore();
   const { profiles, activeProfileId } = useProfileStore();
@@ -44,6 +53,10 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
   const [storeCategory, setStoreCategory] = useState("card_back");
   const [trophySubTab, setTrophySubTab] = useState<"overview" | "stats">("overview");
   const [previewThemePackId, setPreviewThemePackId] = useState<string | null>(null);
+  const { isMobile, isLandscape } = useViewport();
+  // Only hide the tab bar once a game is actually in progress — the game
+  // chooser grid itself isn't gameplay and still needs primary nav.
+  const hideBottomChromeForLandscapeGameplay = isMobile && isLandscape && activeTab === "gameboard" && gameTypeCode !== undefined;
 
   const goToDashboard = () => {
     onTabChange("trophy");
@@ -100,44 +113,47 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
   const totalAvailable = achievementsData.achievements.length;
   const progressPercent = Math.round((totalEarned / totalAvailable) * 100) || 0;
 
+  const avatarMenuItems = [
+    ...(isMobile ? [{ label: "Switch Profile", icon: <Users size={isMobile ? 20 : 15} />, onClick: goToDashboard }] : []),
+    { label: "Dashboard", icon: <Trophy size={isMobile ? 20 : 15} />, onClick: goToDashboard },
+    { label: "Settings", icon: <SettingsIcon size={isMobile ? 20 : 15} />, onClick: () => { onTabChange("settings"); setIsAvatarMenuOpen(false); } },
+    { label: "About", icon: <Info size={isMobile ? 20 : 15} />, onClick: () => { onOpenAbout(); setIsAvatarMenuOpen(false); } },
+  ];
+
   return (
     <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "#0a120d", zIndex: 1000, display: "flex", flexDirection: "column", fontFamily: "Inter, sans-serif" }}>
-      
+
       {/* Top Header */}
-      <div style={{ height: "64px", background: "#111111", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px" }}>
+      <div style={{ height: isMobile && isLandscape ? "48px" : "64px", flexShrink: 0, background: "#111111", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "0 12px" : "0 24px", paddingTop: "env(safe-area-inset-top)" }}>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "16px" }}>
           {activeTab !== "gameboard" ? (
             <button onClick={() => onTabChange("gameboard")} style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", color: "#e9c349", fontSize: "16px", fontWeight: 600, cursor: "pointer", padding: "8px", marginLeft: "-8px" }}>
-              <ArrowLeft size={20} /> Back
+              <ArrowLeft size={20} /> {!isMobile && "Back"}
             </button>
           ) : leftHeaderContent}
         </div>
-        <div style={{ fontSize: "28px", fontWeight: 800, color: "#e9c349", fontFamily: "Manrope, sans-serif", letterSpacing: "1px", flex: 1, textAlign: "center" }}>
+        <div style={{ fontSize: isMobile ? "18px" : "28px", fontWeight: 800, color: "#e9c349", fontFamily: "Manrope, sans-serif", letterSpacing: "1px", flex: 1, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           Solitude{activeTab === "gameboard" && activeGameName ? `: ${activeGameName}` : ""}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1, justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "8px" : "16px", flex: 1, justifyContent: "flex-end" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(0,0,0,0.4)", padding: "4px 12px", borderRadius: "12px", border: "1px solid rgba(233, 195, 73, 0.3)" }}>
             <span style={{ color: "#e9c349", fontWeight: "bold", fontSize: "14px", fontFamily: "JetBrains Mono, monospace" }}>{coins}</span>
-            <span style={{ fontSize: "12px", opacity: 0.8, color: "#e5e2e1", fontFamily: "Inter, sans-serif" }}>Coins</span>
+            {!isMobile && <span style={{ fontSize: "12px", opacity: 0.8, color: "#e5e2e1", fontFamily: "Inter, sans-serif" }}>Coins</span>}
           </div>
           <div style={{ position: "relative" }}>
             <button
               onClick={() => setIsAvatarMenuOpen((open) => !open)}
               data-testid="avatar-menu-button"
-              style={{ background: "none", cursor: "pointer", padding: 0, width: "36px", height: "36px", borderRadius: "50%", overflow: "hidden", border: `1px solid ${activeAvatar.ringColor}88` }}
+              style={{ background: "none", cursor: "pointer", padding: 0, width: "36px", height: "36px", borderRadius: "50%", overflow: "hidden", border: `1px solid ${activeAvatar.ringColor}88`, flexShrink: 0 }}
             >
               <img src={activeAvatar.src} alt={activeAvatar.label} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             </button>
-            {isAvatarMenuOpen && (
+            {isAvatarMenuOpen && !isMobile && (
               <>
                 <div onClick={() => setIsAvatarMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 1099 }} />
                 <div style={{ position: "absolute", top: "44px", right: 0, minWidth: "180px", background: "#111111", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 1100, overflow: "hidden", padding: "6px" }}>
                   <div style={{ padding: "8px 12px", fontSize: "12px", color: "#e9c349", fontWeight: 700 }}>{activeProfile?.name || "Player"}</div>
-                  {[
-                    { label: "Dashboard", icon: <Trophy size={15} />, onClick: goToDashboard },
-                    { label: "Settings", icon: <SettingsIcon size={15} />, onClick: () => { onTabChange("settings"); setIsAvatarMenuOpen(false); } },
-                    { label: "About", icon: <Info size={15} />, onClick: () => { onOpenAbout(); setIsAvatarMenuOpen(false); } },
-                  ].map((item) => (
+                  {avatarMenuItems.map((item) => (
                     <button
                       key={item.label}
                       onClick={item.onClick}
@@ -156,8 +172,37 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
         </div>
       </div>
 
+      {/* Full-screen profile menu (mobile) */}
+      {isAvatarMenuOpen && isMobile && (
+        <div style={{ position: "fixed", inset: 0, background: "#0a120d", zIndex: 2000, display: "flex", flexDirection: "column", paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "50%", overflow: "hidden", border: `1px solid ${activeAvatar.ringColor}88`, flexShrink: 0 }}>
+                <img src={activeAvatar.src} alt={activeAvatar.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+              <div style={{ fontSize: "16px", fontWeight: 700, color: "#e9c349" }}>{activeProfile?.name || "Player"}</div>
+            </div>
+            <button onClick={() => setIsAvatarMenuOpen(false)} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", color: "#e5e2e1", cursor: "pointer" }}>
+              <X size={20} />
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", padding: "8px 12px" }}>
+            {avatarMenuItems.map((item) => (
+              <button
+                key={item.label}
+                onClick={item.onClick}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: "16px", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.05)", color: "#e5e2e1", fontSize: "16px", fontWeight: 600, padding: "18px 12px", cursor: "pointer", textAlign: "left", minHeight: "44px" }}
+              >
+                {item.icon} {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        {/* Left Sidebar */}
+        {/* Left Sidebar (desktop only — mobile uses the bottom tab bar instead) */}
+        {!isMobile && (
         <div style={{ width: sidebarOpen ? "240px" : "80px", transition: "width 0.2s ease", background: "#13261a", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", padding: "24px 0", flexShrink: 0 }}>
           <div style={{ padding: sidebarOpen ? "0 24px" : "0", marginBottom: "32px", display: "flex", justifyContent: sidebarOpen ? "space-between" : "center", alignItems: "flex-start" }}>
             {sidebarOpen ? (
@@ -187,13 +232,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
             {sidebarOpen && activeTab === "store" && (
               <div style={{ display: "flex", flexDirection: "column", paddingLeft: "48px", paddingRight: "24px", gap: "8px", marginTop: "4px", marginBottom: "8px" }}>
                 <div style={{ fontSize: "10px", color: "rgba(165,184,169,0.5)", letterSpacing: "1px", marginBottom: "4px" }}>CATEGORIES</div>
-                {[
-                  { id: "card_back", label: "CARD BACKS" },
-                  { id: "theme", label: "THEMES" },
-                  { id: "theme_pack", label: "THEME PACKS" },
-                  { id: "power_up", label: "POWER UPS" },
-                  { id: "victory", label: "ANIMATIONS" },
-                ].map(cat => (
+                {STORE_CATEGORIES.map(cat => (
                   <button
                     key={cat.id}
                     onClick={() => setStoreCategory(cat.id)}
@@ -224,10 +263,30 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
             </button>
           </div>
         </div>
+        )}
 
         {/* Main Content Area */}
         <div style={{ flex: 1, position: "relative", background: "radial-gradient(circle at 50% 0%, #1e3a2b, #0d1a13)", overflowY: "auto" }}>
-          
+
+          {isMobile && activeTab === "store" && (
+            <div style={{ display: "flex", gap: "8px", overflowX: "auto", padding: "12px", position: "sticky", top: 0, background: "rgba(10,20,15,0.9)", backdropFilter: "blur(8px)", zIndex: 10, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+              {STORE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setStoreCategory(cat.id)}
+                  style={{
+                    flexShrink: 0, whiteSpace: "nowrap", background: storeCategory === cat.id ? "rgba(233,195,73,0.15)" : "rgba(255,255,255,0.05)",
+                    border: storeCategory === cat.id ? "1px solid #e9c349" : "1px solid transparent",
+                    color: storeCategory === cat.id ? "#e9c349" : "#a5b8a9", fontSize: "12px", fontWeight: 700,
+                    padding: "10px 16px", borderRadius: "999px", cursor: "pointer", minHeight: "44px",
+                  }}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: activeTab === "gameboard" ? "block" : "none", width: "100%", height: "100%", overflow: "hidden" }}>
             {children}
           </div>
@@ -435,6 +494,30 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
           {activeTab === "settings" && <SettingsPage gameTypeCode={gameTypeCode} />}
         </div>
       </div>
+
+      {/* Bottom Tab Bar (mobile only — hidden during landscape gameplay to maximize board space) */}
+      {isMobile && !hideBottomChromeForLandscapeGameplay && (
+        <div style={{ display: "flex", flexShrink: 0, background: "#111111", borderTop: "1px solid rgba(255,255,255,0.08)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+          {([
+            { id: "gameboard" as const, label: "Gameboard", Icon: LayoutGrid },
+            { id: "store" as const, label: "Emporium", Icon: Store },
+            { id: "trophy" as const, label: "Trophies", Icon: Trophy },
+            { id: "settings" as const, label: "Settings", Icon: SettingsIcon },
+          ]).map(({ id, label, Icon }) => {
+            const active = activeTab === id;
+            return (
+              <button
+                key={id}
+                onClick={() => onTabChange(id)}
+                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", background: "none", border: "none", color: active ? "#e9c349" : "#a5b8a9", padding: "10px 4px", cursor: "pointer", minHeight: "56px" }}
+              >
+                <Icon size={22} color={active ? "#e9c349" : "#a5b8a9"} />
+                <span style={{ fontSize: "11px", fontWeight: 600 }}>{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

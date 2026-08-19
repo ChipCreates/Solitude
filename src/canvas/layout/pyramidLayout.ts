@@ -14,8 +14,9 @@ export function calculatePyramidLayout(
   const horizontalPadding = 16;
   const availableWidth = viewportWidth - horizontalPadding * 2;
 
-  // Base needs space for ~8 cards (7 cards with 1.1x spacing)
-  const cardWidth = Math.max(40, Math.min(100, availableWidth / 8.0));
+  // Base needs space for ~8 cards (7 cards with 1.1x spacing). Floor of 44px
+  // matches the minimum touch-target guidance used in gridLayout.ts.
+  const cardWidth = Math.max(44, Math.min(100, availableWidth / 8.0));
   const cardHeight = cardWidth * 1.4;
 
   const pyramidHeight = 7 * cardHeight * 0.4 + cardHeight;
