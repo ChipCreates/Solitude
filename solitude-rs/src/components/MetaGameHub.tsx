@@ -52,7 +52,7 @@ const STORE_ITEMS = [
 ];
 
 export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange, onOpenSettings, leftHeaderContent, rightHeaderContent, children }) => {
-  const { coins, subtractCoins, unlockedItems, unlockItem, cardBackPattern, setCardBackPattern, themeId, setThemeId, unlockedAchievements } = useUIStore();
+  const { coins, subtractCoins, unlockedItems, unlockItem, cardBackPattern, setCardBackPattern, themeId, setThemeId, unlockedAchievements, powerUpInventory, purchasePowerUp } = useUIStore();
   const { profiles, activeProfileId } = useProfileStore();
   const { statsByGameType, loadAllStats } = useStatisticsStore();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -67,6 +67,12 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
 
   // --- Store Handlers ---
   const handlePurchase = (item: any) => {
+    // Power-ups are consumable: every click buys another one (spending
+    // coins), rather than a one-time unlock+equip like cosmetics.
+    if (item.type === "power_up") {
+      purchasePowerUp(item.id, item.price);
+      return;
+    }
     if (unlockedItems.includes(item.id) || item.price === 0) {
       if (item.type === "card_back") setCardBackPattern(item.id);
       if (item.type === "theme") setThemeId(item.id);
@@ -322,12 +328,20 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
 
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "24px" }}>
                         {items.map(item => {
+                          const isPowerUp = item.type === "power_up";
+                          const owned = powerUpInventory[item.id] ?? 0;
                           const unlocked = unlockedItems.includes(item.id) || item.price === 0;
                           const equipped = isEquipped(item);
                           const canAfford = coins >= item.price;
+                          const disabled = isPowerUp ? !canAfford : (!unlocked && !canAfford);
 
                           return (
-                            <div key={item.id} style={{ background: "rgba(10, 20, 15, 0.6)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "16px", padding: "16px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                            <div key={item.id} style={{ background: "rgba(10, 20, 15, 0.6)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "16px", padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+                              {isPowerUp && owned > 0 && (
+                                <div style={{ position: "absolute", top: "12px", right: "12px", background: "#d4af37", color: "#111", fontWeight: 800, fontSize: "12px", borderRadius: "999px", padding: "2px 9px", zIndex: 1 }}>
+                                  ×{owned}
+                                </div>
+                              )}
                               <div style={{ width: "100%", display: "flex", justifyContent: "center", marginBottom: "24px" }}>
                                 {item.icon ? (
                                   <img src={item.icon} alt={item.name} style={{ width: "100%", aspectRatio: "5/7", objectFit: "cover", borderRadius: "10px", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }} />
@@ -346,16 +360,18 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                               <div style={{ width: "100%" }}>
                                 <button
                                   onClick={() => handlePurchase(item)}
-                                  disabled={!unlocked && !canAfford}
+                                  disabled={disabled}
                                   style={{
-                                    width: "100%", padding: "14px", borderRadius: "8px", border: "none", fontWeight: 700, fontSize: "13px", letterSpacing: "1.5px", textTransform: "uppercase", cursor: (!unlocked && !canAfford) ? "not-allowed" : "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-                                    background: equipped ? "rgba(212, 175, 55, 0.1)" : unlocked ? "rgba(50, 65, 40, 0.8)" : canAfford ? "rgba(50, 65, 40, 0.8)" : "transparent",
-                                    color: equipped ? "#d4af37" : (unlocked || canAfford) ? "#e9c349" : "rgba(255,255,255,0.3)",
+                                    width: "100%", padding: "14px", borderRadius: "8px", border: "none", fontWeight: 700, fontSize: "13px", letterSpacing: "1.5px", textTransform: "uppercase", cursor: disabled ? "not-allowed" : "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                                    background: equipped ? "rgba(212, 175, 55, 0.1)" : (isPowerUp ? canAfford : unlocked || canAfford) ? "rgba(50, 65, 40, 0.8)" : "transparent",
+                                    color: equipped ? "#d4af37" : (isPowerUp ? canAfford : unlocked || canAfford) ? "#e9c349" : "rgba(255,255,255,0.3)",
                                     borderWidth: "1px", borderStyle: "solid",
-                                    borderColor: equipped ? "#d4af37" : (unlocked || canAfford) ? "rgba(100, 120, 80, 0.5)" : "rgba(255,255,255,0.1)"
+                                    borderColor: equipped ? "#d4af37" : (isPowerUp ? canAfford : unlocked || canAfford) ? "rgba(100, 120, 80, 0.5)" : "rgba(255,255,255,0.1)"
                                   }}
                                 >
-                                  {equipped ? "Equipped" : unlocked ? "Equip" : (
+                                  {isPowerUp ? (
+                                    <>{owned > 0 ? "Buy Another" : "Buy"} · {item.price} <Coins size={16} /></>
+                                  ) : equipped ? "Equipped" : unlocked ? "Equip" : (
                                     <>
                                       {item.price} <Coins size={16} />
                                     </>

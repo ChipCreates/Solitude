@@ -53,6 +53,7 @@ export interface Progression {
   unlockedAchievements: string[];
   difficulty: "easy" | "normal" | "hard";
   gameProgress: Record<string, GameProgression>;
+  powerUpInventory: Record<string, number>;
 }
 
 export interface Profile {

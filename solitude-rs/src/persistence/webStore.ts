@@ -197,7 +197,8 @@ export const webStore: GameStore = {
           unlockedItems: ["classic_felt", "diamond"],
           unlockedAchievements: [],
           difficulty: "normal",
-          gameProgress: {}
+          gameProgress: {},
+          powerUpInventory: {},
         };
         resolve(req.result || defaultProgression);
       };

@@ -126,6 +126,7 @@ pub mod commands {
                 "unlockedAchievements": [],
                 "difficulty": "normal",
                 "gameProgress": {},
+                "powerUpInventory": {},
             })
         }))
     }

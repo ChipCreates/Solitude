@@ -19,7 +19,11 @@ export interface SettingsState {
   unlockedAchievements: string[];
   difficulty: "easy" | "normal" | "hard";
   gameProgress: Record<string, { level: number; xp: number }>;
-  
+  // Consumable count per power-up id, distinct from unlockedItems (which is
+  // a permanent one-time flag used for cosmetics). Buying a power-up adds to
+  // its count; using one decrements it.
+  powerUpInventory: Record<string, number>;
+
   showTimer: boolean;
   autoplay: boolean;
   scoringMode: "standard" | "vegas" | "vegas_cumulative";
@@ -60,6 +64,8 @@ export interface SettingsState {
   subtractCoins: (amount: number) => boolean;
   unlockItem: (itemId: string) => void;
   unlockAchievement: (achievementId: string) => void;
+  purchasePowerUp: (powerUpId: string, price: number) => boolean;
+  consumePowerUp: (powerUpId: string) => boolean;
   setDifficulty: (difficulty: "easy" | "normal" | "hard") => void;
   addXP: (gameType: string, amount: number) => { leveledUp: boolean, newLevel: number, newXP: number };
   initializeStore: () => Promise<void>;
@@ -98,6 +104,7 @@ function progressionSnapshot(state: SettingsState): Progression {
     unlockedAchievements: state.unlockedAchievements,
     difficulty: state.difficulty,
     gameProgress: state.gameProgress,
+    powerUpInventory: state.powerUpInventory,
   };
 }
 
@@ -117,7 +124,8 @@ export const useUIStore = create<SettingsState>((set, get) => ({
   unlockedAchievements: [],
   difficulty: "normal",
   gameProgress: {},
-  
+  powerUpInventory: {},
+
   showTimer: true,
   autoplay: false,
   scoringMode: "standard",
@@ -178,6 +186,25 @@ export const useUIStore = create<SettingsState>((set, get) => ({
       unlockedAchievements: state.unlockedAchievements.includes(achievementId) ? state.unlockedAchievements : [...state.unlockedAchievements, achievementId]
     }));
     import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, progressionSnapshot(get())));
+  },
+  purchasePowerUp: (powerUpId, price) => {
+    const { coins } = get();
+    if (coins < price) return false;
+    set((state) => ({
+      coins: state.coins - price,
+      powerUpInventory: { ...state.powerUpInventory, [powerUpId]: (state.powerUpInventory[powerUpId] ?? 0) + 1 },
+    }));
+    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, progressionSnapshot(get())));
+    return true;
+  },
+  consumePowerUp: (powerUpId) => {
+    const { powerUpInventory } = get();
+    if ((powerUpInventory[powerUpId] ?? 0) <= 0) return false;
+    set((state) => ({
+      powerUpInventory: { ...state.powerUpInventory, [powerUpId]: state.powerUpInventory[powerUpId] - 1 },
+    }));
+    import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, progressionSnapshot(get())));
+    return true;
   },
   setDifficulty: (difficulty) => {
     set({ difficulty });
@@ -245,6 +272,7 @@ export const useUIStore = create<SettingsState>((set, get) => ({
         unlockedAchievements: progression.unlockedAchievements,
         difficulty: progression.difficulty,
         gameProgress: progression.gameProgress || {},
+        powerUpInventory: progression.powerUpInventory || {},
       });
     } catch (e) {
       console.error("Failed to initialize store", e);
