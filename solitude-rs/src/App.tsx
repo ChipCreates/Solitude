@@ -69,6 +69,8 @@ export const App: React.FC = () => {
   const [hintGhost, setHintGhost] = useState<{startX: number, startY: number, endX: number, endY: number, width: number, height: number, rank: number, suit: number} | null>(null);
   const [ghostPos, setGhostPos] = useState({x: 0, y: 0});
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const autoPlayTimeoutRef = useRef<number | null>(null);
+  const shouldCancelAutoPlayRef = useRef(false);
   const isWonRef = useRef(false);
 
   const { themeId, themeOverlayIntensities, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern } = useUIStore();
@@ -548,6 +550,11 @@ export const App: React.FC = () => {
   const startNewGame = useCallback((typeCode?: number | null) => {
     const type = typeCode !== undefined ? typeCode : gameTypeRef.current;
     if (type === null) return;
+    shouldCancelAutoPlayRef.current = true;
+    if (autoPlayTimeoutRef.current !== null) {
+      clearTimeout(autoPlayTimeoutRef.current);
+      autoPlayTimeoutRef.current = null;
+    }
     setGameTypeCode(type);
     initializeGame(type, BigInt(Date.now()));
     animatedCardsRef.current.clear();
@@ -609,14 +616,25 @@ export const App: React.FC = () => {
   }, [isAutoPlaying]);
 
   const handleAutoPlay = useCallback(() => {
+    if (isAutoPlaying) return; // Guard against re-entry (double click / repeated hotkey)
+
+    shouldCancelAutoPlayRef.current = false;
+
     const nextStep = () => {
-      if (checkWinWasm()) return;
+      if (shouldCancelAutoPlayRef.current) {
+        setIsAutoPlaying(false);
+        return;
+      }
+      if (checkWinWasm()) {
+        setIsAutoPlaying(false);
+        return;
+      }
       const success = autoPlayStepWasm();
       if (success) {
         setMoveCount((m) => m + 1);
         audioService.playCardMove();
         updateLayout();
-        setTimeout(nextStep, 120);
+        autoPlayTimeoutRef.current = window.setTimeout(nextStep, 120);
       } else {
         setIsAutoPlaying(false);
         if (!checkWinWasm()) {
@@ -626,7 +644,18 @@ export const App: React.FC = () => {
     };
     setIsAutoPlaying(true);
     nextStep();
-  }, [updateLayout]);
+  }, [isAutoPlaying, updateLayout]);
+
+  // Cancel any in-flight autoplay chain when the component unmounts
+  useEffect(() => {
+    return () => {
+      shouldCancelAutoPlayRef.current = true;
+      if (autoPlayTimeoutRef.current !== null) {
+        clearTimeout(autoPlayTimeoutRef.current);
+        autoPlayTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     useProfileStore.getState().loadProfiles().then(() => {
