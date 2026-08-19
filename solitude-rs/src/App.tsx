@@ -13,6 +13,7 @@ import { useUIStore } from "./store/uiStore";
 import { useProfileStore } from "./store/profileStore";
 import { useStatisticsStore } from "./store/statisticsStore";
 import { GAME_TYPE_NAMES } from "./data/gameTypes";
+import { checkWinAchievements } from "./achievements/checkAchievements";
 import { MUSIC_TRACKS, CUSTOM_TRACK_ID } from "./data/musicTracks";
 import { CardWidget } from "./components/CardWidget";
 import { SettingsModal } from "./components/SettingsModal";
@@ -74,7 +75,7 @@ export const App: React.FC = () => {
   const [isEngineReady, setIsEngineReady] = useState(false);
   const [isSplashComplete, setIsSplashComplete] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [winData, setWinData] = useState<{ xpGained: number, leveledUp: boolean, newLevel: number, newXP: number } | null>(null);
+  const [winData, setWinData] = useState<{ xpGained: number, leveledUp: boolean, newLevel: number, newXP: number, newlyUnlockedAchievements: string[] } | null>(null);
 
   // Pyramid selection stored in ref so tap handler always reads live value
   const selectedPyramidCardRef = useRef<CardBounds | null>(null);
@@ -100,6 +101,9 @@ export const App: React.FC = () => {
   const shouldCancelAutoPlayRef = useRef(false);
   const isWonRef = useRef(false);
   const isLostRef = useRef(false);
+  // Tracks whether the current round used a hint or undo, for the
+  // "perfect_game" achievement (win without either).
+  const usedHintOrUndoRef = useRef(false);
   // Guards against double-committing a Vegas-cumulative round's score: it can
   // be committed either on win (render loop) or on New Game (startNewGame),
   // whichever happens first for a given round.
@@ -420,17 +424,24 @@ export const App: React.FC = () => {
 
           if (gameTypeRef.current !== null) {
             const xpResult = uiState.addXP(gameTypeRef.current.toString(), reward);
+            const gameTypeName = GAME_TYPE_NAMES[gameTypeRef.current];
+            const elapsedMs = timerSecondsRef.current * 1000;
+            useStatisticsStore.getState().recordWin(gameTypeName, elapsedMs, moveCountRef.current);
+            // recordWin() updates statsByGameType synchronously (before its
+            // first await), so the fresh stats are already readable here.
+            const newlyUnlocked = checkWinAchievements({
+              elapsedMs,
+              moveCount: moveCountRef.current,
+              updatedStats: useStatisticsStore.getState().getStats(gameTypeName),
+              usedHintOrUndo: usedHintOrUndoRef.current,
+            });
             setWinData({
               xpGained: reward,
               leveledUp: xpResult.leveledUp,
               newLevel: xpResult.newLevel,
-              newXP: xpResult.newXP
+              newXP: xpResult.newXP,
+              newlyUnlockedAchievements: newlyUnlocked,
             });
-            useStatisticsStore.getState().recordWin(
-              GAME_TYPE_NAMES[gameTypeRef.current],
-              timerSecondsRef.current * 1000,
-              moveCountRef.current
-            );
           }
         }
         particleSystemRef.current.updateAndRender(ctx, rect.width, rect.height, victoryPattern);
@@ -649,6 +660,7 @@ export const App: React.FC = () => {
     hintCardIdRef.current = null;
     isWonRef.current = false;
     isLostRef.current = false;
+    usedHintOrUndoRef.current = false;
     particleSystemRef.current.clear();
     setIsAutoPlaying(false);
     setMoveCount(0); setTimerSeconds(0);
@@ -659,6 +671,7 @@ export const App: React.FC = () => {
 
   const handleHint = useCallback(() => {
     if (isWonRef.current || isAutoPlaying) return;
+    usedHintOrUndoRef.current = true;
     const hint = getHintWasm();
     if (hint && hint.cards && hint.cards.length > 0) {
       const sourceId = hint.cards[0];
@@ -706,6 +719,7 @@ export const App: React.FC = () => {
   const handleAutoPlay = useCallback(() => {
     if (isAutoPlaying) return; // Guard against re-entry (double click / repeated hotkey)
 
+    usedHintOrUndoRef.current = true;
     shouldCancelAutoPlayRef.current = false;
 
     const nextStep = () => {
@@ -768,7 +782,7 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     return setupKeyboardNav({
-      onUndo: () => { undoWasm(); updateLayout(); },
+      onUndo: () => { usedHintOrUndoRef.current = true; undoWasm(); updateLayout(); },
       onRedo: () => { redoWasm(); updateLayout(); },
       onNewGame: () => startNewGame(),
       onHint: handleHint,
@@ -820,7 +834,7 @@ export const App: React.FC = () => {
         <button onClick={() => setIsHelpOpen(true)} title="Help" style={HUD_BTN}><HelpCircle size={18} /></button>
         <button onClick={handleHint} title="Hint (H)" style={HUD_BTN}><Lightbulb size={18} /></button>
         <button onClick={handleAutoPlay} title="Auto Play (A)" style={{ ...HUD_BTN, color: isAutoPlaying ? currentTheme.accentColor : "#e5e2e1" }}><Sparkles size={18} /></button>
-        <button onClick={() => { undoWasm(); updateLayout(); }} title="Undo (U)" style={HUD_BTN}><RotateCcw size={18} /></button>
+        <button onClick={() => { usedHintOrUndoRef.current = true; undoWasm(); updateLayout(); }} title="Undo (U)" style={HUD_BTN}><RotateCcw size={18} /></button>
         <button onClick={() => startNewGame()} title="New Game (N)" style={HUD_BTN}><Play size={18} /></button>
       </div>
     </>

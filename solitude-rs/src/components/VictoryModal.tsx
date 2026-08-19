@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useUIStore } from "../store/uiStore";
-import { User, Check, Sparkles } from "lucide-react";
+import { User, Check, Sparkles, Trophy } from "lucide-react";
 
 interface VictoryModalProps {
   gameName: string;
@@ -9,6 +9,7 @@ interface VictoryModalProps {
     leveledUp: boolean;
     newLevel: number;
     newXP: number;
+    newlyUnlockedAchievements: string[];
   };
   onNewGame: () => void;
   onHome: () => void;
@@ -99,6 +100,21 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({ gameName, winData, o
               <span style={{ color: accentColor, fontWeight: "bold", fontSize: "18px" }}>{winData.xpGained} XP</span>
             </div>
           </div>
+
+          {winData.newlyUnlockedAchievements.length > 0 && (
+            <div style={{ width: "100%", marginBottom: "24px", display: "flex", flexDirection: "column", gap: "8px" }}>
+              {winData.newlyUnlockedAchievements.map((title) => (
+                <div key={title} style={{
+                  display: "flex", alignItems: "center", gap: "10px",
+                  backgroundColor: "rgba(212, 175, 55, 0.1)", border: `1px solid ${accentColor}`,
+                  borderRadius: "8px", padding: "10px 14px"
+                }}>
+                  <Trophy size={16} color={accentColor} />
+                  <span style={{ color: "#fff", fontSize: "14px", fontWeight: 600 }}>Achievement unlocked: {title}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Actions */}
           <div style={{ display: "flex", gap: "12px", width: "100%" }}>
