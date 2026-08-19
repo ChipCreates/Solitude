@@ -12,9 +12,13 @@ import { THEME_PRESETS } from "./theme/presets";
 import { useUIStore } from "./store/uiStore";
 import { CardWidget } from "./components/CardWidget";
 import { SettingsModal } from "./components/SettingsModal";
+import { GameChooserModal } from "./components/GameChooserModal";
+import { HelpModal } from "./components/HelpModal";
+import { AboutModal } from "./components/AboutModal";
+import { SplashPage } from "./components/SplashPage";
 import { audioService } from "./audio/audioService";
 import { ParticleSystem } from "./canvas/renderParticles";
-import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles } from "lucide-react";
+import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles, HelpCircle, Info } from "lucide-react";
 
 interface AnimatedCard { x: number; y: number; vx: number; vy: number; }
 
@@ -29,6 +33,11 @@ export const App: React.FC = () => {
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [, setLayoutTick] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isGameChooserOpen, setIsGameChooserOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isEngineReady, setIsEngineReady] = useState(false);
+  const [isSplashComplete, setIsSplashComplete] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Pyramid selection stored in ref so tap handler always reads live value
@@ -48,6 +57,8 @@ export const App: React.FC = () => {
 
   const particleSystemRef = useRef(new ParticleSystem());
   const hintCardIdRef = useRef<number | null>(null);
+  const [hintGhost, setHintGhost] = useState<{startX: number, startY: number, endX: number, endY: number, width: number, height: number, rank: number, suit: number} | null>(null);
+  const [ghostPos, setGhostPos] = useState({x: 0, y: 0});
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const isWonRef = useRef(false);
 
@@ -279,7 +290,6 @@ export const App: React.FC = () => {
       });
     }
     cardBoundsListRef.current = boundsList;
-    setLayoutTick((t) => t + 1);
   }, []);
 
   // ─── Render Loop ──────────────────────────────────────────────────────────
@@ -332,13 +342,11 @@ export const App: React.FC = () => {
       });
 
       cardsToDraw.sort((a, b) => ds ? (a.cardId === ds.cardId ? 1 : b.cardId === ds.cardId ? -1 : 0) : 0);
-      cardsToDraw.forEach((b, idx) => {
+      cardsToDraw.forEach((b) => {
         const anim = animatedCardsRef.current.get(b.cardId)!;
-        const node = document.getElementById(`card-wrapper-${b.cardId}`);
-        if (node) {
-          node.style.transform = `translate3d(${anim.x}px, ${anim.y}px, 0)`;
-          node.style.zIndex = ds && ds.cardId === b.cardId ? "1000" : idx.toString();
-        }
+        const isSel = selectedPyramidCardRef.current?.cardId === b.cardId;
+        const isHint = hintCardIdRef.current === b.cardId;
+        drawCard(ctx, b, anim.x, anim.y, b.width, b.height, b.width < 60, currentTheme.accentColor, isSel || isHint);
       });
 
       if (checkWinWasm()) {
@@ -527,12 +535,50 @@ export const App: React.FC = () => {
   }, [updateLayout]);
 
   const handleHint = useCallback(() => {
+    if (isWonRef.current || isAutoPlaying) return;
     const hint = getHintWasm();
     if (hint && hint.cards && hint.cards.length > 0) {
-      hintCardIdRef.current = hint.cards[0];
-      setTimeout(() => { hintCardIdRef.current = null; }, 2500);
+      const sourceId = hint.cards[0];
+      hintCardIdRef.current = sourceId;
+      setLayoutTick(t => t + 1);
+
+      const getPileKind = (k: any): number => {
+        if (typeof k === 'number') return k;
+        switch(k) {
+          case "Stock": return 0; case "Waste": return 1; case "Foundation": return 2;
+          case "Tableau": return 3; case "Cell": return 4; case "Reserve": return 5;
+          case "Pyramid": return 6; case "Discard": return 7; default: return -1;
+        }
+      };
+
+      const bounds = cardBoundsListRef.current;
+      const sourceCard = bounds.find(b => b.cardId === sourceId);
+      const destKind = getPileKind(hint.to.kind);
+      const destPileItems = bounds.filter(b => b.pileKind === destKind && b.pileIndex === hint.to.index);
+
+      if (sourceCard && destPileItems.length > 0) {
+        const destCard = destPileItems[destPileItems.length - 1];
+        const destY = destCard.y + (destCard.cardId !== -1 && destCard.pileKind === 3 ? 32 : 0);
+        setGhostPos({ x: sourceCard.x, y: sourceCard.y });
+        setHintGhost({
+          startX: sourceCard.x, startY: sourceCard.y,
+          endX: destCard.x, endY: destY,
+          width: sourceCard.width, height: sourceCard.height,
+          rank: sourceCard.rank, suit: sourceCard.suit,
+        });
+      }
+
+      setTimeout(() => {
+        hintCardIdRef.current = null;
+        setHintGhost(null);
+        setLayoutTick(t => t + 1);
+      }, 1800);
+    } else if (hint && hint.cards && hint.cards.length === 0) {
+      setToastMessage("Hint: Tap the stock pile");
+    } else {
+      setToastMessage("No moves available.");
     }
-  }, []);
+  }, [isAutoPlaying]);
 
   const handleAutoPlay = useCallback(() => {
     const nextStep = () => {
@@ -555,8 +601,20 @@ export const App: React.FC = () => {
   }, [updateLayout]);
 
   useEffect(() => {
-    initEngine().then(() => startNewGame(0));
+    initEngine().then(() => { setIsEngineReady(true); });
   }, []);
+
+  useEffect(() => {
+    if (isEngineReady && isSplashComplete) startNewGame(0);
+  }, [isEngineReady, isSplashComplete]);
+
+  // Animate ghost from source -> dest -> source
+  useEffect(() => {
+    if (!hintGhost) return;
+    const t1 = setTimeout(() => setGhostPos({ x: hintGhost.endX, y: hintGhost.endY }), 80);
+    const t2 = setTimeout(() => setGhostPos({ x: hintGhost.startX, y: hintGhost.startY }), 950);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [hintGhost]);
 
   const handleGameSelect = useCallback((typeCode: number) => {
     setGameTypeCode(typeCode);
@@ -577,35 +635,34 @@ export const App: React.FC = () => {
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
   return (
-    <div
-      style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden", backgroundColor: currentTheme.tableColor }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerLeave={onPointerUp}
-    >
+    <>
+      {(!isEngineReady || !isSplashComplete) && (
+        <SplashPage onLoadComplete={() => setIsSplashComplete(true)} />
+      )}
+      <div
+        style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden", backgroundColor: currentTheme.tableColor, visibility: (isEngineReady && isSplashComplete) ? "visible" : "hidden" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+      >
       <div style={{ position: "absolute", top: 16, left: 24, right: 24, display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(19,19,19,0.65)", backdropFilter: "blur(16px)", borderRadius: "16px", padding: "12px 24px", border: "1px solid rgba(255,255,255,0.12)", zIndex: 10, color: "#e5e2e1" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <h1 style={{ fontFamily: "Manrope,sans-serif", fontSize: "20px", fontWeight: 800, color: currentTheme.accentColor }}>Solitude</h1>
-          <select value={gameTypeCode} onChange={(e) => handleGameSelect(Number(e.target.value))}
-            style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", color: "#e5e2e1", padding: "6px 12px", fontFamily: "Inter,sans-serif", fontSize: "14px", fontWeight: 600, cursor: "pointer", outline: "none" }}>
-            <option value={0} style={{ background: "#1e1e1e" }}>Klondike</option>
-            <option value={1} style={{ background: "#1e1e1e" }}>Spider</option>
-            <option value={2} style={{ background: "#1e1e1e" }}>FreeCell</option>
-            <option value={3} style={{ background: "#1e1e1e" }}>Pyramid</option>
-            <option value={4} style={{ background: "#1e1e1e" }}>Golf</option>
-            <option value={5} style={{ background: "#1e1e1e" }}>TriPeaks</option>
-            <option value={6} style={{ background: "#1e1e1e" }}>Yukon</option>
-            <option value={7} style={{ background: "#1e1e1e" }}>Forty Thieves</option>
-            <option value={8} style={{ background: "#1e1e1e" }}>Canfield</option>
-            <option value={9} style={{ background: "#1e1e1e" }}>Scorpion</option>
-          </select>
+          <button
+            onClick={() => setIsGameChooserOpen(true)}
+            style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", color: "#e5e2e1", padding: "6px 12px", fontFamily: "Inter,sans-serif", fontSize: "14px", fontWeight: 600, cursor: "pointer", outline: "none" }}
+          >
+            {["Klondike", "Spider", "FreeCell", "Pyramid", "Golf", "TriPeaks", "Yukon", "Forty Thieves", "Canfield", "Scorpion"][gameTypeCode] || "Choose Game"}
+          </button>
         </div>
         <div style={{ display: "flex", gap: 24, fontFamily: "JetBrains Mono,monospace", fontSize: "14px" }}>
           <div><span style={{ opacity: 0.6 }}>TIME: </span>{formatTime(timerSeconds)}</div>
           <div><span style={{ opacity: 0.6 }}>MOVES: </span>{moveCount}</div>
         </div>
         <div style={{ display: "flex", gap: 12 }}>
+          <button onClick={() => setIsAboutOpen(true)} title="About" style={HUD_BTN}><Info size={18} /></button>
+          <button onClick={() => setIsHelpOpen(true)} title="How to Play" style={HUD_BTN}><HelpCircle size={18} /></button>
           <button onClick={handleHint} title="Hint (H)" style={HUD_BTN}><Lightbulb size={18} /></button>
           <button onClick={handleAutoPlay} title="Auto Play (A)" style={{ ...HUD_BTN, color: isAutoPlaying ? currentTheme.accentColor : "#e5e2e1" }}><Sparkles size={18} /></button>
           <button onClick={() => { undoWasm(); updateLayout(); }} title="Undo (U)" style={HUD_BTN}><RotateCcw size={18} /></button>
@@ -616,27 +673,74 @@ export const App: React.FC = () => {
       <div style={{ position: "relative", width: "100%", height: "100%", touchAction: "none" }}>
         <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", position: "absolute", top: 0, left: 0 }} />
         <div id="cards-layer" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
-          {cardBoundsListRef.current.filter(b => b.cardId !== -1).map(b => (
-            <CardWidget
-              key={b.cardId}
-              id={b.cardId}
-              rank={b.rank}
-              suit={b.suit}
-              faceUp={b.faceUp}
-              width={b.width}
-              height={b.height}
-              theme={currentTheme}
-              overlayIntensity={overlayIntensity}
-              cardBackPattern={cardBackPattern}
-              cardBackColor={cardBackColor}
-              isSelected={selectedPyramidCardRef.current?.cardId === b.cardId}
-              isHint={hintCardIdRef.current === b.cardId}
-            />
+          {/* Render Slots (empty piles) */}
+          {cardBoundsListRef.current.filter((b) => b.cardId === -1).map((b) => (
+            <div key={`slot-${b.pileKind}-${b.pileIndex}`} style={{ position: "absolute", left: b.x, top: b.y, width: b.width, height: b.height, borderRadius: "8px", border: `2px dashed ${currentTheme.accentColor}`, opacity: 0.3, pointerEvents: "none" }} />
           ))}
+          {/* Render Cards */}
+          {cardBoundsListRef.current.filter(b => b.cardId !== -1).map(b => {
+            const anim = animatedCardsRef.current.get(b.cardId);
+            const isDragging = dragStateRef.current?.cardId === b.cardId;
+            const x = isDragging ? dragStateRef.current!.ptrX - dragStateRef.current!.offsetX : (anim ? anim.x : b.x);
+            const y = isDragging ? dragStateRef.current!.ptrY - dragStateRef.current!.offsetY : (anim ? anim.y : b.y);
+
+            const isPerfectlyStacked = b.pileKind === 0 || b.pileKind === 2 || b.pileKind === 7;
+            
+            return (
+              <div
+                key={b.cardId}
+                style={{
+                  position: "absolute", left: 0, top: 0, width: b.width, height: b.height,
+                  transform: `translate(${x}px, ${y}px)`,
+                  zIndex: isDragging ? 1000 : b.pileKind === 3 ? b.cardIndex : 10,
+                  transition: isDragging ? "none" : "transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)",
+                }}
+              >
+                <CardWidget
+                  id={b.cardId}
+                  rank={b.rank}
+                  suit={b.suit}
+                  faceUp={b.faceUp}
+                  width={b.width}
+                  height={b.height}
+                  theme={currentTheme}
+                  overlayIntensity={overlayIntensity}
+                  cardBackPattern={cardBackPattern}
+                  cardBackColor={cardBackColor}
+                  isSelected={selectedPyramidCardRef.current?.cardId === b.cardId}
+                  isHint={hintCardIdRef.current === b.cardId}
+                  hideShadow={isPerfectlyStacked && b.cardIndex > 0}
+                />
+              </div>
+            );
+          })}
+
+          {/* Hint ghost: translucent card that flies source → dest → source */}
+          {hintGhost && (
+            <div style={{
+              position: "absolute", left: 0, top: 0,
+              width: hintGhost.width, height: hintGhost.height,
+              transform: `translate(${ghostPos.x}px, ${ghostPos.y}px)`,
+              transition: "transform 0.65s cubic-bezier(0.4, 0, 0.2, 1)",
+              opacity: 0.55, zIndex: 999, pointerEvents: "none"
+            }}>
+              <CardWidget
+                id={-2} rank={hintGhost.rank} suit={hintGhost.suit} faceUp={true}
+                width={hintGhost.width} height={hintGhost.height}
+                theme={currentTheme} overlayIntensity={overlayIntensity}
+                cardBackPattern={cardBackPattern} cardBackColor={cardBackColor}
+                isSelected={false} isHint={false}
+              />
+            </div>
+          )}
         </div>
       </div>
+
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-      
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} gameType={gameTypeCode} />
+      <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
+      <GameChooserModal isOpen={isGameChooserOpen} onSelectGame={(id) => { setIsGameChooserOpen(false); handleGameSelect(id); }} />
+
       {toastMessage && (
         <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "rgba(19,19,19,0.9)", backdropFilter: "blur(16px)", padding: "24px", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.2)", zIndex: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
           <div style={{ color: "#e5e2e1", fontFamily: "Manrope,sans-serif", fontSize: "18px", fontWeight: 600 }}>{toastMessage}</div>
@@ -646,9 +750,36 @@ export const App: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
+
+function drawCard(ctx: CanvasRenderingContext2D, card: CardBounds, x: number, y: number, w: number, h: number, compact: boolean, accent: string, selected: boolean) {
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, 8);
+  if (!card.faceUp) {
+    ctx.fillStyle = "#1e3a2b"; ctx.fill();
+    ctx.strokeStyle = selected ? "#ffd700" : accent; ctx.lineWidth = selected ? 2.5 : 1; ctx.stroke();
+  } else {
+    ctx.fillStyle = selected ? "#fffde7" : "#ffffff"; ctx.fill();
+    ctx.strokeStyle = selected ? "#ffd700" : "rgba(0,0,0,0.15)"; ctx.lineWidth = selected ? 3 : 1; ctx.stroke();
+    const red = card.suit === 0 || card.suit === 1;
+    ctx.fillStyle = red ? "#cc3333" : "#111111";
+    const rank = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"][card.rank - 1];
+    const suit = ["♥","♦","♣","♠"][card.suit];
+    if (compact) {
+      ctx.font = "bold 14px Inter,sans-serif"; ctx.fillText(`${rank}${suit}`, x + 6, y + 18);
+    } else {
+      ctx.font = "bold 16px Manrope,sans-serif"; ctx.fillText(rank, x + 8, y + 20);
+      ctx.font = "14px Inter,sans-serif"; ctx.fillText(suit, x + 8, y + 36);
+      ctx.font = "28px Inter,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(suit, x + w / 2, y + h / 2);
+      ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+    }
+  }
+  ctx.restore();
+}
 
 const HUD_BTN: React.CSSProperties = { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "8px", color: "#e5e2e1", padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" };
 export default App;

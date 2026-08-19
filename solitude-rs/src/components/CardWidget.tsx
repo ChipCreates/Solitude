@@ -13,6 +13,7 @@ export interface CardWidgetProps {
   cardBackColor: string;
   isSelected: boolean;
   isHint: boolean;
+  hideShadow?: boolean;
 }
 
 export const getBackPatternCss = (pattern: string) => {
@@ -60,7 +61,7 @@ export const getBackPatternPosition = (pattern: string) => {
 };
 
 export const CardWidget: React.FC<CardWidgetProps> = ({
-  id, rank, suit, faceUp, width, height, theme, overlayIntensity, cardBackPattern, cardBackColor, isSelected, isHint
+  id, rank, suit, faceUp, width, height, theme, overlayIntensity, cardBackPattern, cardBackColor, isSelected, isHint, hideShadow
 }) => {
   const isRed = suit === 0 || suit === 1;
   const suitColor = isRed ? "#cc3333" : "#111111";
@@ -90,7 +91,8 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
         left: 0,
         top: 0,
         pointerEvents: 'none',
-        willChange: 'transform'
+        willChange: 'transform',
+        filter: (isSelected || isHint) ? `drop-shadow(0 0 8px ${theme.accentColor})` : (hideShadow ? 'none' : 'drop-shadow(0 -2px 8px rgba(0,0,0,0.4))')
       }}
     >
       <div 
@@ -110,7 +112,6 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
             backgroundColor: isSelected ? '#fffde7' : '#ffffff',
             borderRadius: '8px',
             border: (isSelected || isHint) ? `3px solid #ffd700` : `1px solid rgba(0,0,0,0.15)`,
-            boxShadow: (isSelected || isHint) ? `0 0 16px ${theme.accentColor}` : 'none',
             overflow: 'hidden'
           }}
         >
@@ -170,7 +171,6 @@ export const CardWidget: React.FC<CardWidgetProps> = ({
             backgroundPosition: getBackPatternPosition(cardBackPattern),
             borderRadius: '8px',
             border: (isSelected || isHint) ? `2.5px solid #ffd700` : `1px solid ${theme.accentColor || 'rgba(255,255,255,0.2)'}`,
-            boxShadow: (isSelected || isHint) ? `0 0 16px ${theme.accentColor}` : 'none',
             overflow: 'hidden'
           }}
         >
