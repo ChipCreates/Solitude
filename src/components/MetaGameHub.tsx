@@ -8,6 +8,7 @@ import achievementsData from "../data/achievements.json";
 import { DashboardOverview } from "./DashboardOverview";
 import { getLevelTitle, getOverallLevel } from "../utils/levelTitles";
 import { getAvatarOption } from "../data/avatars";
+import { applyThemePack } from "../theme/presets";
 
 export type MetaGameHubTab = "gameboard" | "store" | "trophy";
 
@@ -38,9 +39,11 @@ export const STORE_ITEMS = [
   { id: "dragon", type: "card_back", name: "Dragon Ruby", price: 1000, icon: "/assets/cards/card_back_dragon_1787130558476.png" },
   { id: "celestial", type: "card_back", name: "Celestial Skies", price: 1000, icon: "/assets/cards/card_back_celestial_1787130567064.png" },
   { id: "classic_felt", type: "theme", name: "Casino Green", price: 0 },
-  { id: "midnight_blue", type: "theme", name: "Midnight Blue", price: 300 },
+  { id: "midnight", type: "theme", name: "Midnight Blue", price: 300 },
   { id: "burgundy_velvet", type: "theme", name: "Burgundy Velvet", price: 300 },
-  { id: "obsidian_glass", type: "theme", name: "Obsidian Glass", price: 800 },
+  { id: "nordic", type: "theme", name: "Obsidian Glass", price: 800 },
+  { id: "dragons_hoard", type: "theme_pack", name: "Dragon's Hoard", description: "A full pack: table felt, the Dragon Ruby card back, arcade SFX, and Golden Hour Bet music, bundled together.", price: 1400, icon: "/assets/cards/card_back_dragon_1787130558476.png" },
+  { id: "celestial_veil", type: "theme_pack", name: "Celestial Veil", description: "A full pack: table felt, the Celestial Skies card back, mystic SFX, and Aces at Dawn music, bundled together.", price: 1400, icon: "/assets/cards/card_back_celestial_1787130567064.png" },
   { id: "confetti", type: "victory", name: "Confetti Explosion", price: 400 },
   { id: "fireworks", type: "victory", name: "Golden Fireworks", price: 1000 },
   { id: "unstick_wand", type: "power_up", name: "Unstick Wand", description: "Forces one legal-but-blocked move to become available.", price: 300, icon: "/assets/store/item_unstick_wand_1787130506774.png" },
@@ -58,7 +61,7 @@ export const STORE_ITEMS = [
 ];
 
 export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange, onOpenSettings, onOpenAbout, leftHeaderContent, rightHeaderContent, activeGameName, children }) => {
-  const { coins, subtractCoins, unlockedItems, unlockItem, cardBackPattern, setCardBackPattern, themeId, setThemeId, unlockedAchievements, powerUpInventory, purchasePowerUp, gameProgress } = useUIStore();
+  const { coins, subtractCoins, unlockedItems, unlockItem, cardBackPattern, setCardBackPattern, themeId, setThemeId, setSfxSetId, setMusicTrackId, unlockedAchievements, powerUpInventory, purchasePowerUp, gameProgress } = useUIStore();
   const { profiles, activeProfileId } = useProfileStore();
   const { statsByGameType, loadAllStats } = useStatisticsStore();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -82,6 +85,15 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
   }, [activeTab, activeProfileId, loadAllStats]);
 
   // --- Store Handlers ---
+  const equipItem = (item: any) => {
+    if (item.type === "card_back") setCardBackPattern(item.id);
+    // Theme packs bundle a coordinated card back/SFX/music with the theme,
+    // fanned out by applyThemePack; plain themes just set the color scheme.
+    if (item.type === "theme" || item.type === "theme_pack") {
+      applyThemePack(item.id, { setThemeId, setCardBackPattern, setSfxSetId, setMusicTrackId });
+    }
+  };
+
   const handlePurchase = (item: any) => {
     // Power-ups are consumable: every click buys another one (spending
     // coins), rather than a one-time unlock+equip like cosmetics.
@@ -90,22 +102,20 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
       return;
     }
     if (unlockedItems.includes(item.id) || item.price === 0) {
-      if (item.type === "card_back") setCardBackPattern(item.id);
-      if (item.type === "theme") setThemeId(item.id);
+      equipItem(item);
       return;
     }
     if (coins >= item.price) {
       if (subtractCoins(item.price)) {
         unlockItem(item.id);
-        if (item.type === "card_back") setCardBackPattern(item.id);
-        if (item.type === "theme") setThemeId(item.id);
+        equipItem(item);
       }
     }
   };
 
   const isEquipped = (item: any) => {
     if (item.type === "card_back" && cardBackPattern === item.id) return true;
-    if (item.type === "theme" && themeId === item.id) return true;
+    if ((item.type === "theme" || item.type === "theme_pack") && themeId === item.id) return true;
     return false;
   };
 
@@ -204,6 +214,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                 {[
                   { id: "card_back", label: "CARD BACKS" },
                   { id: "theme", label: "THEMES" },
+                  { id: "theme_pack", label: "THEME PACKS" },
                   { id: "power_up", label: "POWER UPS" },
                   { id: "victory", label: "ANIMATIONS" },
                 ].map(cat => (
@@ -350,6 +361,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                   const categoryNames: Record<string, string> = {
                     'card_back': 'CARD BACKS',
                     'theme': 'THEMES',
+                    'theme_pack': 'THEME PACKS',
                     'power_up': 'POWER UPS',
                     'victory': 'ANIMATIONS'
                   };

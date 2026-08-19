@@ -1,5 +1,5 @@
 import React from "react";
-import { THEME_PRESETS } from "../theme/presets";
+import { THEME_PRESETS, applyThemePack } from "../theme/presets";
 import { OverlayValidator, hexToRgb } from "../theme/overlayValidator";
 import { MUSIC_TRACKS, CUSTOM_TRACK_ID } from "../data/musicTracks";
 import { useUIStore } from "../store/uiStore";
@@ -56,6 +56,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
     setMusicEnabled,
     setMusicVolume,
     setMusicTrackId,
+    setSfxSetId,
     setCustomMusicTrack,
     setAutoComplete,
   } = useUIStore();
@@ -74,7 +75,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
   if (!isOpen) return null;
 
   const handleSelectTheme = (id: string) => {
-    setThemeId(id);
+    applyThemePack(id, { setThemeId, setCardBackPattern, setSfxSetId, setMusicTrackId });
     setIntensityWarning(false);
   };
 

@@ -1,7 +1,10 @@
+import { DEFAULT_SFX_SET_ID, getSfxSet } from "../data/sfxSets";
+
 class AudioService {
   private ctx: AudioContext | null = null;
   private isEnabled: boolean = true;
   private volume: number = 0.8;
+  private sfxSetId: string = DEFAULT_SFX_SET_ID;
 
   private musicEl: HTMLAudioElement | null = null;
   private musicEnabled: boolean = false;
@@ -27,17 +30,22 @@ class AudioService {
     this.volume = volume;
   }
 
+  public setSfxSet(id: string) {
+    this.sfxSetId = id;
+  }
+
   public playCardMove() {
     if (!this.isEnabled) return;
     this.initCtx();
     if (!this.ctx) return;
 
+    const { oscillatorType, startFreq, endFreq } = getSfxSet(this.sfxSetId).cardMove;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(440, this.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.05);
+    osc.type = oscillatorType;
+    osc.frequency.setValueAtTime(startFreq, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, this.ctx.currentTime + 0.05);
 
     gain.gain.setValueAtTime(0.1 * this.volume, this.ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
@@ -54,12 +62,13 @@ class AudioService {
     this.initCtx();
     if (!this.ctx) return;
 
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((freq, i) => {
+    const { oscillatorType, noteFreqs } = getSfxSet(this.sfxSetId).win;
+    noteFreqs.forEach((freq, i) => {
       if (!this.ctx) return;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
 
+      osc.type = oscillatorType;
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.15 * this.volume, this.ctx.currentTime + i * 0.1);
       gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.1 + 0.3);

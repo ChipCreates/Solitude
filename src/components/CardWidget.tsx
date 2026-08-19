@@ -22,6 +22,8 @@ export const getBackPatternCss = (pattern: string) => {
     case 'filigree': return `url(/assets/cards/back_filigree.png)`;
     case 'botanical': return `url(/assets/cards/back_botanical.png)`;
     case 'mystic': return `url(/assets/cards/back_mystic.png)`;
+    case 'dragon': return `url(/assets/cards/card_back_dragon_1787130558476.png)`;
+    case 'celestial': return `url(/assets/cards/card_back_celestial_1787130567064.png)`;
     case 'crosshatch':
       return `linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%, rgba(255,255,255,0.1)), linear-gradient(-45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%, rgba(255,255,255,0.1))`;
     case 'dots':
@@ -39,7 +41,9 @@ export const getBackPatternSize = (pattern: string) => {
     case 'bicycle':
     case 'filigree':
     case 'botanical':
-    case 'mystic': return '100% 100%';
+    case 'mystic':
+    case 'dragon':
+    case 'celestial': return '100% 100%';
     case 'crosshatch': return '20px 20px';
     case 'dots': return '20px 20px';
     case 'waves': return '40px 40px';
@@ -53,7 +57,9 @@ export const getBackPatternPosition = (pattern: string) => {
     case 'bicycle':
     case 'filigree':
     case 'botanical':
-    case 'mystic': return 'center';
+    case 'mystic':
+    case 'dragon':
+    case 'celestial': return 'center';
     case 'dots': return '0 0, 10px 10px';
     case 'crosshatch': return '0 0, 10px 10px';
     default: return '0 0';

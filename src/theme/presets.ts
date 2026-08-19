@@ -6,6 +6,18 @@ export interface ThemePreset {
   accentColor: string;
   cardFaceOverlay: string;
   defaultOverlayIntensity: number;
+  // Theme *pack* fields — additive/optional so the built-in presets below
+  // keep working unmodified. When present, selecting this theme (from
+  // Settings or by purchasing it in the Emporium) equips the matching
+  // card back / SFX / music together via `applyThemePack` rather than
+  // leaving them as independently-chosen settings.
+  cardBackPatternId?: string;
+  sfxSetId?: string;
+  musicTrackId?: string;
+  // Optional felt/board texture image, drawn under the table gradient.
+  // No built-in preset sets this yet — the board-render code falls back
+  // to the plain gradient when it's absent.
+  boardTextureUrl?: string;
 }
 
 export const THEME_PRESETS: Record<string, ThemePreset> = {
@@ -63,4 +75,47 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
     cardFaceOverlay: "#1a2226",
     defaultOverlayIntensity: 0.05,
   },
+  dragons_hoard: {
+    id: "dragons_hoard",
+    name: "Dragon's Hoard",
+    tableColor: "#3a0e0e",
+    tableGradientEnd: "#1a0505",
+    accentColor: "#e9852f",
+    cardFaceOverlay: "#2a0a00",
+    defaultOverlayIntensity: 0.05,
+    cardBackPatternId: "dragon",
+    sfxSetId: "arcade",
+    musicTrackId: "golden_hour_bet",
+  },
+  celestial_veil: {
+    id: "celestial_veil",
+    name: "Celestial Veil",
+    tableColor: "#1c1440",
+    tableGradientEnd: "#0a0620",
+    accentColor: "#9b6fd1",
+    cardFaceOverlay: "#120a2e",
+    defaultOverlayIntensity: 0.05,
+    cardBackPatternId: "celestial",
+    sfxSetId: "mystic",
+    musicTrackId: "aces_at_dawn",
+  },
 };
+
+export interface ThemePackSetters {
+  setThemeId: (id: string) => void;
+  setCardBackPattern: (pattern: string) => void;
+  setSfxSetId: (id: string) => void;
+  setMusicTrackId: (id: string) => void;
+}
+
+// Single place that fans a theme selection out to its bundled card
+// back/SFX/music — used by both the Settings theme picker and the
+// Emporium purchase flow so the two stay in sync automatically.
+export function applyThemePack(themeId: string, setters: ThemePackSetters): void {
+  setters.setThemeId(themeId);
+  const preset = THEME_PRESETS[themeId];
+  if (!preset) return;
+  if (preset.cardBackPatternId) setters.setCardBackPattern(preset.cardBackPatternId);
+  if (preset.sfxSetId) setters.setSfxSetId(preset.sfxSetId);
+  if (preset.musicTrackId) setters.setMusicTrackId(preset.musicTrackId);
+}

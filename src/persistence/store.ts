@@ -40,6 +40,7 @@ export interface Settings {
   vegasBankroll?: number;
   golfWrapAround?: boolean;
   musicTrackId?: string;
+  sfxSetId?: string;
 }
 
 export interface GameProgression {

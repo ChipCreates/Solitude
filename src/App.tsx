@@ -31,6 +31,7 @@ import { MetaGameHub, STORE_ITEMS } from "./components/MetaGameHub";
 import { POWER_UP_CONFIG } from "./powerups/config";
 import { audioService } from "./audio/audioService";
 import { ParticleSystem } from "./canvas/renderParticles";
+import { getCachedImage } from "./canvas/boardTexture";
 import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles, HelpCircle, Zap, Undo2, Info, Home } from "lucide-react";
 
 const POWER_UP_ITEMS = STORE_ITEMS.filter((i) => i.type === "power_up");
@@ -148,12 +149,13 @@ export const App: React.FC = () => {
 
   const {
     themeId, themeOverlayIntensities, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern, scoringMode, vegasBankroll,
-    musicEnabled, musicVolume, musicTrackId, customMusicUrl, powerUpInventory,
+    musicEnabled, musicVolume, musicTrackId, customMusicUrl, powerUpInventory, sfxSetId,
   } = useUIStore();
   const currentTheme = THEME_PRESETS[themeId] || THEME_PRESETS.classic_felt;
   const overlayIntensity = themeOverlayIntensities[themeId] ?? currentTheme.defaultOverlayIntensity;
 
   useEffect(() => { audioService.setConfig(soundEnabled, soundVolume); }, [soundEnabled, soundVolume]);
+  useEffect(() => { audioService.setSfxSet(sfxSetId); }, [sfxSetId]);
   useEffect(() => { audioService.setMusicConfig(musicEnabled, musicVolume); }, [musicEnabled, musicVolume]);
   useEffect(() => {
     const activeTrackUrl = musicTrackId === CUSTOM_TRACK_ID
@@ -409,8 +411,17 @@ export const App: React.FC = () => {
       const g = ctx.createRadialGradient(rect.width / 2, rect.height / 2, 100, rect.width / 2, rect.height / 2, Math.max(rect.width, rect.height));
       g.addColorStop(0, currentTheme.tableColor);
       g.addColorStop(1, currentTheme.tableGradientEnd);
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, rect.width, rect.height);
+      const boardTexture = currentTheme.boardTextureUrl ? getCachedImage(currentTheme.boardTextureUrl) : null;
+      if (boardTexture) {
+        ctx.drawImage(boardTexture, 0, 0, rect.width, rect.height);
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, rect.width, rect.height);
+        ctx.globalAlpha = 1;
+      } else {
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, rect.width, rect.height);
+      }
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = "rgba(255,255,255,0.15)";
       ctx.fillStyle = "rgba(255,255,255,0.03)";

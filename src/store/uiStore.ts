@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { useProfileStore } from "./profileStore";
 import type { Settings, Progression, CoinLedgerEntry } from "../persistence/store";
 import { MUSIC_TRACKS } from "../data/musicTracks";
+import { DEFAULT_SFX_SET_ID } from "../data/sfxSets";
 
 // Bound on how many coin-earning events we keep around for the dashboard's
 // trend chart — enough for ~12 weekly buckets' worth of activity without
@@ -39,6 +40,7 @@ export interface SettingsState {
   musicEnabled: boolean;
   musicVolume: number;
   musicTrackId: string;
+  sfxSetId: string;
   // A player-picked local file, not a persisted setting: object URLs die
   // with the page, and there's nothing meaningful to restore across
   // sessions or devices, so this lives only in memory for the session.
@@ -65,6 +67,7 @@ export interface SettingsState {
   setMusicEnabled: (enabled: boolean) => void;
   setMusicVolume: (vol: number) => void;
   setMusicTrackId: (id: string) => void;
+  setSfxSetId: (id: string) => void;
   setCustomMusicTrack: (url: string | null, name: string | null) => void;
 
   addCoins: (amount: number) => void;
@@ -102,6 +105,7 @@ function settingsSnapshot(state: SettingsState): Settings {
     vegasBankroll: state.vegasBankroll,
     golfWrapAround: state.golfWrapAround,
     musicTrackId: state.musicTrackId,
+    sfxSetId: state.sfxSetId,
   };
 }
 
@@ -146,6 +150,7 @@ export const useUIStore = create<SettingsState>((set, get) => ({
   musicEnabled: false,
   musicVolume: 0.5,
   musicTrackId: MUSIC_TRACKS[0]?.id ?? "",
+  sfxSetId: DEFAULT_SFX_SET_ID,
   customMusicUrl: null,
   customMusicName: null,
 
@@ -172,6 +177,7 @@ export const useUIStore = create<SettingsState>((set, get) => ({
   setMusicEnabled: (musicEnabled) => { set({ musicEnabled }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setMusicVolume: (musicVolume) => { set({ musicVolume }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setMusicTrackId: (musicTrackId) => { set({ musicTrackId }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setSfxSetId: (sfxSetId) => { set({ sfxSetId }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setCustomMusicTrack: (customMusicUrl, customMusicName) => { set({ customMusicUrl, customMusicName }); },
 
   addCoins: (amount) => {
@@ -292,6 +298,7 @@ export const useUIStore = create<SettingsState>((set, get) => ({
         vegasBankroll: settings.vegasBankroll ?? 0,
         golfWrapAround: settings.golfWrapAround ?? false,
         musicTrackId: settings.musicTrackId ?? MUSIC_TRACKS[0]?.id ?? "",
+        sfxSetId: settings.sfxSetId ?? DEFAULT_SFX_SET_ID,
 
         coins: progression.coins,
         totalCoinsEarned: progression.totalCoinsEarned ?? progression.coins,
