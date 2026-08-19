@@ -272,3 +272,28 @@ impl GameRules for GolfGame {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_wrap_around_toggles_ace_king_adjacency() {
+        let wrap_game = GolfGame::new(true);
+        let no_wrap_game = GolfGame::new(false);
+
+        // Ace <-> King is only a valid play when wrapping is enabled.
+        assert!(wrap_game.can_play_to_waste(Rank::Ace, Rank::King));
+        assert!(wrap_game.can_play_to_waste(Rank::King, Rank::Ace));
+        assert!(!no_wrap_game.can_play_to_waste(Rank::Ace, Rank::King));
+        assert!(!no_wrap_game.can_play_to_waste(Rank::King, Rank::Ace));
+
+        // A normal +/-1 rank difference is valid either way.
+        assert!(wrap_game.can_play_to_waste(Rank::Five, Rank::Six));
+        assert!(no_wrap_game.can_play_to_waste(Rank::Five, Rank::Six));
+
+        // A non-adjacent, non-wrap difference is never valid.
+        assert!(!wrap_game.can_play_to_waste(Rank::Two, Rank::Nine));
+        assert!(!no_wrap_game.can_play_to_waste(Rank::Two, Rank::Nine));
+    }
+}

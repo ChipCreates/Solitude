@@ -26,6 +26,22 @@ import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles, HelpCir
 
 interface AnimatedCard { x: number; y: number; vx: number; vy: number; }
 
+// Standard Vegas Klondike scoring: buy the deck for $52, earn $5 per card
+// moved to a foundation. Derived from live pile state (not tracked
+// incrementally) so it stays correct across undo/redo for free.
+function computeVegasScore(): number {
+  const foundationCards = getPilesLayout()
+    .filter((p) => p.kind === 2)
+    .reduce((n, p) => n + p.cards.length, 0);
+  return -52 + foundationCards * 5;
+}
+
+function spiderSuitCountForDifficulty(difficulty: "easy" | "normal" | "hard"): number {
+  if (difficulty === "easy") return 1;
+  if (difficulty === "hard") return 4;
+  return 2;
+}
+
 export const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // Use a ref for gameTypeCode so async callbacks always read the live value
@@ -72,8 +88,12 @@ export const App: React.FC = () => {
   const autoPlayTimeoutRef = useRef<number | null>(null);
   const shouldCancelAutoPlayRef = useRef(false);
   const isWonRef = useRef(false);
+  // Guards against double-committing a Vegas-cumulative round's score: it can
+  // be committed either on win (render loop) or on New Game (startNewGame),
+  // whichever happens first for a given round.
+  const vegasRoundCommittedRef = useRef(false);
 
-  const { themeId, themeOverlayIntensities, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern } = useUIStore();
+  const { themeId, themeOverlayIntensities, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern, scoringMode, vegasBankroll } = useUIStore();
   const currentTheme = THEME_PRESETS[themeId] || THEME_PRESETS.classic_felt;
   const overlayIntensity = themeOverlayIntensities[themeId] ?? currentTheme.defaultOverlayIntensity;
 
@@ -373,7 +393,14 @@ export const App: React.FC = () => {
           const diffMult = uiState.difficulty === "hard" ? 3 : uiState.difficulty === "normal" ? 2 : 1;
           const reward = baseReward * diffMult;
           uiState.addCoins(reward);
-          
+
+          // Vegas cumulative: commit this round's final score into the
+          // persisted bankroll right away, so New Game doesn't double-commit.
+          if (gameTypeRef.current === 0 && uiState.scoringMode === "vegas_cumulative" && !vegasRoundCommittedRef.current) {
+            uiState.addToVegasBankroll(computeVegasScore());
+            vegasRoundCommittedRef.current = true;
+          }
+
           if (gameTypeRef.current !== null) {
             const xpResult = uiState.addXP(gameTypeRef.current.toString(), reward);
             setWinData({
@@ -569,8 +596,24 @@ export const App: React.FC = () => {
       clearTimeout(autoPlayTimeoutRef.current);
       autoPlayTimeoutRef.current = null;
     }
+
+    const uiState = useUIStore.getState();
+
+    // Vegas cumulative: if the round being replaced wasn't already
+    // committed on win, it's being abandoned — commit its current score
+    // (the buy-in is already reflected: -52 + 5/foundation-card) before
+    // wiping engine state.
+    if (gameTypeRef.current === 0 && uiState.scoringMode === "vegas_cumulative" && !vegasRoundCommittedRef.current) {
+      uiState.addToVegasBankroll(computeVegasScore());
+    }
+    vegasRoundCommittedRef.current = false;
+
     setGameTypeCode(type);
-    initializeGame(type, BigInt(Date.now()));
+    initializeGame(type, BigInt(Date.now()), {
+      klondikeDrawMode: uiState.drawMode,
+      spiderSuitCount: spiderSuitCountForDifficulty(uiState.difficulty),
+      golfWrapAround: uiState.golfWrapAround,
+    });
     animatedCardsRef.current.clear();
     setSelectedPyramidCard(null);
     hintCardIdRef.current = null;
@@ -725,11 +768,26 @@ export const App: React.FC = () => {
     </div>
   ) : null;
 
+  const showVegasScore = gameTypeCode === 0 && scoringMode !== "standard" && isEngineReady;
+  const vegasScore = showVegasScore ? computeVegasScore() : 0;
+
   const rightHeaderContent = activeTab === "gameboard" && gameTypeCode !== null ? (
     <>
       <div style={{ display: "flex", gap: 16, fontFamily: "JetBrains Mono,monospace", fontSize: "14px", marginRight: "8px", alignItems: "center" }}>
         <div><span style={{ opacity: 0.6, color: "#e5e2e1" }}>TIME: </span><span style={{ color: "#fff" }}>{formatTime(timerSeconds)}</span></div>
         <div><span style={{ opacity: 0.6, color: "#e5e2e1" }}>MOVES: </span><span style={{ color: "#fff" }}>{moveCount}</span></div>
+        {showVegasScore && (
+          <div>
+            <span style={{ opacity: 0.6, color: "#e5e2e1" }}>SCORE: </span>
+            <span style={{ color: vegasScore >= 0 ? "#4caf50" : "#f44336" }}>${vegasScore}</span>
+          </div>
+        )}
+        {showVegasScore && scoringMode === "vegas_cumulative" && (
+          <div>
+            <span style={{ opacity: 0.6, color: "#e5e2e1" }}>BANKROLL: </span>
+            <span style={{ color: (vegasBankroll + vegasScore) >= 0 ? "#4caf50" : "#f44336" }}>${vegasBankroll + vegasScore}</span>
+          </div>
+        )}
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <button onClick={() => setIsHelpOpen(true)} title="Help" style={HUD_BTN}><HelpCircle size={18} /></button>

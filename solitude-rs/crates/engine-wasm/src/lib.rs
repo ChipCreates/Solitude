@@ -2,7 +2,7 @@
 // world.tick(dt) is only used for cosmetic UI animation loops in TypeScript.
 
 use engine_core::card::{CardId, Suit};
-use engine_core::factory::GameFactory;
+use engine_core::factory::{GameFactory, VariantOptions};
 use engine_core::game::{GameRules, GameType};
 use engine_core::pile::{PileRef, PileType};
 use engine_core::solver::SolverEngine;
@@ -24,7 +24,13 @@ pub fn ping() -> u32 {
 }
 
 #[wasm_bindgen]
-pub fn initialize_game(game_type_code: u8, seed: u64) -> bool {
+pub fn initialize_game(
+    game_type_code: u8,
+    seed: u64,
+    klondike_draw_mode: u8,
+    spider_suit_count: u8,
+    golf_wrap_around: bool,
+) -> bool {
     let game_type = match game_type_code {
         0 => GameType::Klondike,
         1 => GameType::Spider,
@@ -39,7 +45,13 @@ pub fn initialize_game(game_type_code: u8, seed: u64) -> bool {
         _ => return false,
     };
 
-    let mut game = GameFactory::create_game(game_type);
+    let options = VariantOptions {
+        klondike_draw_mode,
+        spider_suit_count,
+        golf_wrap_around,
+    };
+
+    let mut game = GameFactory::create_game_with_options(game_type, options);
     game.initialize(seed);
 
     let mut lock = CURRENT_GAME.lock().unwrap();

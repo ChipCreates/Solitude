@@ -23,9 +23,10 @@ export interface SettingsState {
   autoplay: boolean;
   scoringMode: "standard" | "vegas" | "vegas_cumulative";
   vegasBankroll: number;
+  golfWrapAround: boolean;
   musicEnabled: boolean;
   musicVolume: number;
-  
+
   setDrawMode: (mode: number) => void;
   setAutoComplete: (enabled: boolean) => void;
   setThemeId: (id: string) => void;
@@ -41,6 +42,8 @@ export interface SettingsState {
   setAutoplay: (enabled: boolean) => void;
   setScoringMode: (mode: "standard" | "vegas" | "vegas_cumulative") => void;
   resetVegasBankroll: () => void;
+  addToVegasBankroll: (delta: number) => void;
+  setGolfWrapAround: (enabled: boolean) => void;
   setMusicEnabled: (enabled: boolean) => void;
   setMusicVolume: (vol: number) => void;
   
@@ -74,6 +77,7 @@ function settingsSnapshot(state: SettingsState): Settings {
     autoplay: state.autoplay,
     scoringMode: state.scoringMode,
     vegasBankroll: state.vegasBankroll,
+    golfWrapAround: state.golfWrapAround,
   };
 }
 
@@ -108,6 +112,7 @@ export const useUIStore = create<SettingsState>((set, get) => ({
   autoplay: false,
   scoringMode: "standard",
   vegasBankroll: 0,
+  golfWrapAround: false,
   musicEnabled: false,
   musicVolume: 0.5,
 
@@ -129,6 +134,8 @@ export const useUIStore = create<SettingsState>((set, get) => ({
   setAutoplay: (autoplay) => { set({ autoplay }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setScoringMode: (scoringMode) => { set({ scoringMode }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   resetVegasBankroll: () => { set({ vegasBankroll: 0 }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  addToVegasBankroll: (delta) => { set((state) => ({ vegasBankroll: state.vegasBankroll + delta })); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setGolfWrapAround: (golfWrapAround) => { set({ golfWrapAround }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setMusicEnabled: (musicEnabled) => { set({ musicEnabled }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setMusicVolume: (musicVolume) => { set({ musicVolume }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
 
@@ -215,6 +222,7 @@ export const useUIStore = create<SettingsState>((set, get) => ({
         autoplay: settings.autoplay ?? false,
         scoringMode: (settings.scoringMode as SettingsState["scoringMode"]) ?? "standard",
         vegasBankroll: settings.vegasBankroll ?? 0,
+        golfWrapAround: settings.golfWrapAround ?? false,
 
         coins: progression.coins,
         unlockedItems: progression.unlockedItems,

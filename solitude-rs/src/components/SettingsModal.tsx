@@ -27,10 +27,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
     autoplay,
     scoringMode,
     vegasBankroll,
+    golfWrapAround,
     musicEnabled,
     musicVolume,
     autoComplete,
-    
+
     setDrawMode,
     setThemeId,
     setThemeOverlayIntensity,
@@ -45,6 +46,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
     setAutoplay,
     setScoringMode,
     resetVegasBankroll,
+    setGolfWrapAround,
     setMusicEnabled,
     setMusicVolume,
     setAutoComplete,
@@ -207,7 +209,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
 
         {activeTab === "gameplay" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {(!gameTypeCode || gameTypeCode === 1 || gameTypeCode === 9) && (
+            {(gameTypeCode === undefined || gameTypeCode === 0) && (
               <>
                 <div>
                   <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#c2c8c0" }}>Draw Mode</label>
@@ -279,6 +281,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
                   </div>
                 )}
               </>
+            )}
+
+            {gameTypeCode === 4 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <span>Wrap Around</span>
+                  <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)" }}>Allow King and Ace to chain on the waste pile</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={golfWrapAround}
+                  onChange={(e) => setGolfWrapAround(e.target.checked)}
+                  style={{ width: "20px", height: "20px" }}
+                />
+              </div>
             )}
 
             {(!gameTypeCode || (gameTypeCode !== 4 && gameTypeCode !== 5 && gameTypeCode !== 6)) && (
@@ -365,7 +382,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
             </div>
 
             <div>
-              <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#c2c8c0" }}>Difficulty (Affects Coins Multiplier)</label>
+              <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#c2c8c0" }}>
+                Difficulty (Affects Coins Multiplier{gameTypeCode === 1 ? "; Spider Suit Count" : ""})
+              </label>
               <div style={{ display: "flex", gap: "12px" }}>
                 {["easy", "normal", "hard"].map((level) => {
                   return (

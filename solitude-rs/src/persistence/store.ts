@@ -38,6 +38,7 @@ export interface Settings {
   autoplay?: boolean;
   scoringMode?: string;
   vegasBankroll?: number;
+  golfWrapAround?: boolean;
 }
 
 export interface GameProgression {

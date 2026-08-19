@@ -34,8 +34,21 @@ export function pingEngine(): number {
   return ping();
 }
 
-export function initializeGame(gameTypeCode: number, seed: bigint): boolean {
-  return initialize_game(gameTypeCode, seed);
+export interface VariantOptions {
+  klondikeDrawMode: number; // 1 or 3
+  spiderSuitCount: number; // 1, 2, or 4
+  golfWrapAround: boolean;
+}
+
+const DEFAULT_VARIANT_OPTIONS: VariantOptions = {
+  klondikeDrawMode: 1,
+  spiderSuitCount: 4,
+  golfWrapAround: false,
+};
+
+export function initializeGame(gameTypeCode: number, seed: bigint, options?: Partial<VariantOptions>): boolean {
+  const o = { ...DEFAULT_VARIANT_OPTIONS, ...options };
+  return initialize_game(gameTypeCode, seed, o.klondikeDrawMode, o.spiderSuitCount, o.golfWrapAround);
 }
 
 export function tapStockWasm(): boolean {
