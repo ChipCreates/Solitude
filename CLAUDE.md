@@ -40,7 +40,9 @@ Klondike, Spider, Pyramid, Golf, FreeCell, TriPeaks, Yukon, Forty Thieves, Canfi
 - `npm run tauri dev` / `npm run tauri build` — native desktop app (rebuilds wasm + frontend automatically per `tauri.conf.json`).
 - `npm run build:web` — PWA build (`dist-web/`).
 - `cargo test --workspace` — Rust test suite.
+- `cargo llvm-cov --workspace --html` — Rust coverage report (`target/llvm-cov/html/index.html`).
 - `npx tsc --noEmit` — TypeScript type-check.
+- `npm test` — frontend test suite (Vitest). `npm run test:coverage` for a coverage report.
 
 ## Known Issue
 `npm run build:web` can fail if any `public/assets/cards/*.svg` exceeds the PWA workbox precache's 2MB-per-file limit — check asset sizes before assuming a build regression.

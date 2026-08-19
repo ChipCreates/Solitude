@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { store, Profile } from "../persistence/store";
+import { DEFAULT_AVATAR_ID } from "../data/avatars";
 
 export interface ProfileState {
   activeProfileId: string;
@@ -30,7 +31,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
         const defaultProfile: Profile = {
           id: "default",
           name: "Chip",
-          avatarId: "default_avatar",
+          avatarId: DEFAULT_AVATAR_ID,
           createdAt: Date.now(),
           lastPlayed: Date.now()
         };
@@ -46,7 +47,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       console.error("Failed to load profiles:", e);
       // Fallback state so the game doesn't stall
       set({ 
-        profiles: [{ id: "error_fallback", name: "Player 1", avatarId: "default_avatar", createdAt: Date.now(), lastPlayed: Date.now() }],
+        profiles: [{ id: "error_fallback", name: "Player 1", avatarId: DEFAULT_AVATAR_ID, createdAt: Date.now(), lastPlayed: Date.now() }],
         activeProfileId: "error_fallback"
       });
     }

@@ -1235,6 +1235,7 @@ export const App: React.FC = () => {
           activeTab={activeTab} 
           onTabChange={setActiveTab} 
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenAbout={() => setIsAboutOpen(true)}
           leftHeaderContent={leftHeaderContent}
           rightHeaderContent={rightHeaderContent}
           activeGameName={gameTypeCode !== null ? GAME_TYPE_NAMES[gameTypeCode] : undefined}

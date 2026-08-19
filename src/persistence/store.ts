@@ -47,18 +47,36 @@ export interface GameProgression {
   xp: number;
 }
 
+export interface CoinLedgerEntry {
+  ts: number;
+  amount: number;
+}
+
 export interface Progression {
   coins: number;
+  // Lifetime total ever earned, never decremented by spending — distinct
+  // from `coins` (current spendable balance) and from `coinLedger` (a
+  // capped recent-activity window). Powers the dashboard's "lifetime
+  // coins earned" stat. Optional/additive for backward compatibility.
+  totalCoinsEarned?: number;
   unlockedItems: string[];
   unlockedAchievements: string[];
   difficulty: "easy" | "normal" | "hard";
   gameProgress: Record<string, GameProgression>;
   powerUpInventory: Record<string, number>;
+  // Recent coin-earning events, capped and trimmed in uiStore, powering the
+  // dashboard's "coins over time" trend chart. Optional/additive so older
+  // saved progressions without it still round-trip cleanly.
+  coinLedger?: CoinLedgerEntry[];
 }
 
 export interface Profile {
   id: string;
   name: string;
+  // Optional local display handle, distinct from `name` — purely cosmetic,
+  // shown alongside the name in the profile editor. Additive/optional so
+  // existing saved profiles round-trip cleanly.
+  gamerTag?: string;
   avatarId: string;
   createdAt: number;
   lastPlayed: number;

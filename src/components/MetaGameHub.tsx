@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { Trophy, Store, Settings as SettingsIcon, ArrowLeft, LayoutGrid, Lock, Coins, PanelLeftClose, PanelLeftOpen, User } from "lucide-react";
+import { Trophy, Store, Settings as SettingsIcon, ArrowLeft, LayoutGrid, Coins, PanelLeftClose, PanelLeftOpen, Info } from "lucide-react";
 import { useUIStore } from "../store/uiStore";
 import { useProfileStore } from "../store/profileStore";
 import { useStatisticsStore } from "../store/statisticsStore";
 import { GAME_TYPE_NAMES } from "../data/gameTypes";
 import achievementsData from "../data/achievements.json";
-import { ProfileManagerModal } from "./ProfileManagerModal";
+import { DashboardOverview } from "./DashboardOverview";
+import { getLevelTitle, getOverallLevel } from "../utils/levelTitles";
+import { getAvatarOption } from "../data/avatars";
+
+export type MetaGameHubTab = "gameboard" | "store" | "trophy";
 
 interface MetaGameHubProps {
-  activeTab: "gameboard" | "store" | "trophy";
-  onTabChange: (tab: "gameboard" | "store" | "trophy") => void;
+  activeTab: MetaGameHubTab;
+  onTabChange: (tab: MetaGameHubTab) => void;
   onOpenSettings: () => void;
+  onOpenAbout: () => void;
   leftHeaderContent?: React.ReactNode;
   rightHeaderContent?: React.ReactNode;
   activeGameName?: string;
@@ -52,15 +57,25 @@ export const STORE_ITEMS = [
   { id: "reset_column", type: "power_up", name: "Reset Column", description: "Restacks one fully-dead-end column into a fresh random order.", price: 400, icon: "/assets/store/item_lucky_reshuffle_1787130533491.png" },
 ];
 
-export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange, onOpenSettings, leftHeaderContent, rightHeaderContent, activeGameName, children }) => {
-  const { coins, subtractCoins, unlockedItems, unlockItem, cardBackPattern, setCardBackPattern, themeId, setThemeId, unlockedAchievements, powerUpInventory, purchasePowerUp } = useUIStore();
+export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange, onOpenSettings, onOpenAbout, leftHeaderContent, rightHeaderContent, activeGameName, children }) => {
+  const { coins, subtractCoins, unlockedItems, unlockItem, cardBackPattern, setCardBackPattern, themeId, setThemeId, unlockedAchievements, powerUpInventory, purchasePowerUp, gameProgress } = useUIStore();
   const { profiles, activeProfileId } = useProfileStore();
   const { statsByGameType, loadAllStats } = useStatisticsStore();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isProfileManagerOpen, setIsProfileManagerOpen] = useState(false);
+  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
   const [storeCategory, setStoreCategory] = useState("card_back");
+  const [trophySubTab, setTrophySubTab] = useState<"overview" | "stats">("overview");
+
+  const goToDashboard = () => {
+    onTabChange("trophy");
+    setTrophySubTab("overview");
+    setIsAvatarMenuOpen(false);
+  };
 
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
+  const activeAvatar = getAvatarOption(activeProfile?.avatarId ?? "");
+  const overallLevel = getOverallLevel(gameProgress);
+  const overallLevelTitle = getLevelTitle(overallLevel.level);
 
   useEffect(() => {
     if (activeTab === "trophy") loadAllStats();
@@ -119,9 +134,38 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
             <span style={{ color: "#e9c349", fontWeight: "bold", fontSize: "14px", fontFamily: "JetBrains Mono, monospace" }}>{coins}</span>
             <span style={{ fontSize: "12px", opacity: 0.8, color: "#e5e2e1", fontFamily: "Inter, sans-serif" }}>Coins</span>
           </div>
-          <button onClick={() => setIsProfileManagerOpen(true)} style={{ background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <User size={18} color="#a5b8a9" />
-          </button>
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setIsAvatarMenuOpen((open) => !open)}
+              data-testid="avatar-menu-button"
+              style={{ background: "none", cursor: "pointer", padding: 0, width: "36px", height: "36px", borderRadius: "50%", overflow: "hidden", border: `1px solid ${activeAvatar.ringColor}88` }}
+            >
+              <img src={activeAvatar.src} alt={activeAvatar.label} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            </button>
+            {isAvatarMenuOpen && (
+              <>
+                <div onClick={() => setIsAvatarMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 1099 }} />
+                <div style={{ position: "absolute", top: "44px", right: 0, minWidth: "180px", background: "#111111", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 1100, overflow: "hidden", padding: "6px" }}>
+                  <div style={{ padding: "8px 12px", fontSize: "12px", color: "#e9c349", fontWeight: 700 }}>{activeProfile?.name || "Player"}</div>
+                  {[
+                    { label: "Dashboard", icon: <Trophy size={15} />, onClick: goToDashboard },
+                    { label: "Settings", icon: <SettingsIcon size={15} />, onClick: () => { onOpenSettings(); setIsAvatarMenuOpen(false); } },
+                    { label: "About", icon: <Info size={15} />, onClick: () => { onOpenAbout(); setIsAvatarMenuOpen(false); } },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={item.onClick}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", background: "none", border: "none", color: "#e5e2e1", fontSize: "13px", fontWeight: 500, padding: "8px 12px", borderRadius: "8px", cursor: "pointer", textAlign: "left" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                    >
+                      {item.icon} {item.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
           {rightHeaderContent}
         </div>
       </div>
@@ -134,7 +178,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
               <>
                 <div>
                   <div style={{ fontSize: "22px", fontWeight: 700, color: "#e9c349", fontFamily: "Manrope, sans-serif" }}>{activeProfile?.name || "Player"}</div>
-                  <div style={{ fontSize: "12px", color: "#a5b8a9", fontFamily: "JetBrains Mono, monospace", marginTop: "4px" }}>Level 1 - Novice</div>
+                  <div style={{ fontSize: "12px", color: "#a5b8a9", fontFamily: "JetBrains Mono, monospace", marginTop: "4px" }}>Level {overallLevel.level} - {overallLevelTitle}</div>
                 </div>
                 <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", color: "#a5b8a9", cursor: "pointer", padding: "4px", marginTop: "2px" }}>
                   <PanelLeftClose size={20} />
@@ -202,8 +246,8 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
           </div>
 
           {activeTab === "trophy" && (
-            <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "48px 48px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "40px" }}>
+            <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "48px 48px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
                 <div>
                   <h2 style={{ margin: 0, fontSize: "28px", color: "#e9c349", fontFamily: "Manrope, sans-serif", letterSpacing: "2px", textTransform: "uppercase" }}>Trophy Room</h2>
                   <p style={{ margin: "8px 0 0 0", fontSize: "16px", color: "#a5b8a9" }}>Your legacy of triumph and skill.</p>
@@ -219,8 +263,26 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                 </div>
               </div>
 
-              <div style={{ marginBottom: "48px" }}>
-                <h3 style={{ fontSize: "18px", color: "#e9c349", fontFamily: "Manrope, sans-serif", letterSpacing: "1px", marginBottom: "16px" }}>Statistics</h3>
+              <div style={{ display: "flex", gap: "4px", marginBottom: "32px", background: "rgba(0,0,0,0.3)", padding: "4px", borderRadius: "8px", width: "fit-content" }}>
+                {([{ id: "overview", label: "Overview" }, { id: "stats", label: "Detailed Stats" }] as const).map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTrophySubTab(t.id)}
+                    style={{
+                      padding: "8px 20px", borderRadius: "6px", border: "none", cursor: "pointer",
+                      fontSize: "13px", fontWeight: 600, fontFamily: "Manrope, sans-serif",
+                      background: trophySubTab === t.id ? "#1e3a2b" : "transparent",
+                      color: trophySubTab === t.id ? "#e9c349" : "#a5b8a9",
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {trophySubTab === "overview" && <DashboardOverview />}
+
+              {trophySubTab === "stats" && (
                 <div style={{ background: "#0f1c15", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "12px", overflow: "hidden" }}>
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
@@ -256,34 +318,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                     </table>
                   </div>
                 </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "24px" }}>
-                {achievementsData.achievements.map((ach) => {
-                  const isUnlocked = unlockedAchievements.includes(ach.id);
-                  return (
-                    <div key={ach.id} style={{ background: "#0f1c15", border: isUnlocked ? "1px solid #d4af37" : "1px solid rgba(255,255,255,0.05)", borderRadius: "12px", padding: "24px", display: "flex", flexDirection: "column" }}>
-                      <div style={{ display: "flex", gap: "16px", marginBottom: "24px" }}>
-                        <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: isUnlocked ? "2px solid #d4af37" : "2px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          {isUnlocked ? <Trophy size={20} color="#d4af37" /> : <Lock size={20} color="rgba(255,255,255,0.2)" />}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: "16px", fontWeight: 600, color: isUnlocked ? "#d4af37" : "rgba(255,255,255,0.5)", marginBottom: "4px" }}>{ach.title}</div>
-                          <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.7)", lineHeight: "1.4" }}>{ach.description}</div>
-                        </div>
-                      </div>
-                      <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", fontFamily: "JetBrains Mono, monospace" }}>
-                        <span style={{ color: "rgba(255,255,255,0.4)" }}>{isUnlocked ? "Unlocked" : "Progress"}</span>
-                        {isUnlocked ? (
-                          <span style={{ color: "#d4af37" }}>Active</span>
-                        ) : (
-                          <span style={{ color: "rgba(255,255,255,0.4)" }}>Locked</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              )}
             </div>
           )}
 
@@ -391,10 +426,6 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
           )}
         </div>
       </div>
-      
-      {isProfileManagerOpen && (
-        <ProfileManagerModal onClose={() => setIsProfileManagerOpen(false)} />
-      )}
     </div>
   );
 };

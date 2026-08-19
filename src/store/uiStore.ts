@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { useProfileStore } from "./profileStore";
-import type { Settings, Progression } from "../persistence/store";
+import type { Settings, Progression, CoinLedgerEntry } from "../persistence/store";
 import { MUSIC_TRACKS } from "../data/musicTracks";
+
+// Bound on how many coin-earning events we keep around for the dashboard's
+// trend chart — enough for ~12 weekly buckets' worth of activity without
+// letting the progression JSON blob grow unbounded.
+const COIN_LEDGER_MAX_ENTRIES = 200;
 
 export interface SettingsState {
   drawMode: number;
@@ -15,6 +20,8 @@ export interface SettingsState {
   leftHandMode: boolean;
   victoryPattern: "cascade" | "fountain" | "scatter" | "vortex";
   coins: number;
+  totalCoinsEarned: number;
+  coinLedger: CoinLedgerEntry[];
   unlockedItems: string[];
   unlockedAchievements: string[];
   difficulty: "easy" | "normal" | "hard";
@@ -101,6 +108,8 @@ function settingsSnapshot(state: SettingsState): Settings {
 function progressionSnapshot(state: SettingsState): Progression {
   return {
     coins: state.coins,
+    totalCoinsEarned: state.totalCoinsEarned,
+    coinLedger: state.coinLedger,
     unlockedItems: state.unlockedItems,
     unlockedAchievements: state.unlockedAchievements,
     difficulty: state.difficulty,
@@ -121,6 +130,8 @@ export const useUIStore = create<SettingsState>((set, get) => ({
   leftHandMode: false,
   victoryPattern: "cascade",
   coins: 0,
+  totalCoinsEarned: 0,
+  coinLedger: [],
   unlockedItems: [],
   unlockedAchievements: [],
   difficulty: "normal",
@@ -164,7 +175,11 @@ export const useUIStore = create<SettingsState>((set, get) => ({
   setCustomMusicTrack: (customMusicUrl, customMusicName) => { set({ customMusicUrl, customMusicName }); },
 
   addCoins: (amount) => {
-    set((state) => ({ coins: state.coins + amount }));
+    set((state) => ({
+      coins: state.coins + amount,
+      totalCoinsEarned: state.totalCoinsEarned + amount,
+      coinLedger: [...state.coinLedger, { ts: Date.now(), amount }].slice(-COIN_LEDGER_MAX_ENTRIES),
+    }));
     import("../persistence/store").then(({ store }) => store.saveProgression(useProfileStore.getState().activeProfileId, progressionSnapshot(get())));
   },
   subtractCoins: (amount) => {
@@ -279,6 +294,8 @@ export const useUIStore = create<SettingsState>((set, get) => ({
         musicTrackId: settings.musicTrackId ?? MUSIC_TRACKS[0]?.id ?? "",
 
         coins: progression.coins,
+        totalCoinsEarned: progression.totalCoinsEarned ?? progression.coins,
+        coinLedger: progression.coinLedger ?? [],
         unlockedItems: progression.unlockedItems,
         unlockedAchievements: progression.unlockedAchievements,
         difficulty: progression.difficulty,

@@ -13,9 +13,18 @@ const DEFAULT_STATS: Statistics = {
   fewestMoves: null,
 };
 
+export interface AggregateStatistics {
+  totalGamesPlayed: number;
+  totalGamesWon: number;
+  totalGamesLost: number;
+  overallWinRate: number; // 0-100, rounded
+  bestStreak: number; // max bestStreak across all variants
+}
+
 export interface StatisticsState {
   statsByGameType: Record<string, Statistics>;
   getStats: (gameType: string) => Statistics;
+  getAggregateStats: () => AggregateStatistics;
   loadStats: (gameType: string) => Promise<Statistics>;
   loadAllStats: () => Promise<void>;
   recordWin: (gameType: string, elapsedMs: number, moveCount: number) => Promise<void>;
@@ -26,6 +35,23 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   statsByGameType: {},
 
   getStats: (gameType) => get().statsByGameType[gameType] ?? DEFAULT_STATS,
+
+  getAggregateStats: () => {
+    const { statsByGameType } = get();
+    let totalGamesPlayed = 0;
+    let totalGamesWon = 0;
+    let totalGamesLost = 0;
+    let bestStreak = 0;
+    for (const gameType of GAME_TYPE_NAMES) {
+      const s = statsByGameType[gameType] ?? DEFAULT_STATS;
+      totalGamesPlayed += s.gamesPlayed;
+      totalGamesWon += s.gamesWon;
+      totalGamesLost += s.gamesLost;
+      bestStreak = Math.max(bestStreak, s.bestStreak);
+    }
+    const overallWinRate = totalGamesPlayed > 0 ? Math.round((totalGamesWon / totalGamesPlayed) * 100) : 0;
+    return { totalGamesPlayed, totalGamesWon, totalGamesLost, overallWinRate, bestStreak };
+  },
 
   loadStats: async (gameType) => {
     const profileId = useProfileStore.getState().activeProfileId;

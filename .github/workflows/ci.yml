@@ -38,3 +38,6 @@ jobs:
 
       - name: Type-check
         run: npx tsc --noEmit
+
+      - name: Run frontend test suite
+        run: npm test
