@@ -6,7 +6,7 @@ import {
 } from "./wasm/engine";
 import { calculateGridLayout } from "./canvas/layout/gridLayout";
 import { calculatePyramidLayout, getPyramidCardPosition } from "./canvas/layout/pyramidLayout";
-import { CardBounds } from "./input/pointerController";
+import { CardBounds } from "./input/cardBounds";
 import { setupKeyboardNav } from "./input/keyboardNav";
 import { THEME_PRESETS } from "./theme/presets";
 import { useUIStore } from "./store/uiStore";
@@ -374,13 +374,16 @@ export const App: React.FC = () => {
       ctx.strokeStyle = "rgba(255,255,255,0.15)";
       ctx.fillStyle = "rgba(255,255,255,0.03)";
 
-      const cardsToDraw: CardBounds[] = [];
+      // Cards themselves are rendered as opaque DOM elements in #cards-layer
+      // (which paints over this canvas), reading position from the same
+      // animatedCardsRef the spring-physics step below updates — so that
+      // physics step is live (it drives the DOM animation) even though
+      // nothing here draws the cards themselves onto the canvas.
       const ds = dragStateRef.current;
       cardBoundsListRef.current.forEach((b) => {
         if (b.cardId === -1) {
           ctx.beginPath(); ctx.roundRect(b.x, b.y, b.width, b.height, 8); ctx.fill(); ctx.stroke();
         } else {
-          cardsToDraw.push(b);
           if (!animatedCardsRef.current.has(b.cardId))
             animatedCardsRef.current.set(b.cardId, { x: b.x, y: b.y, vx: 0, vy: 0 });
           const anim = animatedCardsRef.current.get(b.cardId)!;
@@ -393,14 +396,6 @@ export const App: React.FC = () => {
             anim.x += anim.vx * dt; anim.y += anim.vy * dt;
           }
         }
-      });
-
-      cardsToDraw.sort((a, b) => ds ? (a.cardId === ds.cardId ? 1 : b.cardId === ds.cardId ? -1 : 0) : 0);
-      cardsToDraw.forEach((b) => {
-        const anim = animatedCardsRef.current.get(b.cardId)!;
-        const isSel = selectedPyramidCardRef.current?.cardId === b.cardId;
-        const isHint = hintCardIdRef.current === b.cardId;
-        drawCard(ctx, b, anim.x, anim.y, b.width, b.height, b.width < 60, currentTheme.accentColor, isSel || isHint);
       });
 
       if (checkWinWasm()) {
@@ -758,10 +753,6 @@ export const App: React.FC = () => {
     });
   }, []);
 
-  useEffect(() => {
-    // if (isEngineReady && isSplashComplete) startNewGame(0);
-  }, [isEngineReady, isSplashComplete]);
-
   // Animate ghost from source -> dest -> source
   useEffect(() => {
     if (!hintGhost) return;
@@ -963,32 +954,6 @@ export const App: React.FC = () => {
     </>
   );
 };
-
-function drawCard(ctx: CanvasRenderingContext2D, card: CardBounds, x: number, y: number, w: number, h: number, compact: boolean, accent: string, selected: boolean) {
-  ctx.save();
-  ctx.beginPath(); ctx.roundRect(x, y, w, h, 8);
-  if (!card.faceUp) {
-    ctx.fillStyle = "#1e3a2b"; ctx.fill();
-    ctx.strokeStyle = selected ? "#ffd700" : accent; ctx.lineWidth = selected ? 2.5 : 1; ctx.stroke();
-  } else {
-    ctx.fillStyle = selected ? "#fffde7" : "#ffffff"; ctx.fill();
-    ctx.strokeStyle = selected ? "#ffd700" : "rgba(0,0,0,0.15)"; ctx.lineWidth = selected ? 3 : 1; ctx.stroke();
-    const red = card.suit === 0 || card.suit === 1;
-    ctx.fillStyle = red ? "#cc3333" : "#111111";
-    const rank = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"][card.rank - 1];
-    const suit = ["♥","♦","♣","♠"][card.suit];
-    if (compact) {
-      ctx.font = "bold 14px Inter,sans-serif"; ctx.fillText(`${rank}${suit}`, x + 6, y + 18);
-    } else {
-      ctx.font = "bold 16px Manrope,sans-serif"; ctx.fillText(rank, x + 8, y + 20);
-      ctx.font = "14px Inter,sans-serif"; ctx.fillText(suit, x + 8, y + 36);
-      ctx.font = "28px Inter,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(suit, x + w / 2, y + h / 2);
-      ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
-    }
-  }
-  ctx.restore();
-}
 
 const HUD_BTN: React.CSSProperties = { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "8px", color: "#e5e2e1", padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" };
 export default App;
