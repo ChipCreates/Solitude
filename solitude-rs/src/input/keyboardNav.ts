@@ -5,6 +5,8 @@ export interface KeyboardNavActions {
   onHint: () => void;
   onAutoPlay: () => void;
   onSettings: () => void;
+  onCycleFocus: (direction: 1 | -1) => void;
+  onSelectFocused: () => void;
 }
 
 export function setupKeyboardNav(actions: KeyboardNavActions): () => void {
@@ -30,6 +32,12 @@ export function setupKeyboardNav(actions: KeyboardNavActions): () => void {
     } else if (e.key === "Escape") {
       e.preventDefault();
       actions.onSettings();
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      actions.onCycleFocus(e.shiftKey ? -1 : 1);
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      actions.onSelectFocused();
     }
   };
 

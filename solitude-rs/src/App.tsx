@@ -31,7 +31,7 @@ import { MetaGameHub, STORE_ITEMS } from "./components/MetaGameHub";
 import { POWER_UP_CONFIG } from "./powerups/config";
 import { audioService } from "./audio/audioService";
 import { ParticleSystem } from "./canvas/renderParticles";
-import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles, HelpCircle, Zap, Undo2 } from "lucide-react";
+import { RotateCcw, Play, Settings as SettingsIcon, Lightbulb, Sparkles, HelpCircle, Zap, Undo2, Info } from "lucide-react";
 
 const POWER_UP_ITEMS = STORE_ITEMS.filter((i) => i.type === "power_up");
 const RANK_STRS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
@@ -140,6 +140,11 @@ export const App: React.FC = () => {
   // mid-game without that affecting the game already in progress.
   const currentVariantOptionsRef = useRef({ klondikeDrawMode: 1, spiderSuitCount: 4, golfWrapAround: false });
   const [resumableSave, setResumableSave] = useState<SaveEnvelope | null>(null);
+
+  // ─── Keyboard Navigation (Tab: cycle piles, Enter/Space: select) ─────────
+  const [focusedPile, setFocusedPile] = useState<{ pileKind: number; pileIndex: number } | null>(null);
+  const keyboardSelectedRef = useRef<CardBounds | null>(null);
+  const [keyboardSelectedId, setKeyboardSelectedId] = useState<number | null>(null);
 
   const {
     themeId, themeOverlayIntensities, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern, scoringMode, vegasBankroll,
@@ -506,6 +511,68 @@ export const App: React.FC = () => {
     return null;
   };
 
+  // ─── Keyboard Navigation ──────────────────────────────────────────────────
+  const getFocusablePiles = (): { pileKind: number; pileIndex: number }[] => {
+    const seen = new Set<string>();
+    const piles: { pileKind: number; pileIndex: number }[] = [];
+    for (const b of cardBoundsListRef.current) {
+      const key = `${b.pileKind}_${b.pileIndex}`;
+      if (!seen.has(key)) { seen.add(key); piles.push({ pileKind: b.pileKind, pileIndex: b.pileIndex }); }
+    }
+    return piles;
+  };
+
+  const topCardOfPile = (pileKind: number, pileIndex: number): CardBounds | null => {
+    // cardBoundsListRef is already ordered bottom-to-top per pile (matches
+    // findHit's reverse-iteration hit test), so the last match is the top.
+    const matches = cardBoundsListRef.current.filter((b) => b.pileKind === pileKind && b.pileIndex === pileIndex);
+    return matches.length > 0 ? matches[matches.length - 1] : null;
+  };
+
+  const cycleFocusedPile = useCallback((direction: 1 | -1) => {
+    const piles = getFocusablePiles();
+    if (piles.length === 0) return;
+    setFocusedPile((current) => {
+      const currentIdx = current ? piles.findIndex((p) => p.pileKind === current.pileKind && p.pileIndex === current.pileIndex) : -1;
+      const nextIdx = ((currentIdx === -1 ? 0 : currentIdx + direction) + piles.length) % piles.length;
+      return piles[nextIdx];
+    });
+  }, []);
+
+  const cancelKeyboardSelection = useCallback(() => {
+    keyboardSelectedRef.current = null;
+    setKeyboardSelectedId(null);
+  }, []);
+
+  const selectFocusedPile = useCallback(() => {
+    if (!focusedPile) return;
+    if (!keyboardSelectedRef.current) {
+      // Stock has no "top card to pick up" in the usual sense -- Enter/Space
+      // on it just draws, mirroring a click.
+      if (focusedPile.pileKind === 0) {
+        tapStockWasm();
+        setMoveCount((m) => m + 1);
+        audioService.playCardMove();
+        updateLayout();
+        return;
+      }
+      const top = topCardOfPile(focusedPile.pileKind, focusedPile.pileIndex);
+      if (!top || top.cardId === -1 || !top.faceUp) return; // nothing selectable here
+      keyboardSelectedRef.current = top;
+      setKeyboardSelectedId(top.cardId);
+      return;
+    }
+
+    const source = keyboardSelectedRef.current;
+    cancelKeyboardSelection();
+    if (source.pileKind === focusedPile.pileKind && source.pileIndex === focusedPile.pileIndex) return;
+    if (executeMoveWasm(source.pileKind, source.pileIndex, focusedPile.pileKind, focusedPile.pileIndex, source.cardId)) {
+      setMoveCount((m) => m + 1);
+      audioService.playCardMove();
+      updateLayout();
+    }
+  }, [focusedPile, updateLayout, cancelKeyboardSelection]);
+
   // ─── Input Handlers ───────────────────────────────────────────────────────
   const handleTap = useCallback((card: CardBounds) => {
     const type = gameTypeRef.current;
@@ -690,6 +757,9 @@ export const App: React.FC = () => {
     particleSystemRef.current.clear();
     setIsAutoPlaying(false);
     setToastMessage(null);
+    setFocusedPile(null);
+    keyboardSelectedRef.current = null;
+    setKeyboardSelectedId(null);
   }, []);
 
   const clearSavedGame = useCallback(() => {
@@ -1048,9 +1118,11 @@ export const App: React.FC = () => {
       onNewGame: () => startNewGame(),
       onHint: handleHint,
       onAutoPlay: handleAutoPlay,
-      onSettings: () => setIsSettingsOpen((o) => !o),
+      onSettings: () => { cancelKeyboardSelection(); setIsSettingsOpen((o) => !o); },
+      onCycleFocus: cycleFocusedPile,
+      onSelectFocused: selectFocusedPile,
     });
-  }, [updateLayout, startNewGame, handleHint, handleAutoPlay]);
+  }, [updateLayout, startNewGame, handleHint, handleAutoPlay, cycleFocusedPile, selectFocusedPile, cancelKeyboardSelection]);
 
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
@@ -1093,6 +1165,7 @@ export const App: React.FC = () => {
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center", position: "relative" }}>
         <button onClick={() => setIsHelpOpen(true)} title="Help" style={HUD_BTN}><HelpCircle size={18} /></button>
+        <button onClick={() => setIsAboutOpen(true)} title="About" style={HUD_BTN}><Info size={18} /></button>
         <button onClick={() => setPowerUpTrayOpen((v) => !v)} title="Power-ups" style={{ ...HUD_BTN, position: "relative", color: powerUpTrayOpen ? currentTheme.accentColor : "#e5e2e1" }}>
           <Zap size={18} />
           {Object.values(powerUpInventory).some((n) => n > 0) && (
@@ -1170,6 +1243,20 @@ export const App: React.FC = () => {
           {cardBoundsListRef.current.filter((b) => b.cardId === -1).map((b) => (
             <div key={`slot-${b.pileKind}-${b.pileIndex}`} style={{ position: "absolute", left: b.x, top: b.y, width: b.width, height: b.height, borderRadius: "8px", border: `2px dashed ${currentTheme.accentColor}`, opacity: 0.3, pointerEvents: "none" }} />
           ))}
+
+          {/* Keyboard-nav focus ring: highlights the Tab-focused pile */}
+          {focusedPile && (() => {
+            const target = topCardOfPile(focusedPile.pileKind, focusedPile.pileIndex);
+            if (!target) return null;
+            return (
+              <div style={{
+                position: "absolute", left: target.x - 3, top: target.y - 3,
+                width: target.width + 6, height: target.height + 6,
+                borderRadius: "10px", border: `3px solid ${currentTheme.accentColor}`,
+                boxShadow: `0 0 10px ${currentTheme.accentColor}`, pointerEvents: "none", zIndex: 998,
+              }} />
+            );
+          })()}
           {/* Render Cards */}
           {cardBoundsListRef.current.filter(b => b.cardId !== -1).map(b => {
             const anim = animatedCardsRef.current.get(b.cardId);
@@ -1200,7 +1287,7 @@ export const App: React.FC = () => {
                   overlayIntensity={overlayIntensity}
                   cardBackPattern={cardBackPattern}
                   cardBackColor={cardBackColor}
-                  isSelected={selectedPyramidCardRef.current?.cardId === b.cardId}
+                  isSelected={selectedPyramidCardRef.current?.cardId === b.cardId || keyboardSelectedId === b.cardId}
                   isHint={hintCardIdRef.current === b.cardId}
                   hideShadow={isPerfectlyStacked && b.cardIndex > 0}
                 />
