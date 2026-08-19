@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   initEngine, initializeGame, getPilesLayout, tapStockWasm,
   undoWasm, redoWasm, executeMoveWasm, executePairMoveWasm,
-  getHintWasm, autoPlayStepWasm, checkWinWasm,
+  getHintWasm, autoPlayStepWasm, checkWinWasm, isLostWasm,
 } from "./wasm/engine";
 import { calculateGridLayout } from "./canvas/layout/gridLayout";
 import { calculatePyramidLayout, getPyramidCardPosition } from "./canvas/layout/pyramidLayout";
@@ -11,6 +11,8 @@ import { setupKeyboardNav } from "./input/keyboardNav";
 import { THEME_PRESETS } from "./theme/presets";
 import { useUIStore } from "./store/uiStore";
 import { useProfileStore } from "./store/profileStore";
+import { useStatisticsStore } from "./store/statisticsStore";
+import { GAME_TYPE_NAMES } from "./data/gameTypes";
 import { CardWidget } from "./components/CardWidget";
 import { SettingsModal } from "./components/SettingsModal";
 import { GameChooserGrid } from "./components/GameChooserGrid";
@@ -54,6 +56,14 @@ export const App: React.FC = () => {
 
   const [moveCount, setMoveCount] = useState(0);
   const [timerSeconds, setTimerSeconds] = useState(0);
+  // The render loop's rAF closure is set up once (updateLayout/currentTheme
+  // rarely change) so it would otherwise see moveCount/timerSeconds frozen
+  // at their value when the effect was created. Mirror them into refs so
+  // win/loss statistics recording reads live values.
+  const moveCountRef = useRef(0);
+  const timerSecondsRef = useRef(0);
+  useEffect(() => { moveCountRef.current = moveCount; }, [moveCount]);
+  useEffect(() => { timerSecondsRef.current = timerSeconds; }, [timerSeconds]);
   const [, setLayoutTick] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -88,6 +98,7 @@ export const App: React.FC = () => {
   const autoPlayTimeoutRef = useRef<number | null>(null);
   const shouldCancelAutoPlayRef = useRef(false);
   const isWonRef = useRef(false);
+  const isLostRef = useRef(false);
   // Guards against double-committing a Vegas-cumulative round's score: it can
   // be committed either on win (render loop) or on New Game (startNewGame),
   // whichever happens first for a given round.
@@ -409,9 +420,22 @@ export const App: React.FC = () => {
               newLevel: xpResult.newLevel,
               newXP: xpResult.newXP
             });
+            useStatisticsStore.getState().recordWin(
+              GAME_TYPE_NAMES[gameTypeRef.current],
+              timerSecondsRef.current * 1000,
+              moveCountRef.current
+            );
           }
         }
         particleSystemRef.current.updateAndRender(ctx, rect.width, rect.height, victoryPattern);
+      } else if (isLostWasm()) {
+        if (!isLostRef.current) {
+          isLostRef.current = true;
+          if (gameTypeRef.current !== null) {
+            useStatisticsStore.getState().recordLoss(GAME_TYPE_NAMES[gameTypeRef.current]);
+          }
+          setToastMessage("No moves remaining. Better luck next time!");
+        }
       }
 
       ctx.restore();
@@ -618,6 +642,7 @@ export const App: React.FC = () => {
     setSelectedPyramidCard(null);
     hintCardIdRef.current = null;
     isWonRef.current = false;
+    isLostRef.current = false;
     particleSystemRef.current.clear();
     setIsAutoPlaying(false);
     setMoveCount(0); setTimerSeconds(0);
@@ -762,7 +787,7 @@ export const App: React.FC = () => {
         onClick={() => setGameTypeCode(null)}
         style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", color: "#e5e2e1", padding: "6px 12px", fontFamily: "Inter,sans-serif", fontSize: "14px", fontWeight: 600, cursor: "pointer", outline: "none", marginLeft: "-8px" }}
       >
-        {["Klondike", "Spider", "FreeCell", "Pyramid", "Golf", "TriPeaks", "Yukon", "Forty Thieves", "Canfield", "Scorpion"][gameTypeCode] || "Choose Game"}
+        {GAME_TYPE_NAMES[gameTypeCode] || "Choose Game"}
       </button>
       <LevelBadge gameTypeCode={gameTypeCode} />
     </div>
@@ -910,7 +935,7 @@ export const App: React.FC = () => {
 
       {winData && gameTypeCode !== null && (
         <VictoryModal
-          gameName={["Klondike", "Spider", "FreeCell", "Pyramid", "Golf", "TriPeaks", "Yukon", "Forty Thieves", "Canfield", "Scorpion"][gameTypeCode] || "Game"}
+          gameName={GAME_TYPE_NAMES[gameTypeCode] || "Game"}
           winData={winData}
           onNewGame={() => {
             setWinData(null);

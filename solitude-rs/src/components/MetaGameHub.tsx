@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Trophy, Store, Settings as SettingsIcon, ArrowLeft, LayoutGrid, Lock, Coins, PanelLeftClose, PanelLeftOpen, User } from "lucide-react";
 import { useUIStore } from "../store/uiStore";
 import { useProfileStore } from "../store/profileStore";
+import { useStatisticsStore } from "../store/statisticsStore";
+import { GAME_TYPE_NAMES } from "../data/gameTypes";
 import achievementsData from "../data/achievements.json";
 import { ProfileManagerModal } from "./ProfileManagerModal";
 
@@ -12,6 +14,13 @@ interface MetaGameHubProps {
   leftHeaderContent?: React.ReactNode;
   rightHeaderContent?: React.ReactNode;
   children?: React.ReactNode;
+}
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 const STORE_ITEMS = [
@@ -45,11 +54,16 @@ const STORE_ITEMS = [
 export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange, onOpenSettings, leftHeaderContent, rightHeaderContent, children }) => {
   const { coins, subtractCoins, unlockedItems, unlockItem, cardBackPattern, setCardBackPattern, themeId, setThemeId, unlockedAchievements } = useUIStore();
   const { profiles, activeProfileId } = useProfileStore();
+  const { statsByGameType, loadAllStats } = useStatisticsStore();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isProfileManagerOpen, setIsProfileManagerOpen] = useState(false);
   const [storeCategory, setStoreCategory] = useState("card_back");
-  
+
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
+
+  useEffect(() => {
+    if (activeTab === "trophy") loadAllStats();
+  }, [activeTab, activeProfileId, loadAllStats]);
 
   // --- Store Handlers ---
   const handlePurchase = (item: any) => {
@@ -194,6 +208,45 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                   </div>
                   <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
                     <div style={{ width: `${progressPercent}%`, height: "100%", background: "#e9c349" }} />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: "48px" }}>
+                <h3 style={{ fontSize: "18px", color: "#e9c349", fontFamily: "Manrope, sans-serif", letterSpacing: "1px", marginBottom: "16px" }}>Statistics</h3>
+                <div style={{ background: "#0f1c15", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "12px", overflow: "hidden" }}>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                      <thead>
+                        <tr style={{ background: "rgba(255,255,255,0.03)", textAlign: "left" }}>
+                          {["Game", "Played", "Won", "Win %", "Streak", "Best Streak", "Best Time", "Fewest Moves"].map((h) => (
+                            <th key={h} style={{ padding: "12px 16px", color: "rgba(255,255,255,0.5)", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {GAME_TYPE_NAMES.map((gameType) => {
+                          const s = statsByGameType[gameType];
+                          const played = s?.gamesPlayed ?? 0;
+                          const won = s?.gamesWon ?? 0;
+                          const winPct = played > 0 ? Math.round((won / played) * 100) : 0;
+                          const bestTime = s?.bestTimeMs != null ? formatDuration(s.bestTimeMs) : "—";
+                          const fewestMoves = s?.fewestMoves ?? "—";
+                          return (
+                            <tr key={gameType} style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                              <td style={{ padding: "10px 16px", color: "#e5e2e1", fontWeight: 600 }}>{gameType}</td>
+                              <td style={{ padding: "10px 16px", color: "#e5e2e1" }}>{played}</td>
+                              <td style={{ padding: "10px 16px", color: "#e5e2e1" }}>{won}</td>
+                              <td style={{ padding: "10px 16px", color: "#e5e2e1" }}>{winPct}%</td>
+                              <td style={{ padding: "10px 16px", color: "#e5e2e1" }}>{s?.currentStreak ?? 0}</td>
+                              <td style={{ padding: "10px 16px", color: "#e5e2e1" }}>{s?.bestStreak ?? 0}</td>
+                              <td style={{ padding: "10px 16px", color: "#e5e2e1", fontFamily: "JetBrains Mono, monospace" }}>{bestTime}</td>
+                              <td style={{ padding: "10px 16px", color: "#e5e2e1" }}>{fewestMoves}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
