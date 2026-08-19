@@ -1,4 +1,9 @@
-import { DEFAULT_SFX_SET_ID, getSfxSet } from "../data/sfxSets";
+import { DEFAULT_SFX_SET_ID, getSfxSet, type SfxSet } from "../data/sfxSets";
+
+// Fixed, settings-independent volume for one-off previews (e.g. the
+// Emporium's theme pack detail page) — a deliberate "sample this" action
+// should always be audible regardless of the player's saved SFX volume.
+const PREVIEW_VOLUME = 0.7;
 
 class AudioService {
   private ctx: AudioContext | null = null;
@@ -34,20 +39,18 @@ class AudioService {
     this.sfxSetId = id;
   }
 
-  public playCardMove() {
-    if (!this.isEnabled) return;
+  private playCardMoveWithParams(params: SfxSet["cardMove"], volume: number) {
     this.initCtx();
     if (!this.ctx) return;
 
-    const { oscillatorType, startFreq, endFreq } = getSfxSet(this.sfxSetId).cardMove;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    osc.type = oscillatorType;
-    osc.frequency.setValueAtTime(startFreq, this.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(endFreq, this.ctx.currentTime + 0.05);
+    osc.type = params.oscillatorType;
+    osc.frequency.setValueAtTime(params.startFreq, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(params.endFreq, this.ctx.currentTime + 0.05);
 
-    gain.gain.setValueAtTime(0.1 * this.volume, this.ctx.currentTime);
+    gain.gain.setValueAtTime(0.1 * volume, this.ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
 
     osc.connect(gain);
@@ -57,20 +60,18 @@ class AudioService {
     osc.stop(this.ctx.currentTime + 0.05);
   }
 
-  public playWin() {
-    if (!this.isEnabled) return;
+  private playWinWithParams(params: SfxSet["win"], volume: number) {
     this.initCtx();
     if (!this.ctx) return;
 
-    const { oscillatorType, noteFreqs } = getSfxSet(this.sfxSetId).win;
-    noteFreqs.forEach((freq, i) => {
+    params.noteFreqs.forEach((freq, i) => {
       if (!this.ctx) return;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
 
-      osc.type = oscillatorType;
+      osc.type = params.oscillatorType;
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.15 * this.volume, this.ctx.currentTime + i * 0.1);
+      gain.gain.setValueAtTime(0.15 * volume, this.ctx.currentTime + i * 0.1);
       gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.1 + 0.3);
 
       osc.connect(gain);
@@ -79,6 +80,27 @@ class AudioService {
       osc.start(this.ctx.currentTime + i * 0.1);
       osc.stop(this.ctx.currentTime + i * 0.1 + 0.3);
     });
+  }
+
+  public playCardMove() {
+    if (!this.isEnabled) return;
+    this.playCardMoveWithParams(getSfxSet(this.sfxSetId).cardMove, this.volume);
+  }
+
+  public playWin() {
+    if (!this.isEnabled) return;
+    this.playWinWithParams(getSfxSet(this.sfxSetId).win, this.volume);
+  }
+
+  // Settings-independent one-off previews, e.g. from the Emporium's theme
+  // pack detail page — play regardless of the player's SFX enabled/volume
+  // settings, without touching the currently-equipped SFX set.
+  public previewCardMove(sfxSetId: string) {
+    this.playCardMoveWithParams(getSfxSet(sfxSetId).cardMove, PREVIEW_VOLUME);
+  }
+
+  public previewWin(sfxSetId: string) {
+    this.playWinWithParams(getSfxSet(sfxSetId).win, PREVIEW_VOLUME);
   }
 
   private ensureMusicEl(): HTMLAudioElement | null {

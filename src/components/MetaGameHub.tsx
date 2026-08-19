@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Trophy, Store, Settings as SettingsIcon, ArrowLeft, LayoutGrid, Coins, PanelLeftClose, PanelLeftOpen, Info } from "lucide-react";
+import { Trophy, Store, Settings as SettingsIcon, ArrowLeft, LayoutGrid, Coins, PanelLeftClose, PanelLeftOpen, Info, Eye } from "lucide-react";
 import { useUIStore } from "../store/uiStore";
 import { useProfileStore } from "../store/profileStore";
 import { useStatisticsStore } from "../store/statisticsStore";
@@ -9,14 +9,19 @@ import { DashboardOverview } from "./DashboardOverview";
 import { getLevelTitle, getOverallLevel } from "../utils/levelTitles";
 import { getAvatarOption } from "../data/avatars";
 import { applyThemePack } from "../theme/presets";
+import { STORE_ITEMS } from "../data/storeItems";
+import { SettingsPage } from "./SettingsPage";
+import { ThemePackDetailPage } from "./ThemePackDetailPage";
 
-export type MetaGameHubTab = "gameboard" | "store" | "trophy";
+export { STORE_ITEMS };
+
+export type MetaGameHubTab = "gameboard" | "store" | "trophy" | "settings";
 
 interface MetaGameHubProps {
   activeTab: MetaGameHubTab;
   onTabChange: (tab: MetaGameHubTab) => void;
-  onOpenSettings: () => void;
   onOpenAbout: () => void;
+  gameTypeCode?: number;
   leftHeaderContent?: React.ReactNode;
   rightHeaderContent?: React.ReactNode;
   activeGameName?: string;
@@ -30,37 +35,7 @@ function formatDuration(ms: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export const STORE_ITEMS = [
-  { id: "bicycle", type: "card_back", name: "Bicycle Blue", price: 0 },
-  { id: "diamond", type: "card_back", name: "Classic Diamond", price: 0 },
-  { id: "botanical", type: "card_back", name: "Botanical Garden", price: 500, icon: "/assets/cards/back_botanical.png" },
-  { id: "mystic", type: "card_back", name: "Mystic Aura", price: 500, icon: "/assets/cards/back_mystic.png" },
-  { id: "filigree", type: "card_back", name: "Golden Filigree", price: 500, icon: "/assets/cards/back_filigree.png" },
-  { id: "dragon", type: "card_back", name: "Dragon Ruby", price: 1000, icon: "/assets/cards/card_back_dragon_1787130558476.png" },
-  { id: "celestial", type: "card_back", name: "Celestial Skies", price: 1000, icon: "/assets/cards/card_back_celestial_1787130567064.png" },
-  { id: "classic_felt", type: "theme", name: "Casino Green", price: 0 },
-  { id: "midnight", type: "theme", name: "Midnight Blue", price: 300 },
-  { id: "burgundy_velvet", type: "theme", name: "Burgundy Velvet", price: 300 },
-  { id: "nordic", type: "theme", name: "Obsidian Glass", price: 800 },
-  { id: "dragons_hoard", type: "theme_pack", name: "Dragon's Hoard", description: "A full pack: table felt, the Dragon Ruby card back, arcade SFX, and Golden Hour Bet music, bundled together.", price: 1400, icon: "/assets/cards/card_back_dragon_1787130558476.png" },
-  { id: "celestial_veil", type: "theme_pack", name: "Celestial Veil", description: "A full pack: table felt, the Celestial Skies card back, mystic SFX, and Aces at Dawn music, bundled together.", price: 1400, icon: "/assets/cards/card_back_celestial_1787130567064.png" },
-  { id: "confetti", type: "victory", name: "Confetti Explosion", price: 400 },
-  { id: "fireworks", type: "victory", name: "Golden Fireworks", price: 1000 },
-  { id: "unstick_wand", type: "power_up", name: "Unstick Wand", description: "Forces one legal-but-blocked move to become available.", price: 300, icon: "/assets/store/item_unstick_wand_1787130506774.png" },
-  { id: "peek_charm", type: "power_up", name: "Peek Charm", description: "Reveal one face-down card without flipping it into play.", price: 150, icon: "/assets/store/item_peek_charm_1787130514247.png" },
-  { id: "deck_whisper", type: "power_up", name: "Deck Whisper", description: "Shows the next 3 cards coming from the stock pile.", price: 200, icon: "/assets/store/item_deck_whisper_1787130523895.png" },
-  { id: "lucky_reshuffle", type: "power_up", name: "Lucky Reshuffle", description: "Reshuffles just the stock/waste pile without restarting.", price: 250, icon: "/assets/store/item_lucky_reshuffle_1787130533491.png" },
-  { id: "undo_token", type: "power_up", name: "Undo Token", description: "Reverses your last move.", price: 100, icon: "/assets/store/item_undo_token_1787130542748.png" },
-  { id: "column_breather", type: "power_up", name: "Column Breather", description: "Temporarily reveals the top 2 cards of one face-down column.", price: 350, icon: "/assets/store/item_column_breather_1787130550493.png" },
-  { id: "extra_hint", type: "power_up", name: "Extra Hint", description: "Highlights one available legal move you haven't spotted.", price: 100, icon: "/assets/store/item_extra_hint_1787130597111.png" },
-  { id: "second_look", type: "power_up", name: "Second Look", description: "Un-flips one card you already committed to.", price: 200, icon: "/assets/store/item_second_look_1787130604583.png" },
-  { id: "foundation_nudge", type: "power_up", name: "Foundation Nudge", description: "Flags which card would unlock the most downstream moves.", price: 250, icon: "/assets/store/item_foundation_nudge_1787130612217.png" },
-  { id: "time_ease", type: "power_up", name: "Time Ease", description: "Adds 60 seconds on timed modes.", price: 150, icon: "/assets/store/item_time_ease_1787130619507.png" },
-  { id: "free_slot", type: "power_up", name: "Free Slot", description: "Temporarily opens an extra holding spot for one card.", price: 300, icon: "/assets/store/item_free_slot_1787130628168.png" },
-  { id: "reset_column", type: "power_up", name: "Reset Column", description: "Restacks one fully-dead-end column into a fresh random order.", price: 400, icon: "/assets/store/item_lucky_reshuffle_1787130533491.png" },
-];
-
-export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange, onOpenSettings, onOpenAbout, leftHeaderContent, rightHeaderContent, activeGameName, children }) => {
+export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange, onOpenAbout, gameTypeCode, leftHeaderContent, rightHeaderContent, activeGameName, children }) => {
   const { coins, subtractCoins, unlockedItems, unlockItem, cardBackPattern, setCardBackPattern, themeId, setThemeId, setSfxSetId, setMusicTrackId, unlockedAchievements, powerUpInventory, purchasePowerUp, gameProgress } = useUIStore();
   const { profiles, activeProfileId } = useProfileStore();
   const { statsByGameType, loadAllStats } = useStatisticsStore();
@@ -68,6 +43,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
   const [storeCategory, setStoreCategory] = useState("card_back");
   const [trophySubTab, setTrophySubTab] = useState<"overview" | "stats">("overview");
+  const [previewThemePackId, setPreviewThemePackId] = useState<string | null>(null);
 
   const goToDashboard = () => {
     onTabChange("trophy");
@@ -159,7 +135,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                   <div style={{ padding: "8px 12px", fontSize: "12px", color: "#e9c349", fontWeight: 700 }}>{activeProfile?.name || "Player"}</div>
                   {[
                     { label: "Dashboard", icon: <Trophy size={15} />, onClick: goToDashboard },
-                    { label: "Settings", icon: <SettingsIcon size={15} />, onClick: () => { onOpenSettings(); setIsAvatarMenuOpen(false); } },
+                    { label: "Settings", icon: <SettingsIcon size={15} />, onClick: () => { onTabChange("settings"); setIsAvatarMenuOpen(false); } },
                     { label: "About", icon: <Info size={15} />, onClick: () => { onOpenAbout(); setIsAvatarMenuOpen(false); } },
                   ].map((item) => (
                     <button
@@ -243,8 +219,8 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
             <button onClick={() => onTabChange("trophy")} style={{ display: "flex", alignItems: "center", gap: "12px", padding: sidebarOpen ? "12px 24px" : "12px", justifyContent: sidebarOpen ? "flex-start" : "center", background: activeTab === "trophy" ? "#1e3a2b" : "transparent", border: "none", color: activeTab === "trophy" ? "#e9c349" : "#a5b8a9", fontSize: "14px", fontWeight: 600, cursor: "pointer", borderRadius: sidebarOpen ? "0" : "8px" }}>
               <Trophy size={18} color={activeTab === "trophy" ? "#e9c349" : "#a5b8a9"} /> {sidebarOpen && "Trophy Room"}
             </button>
-            <button onClick={onOpenSettings} style={{ display: "flex", alignItems: "center", gap: "12px", padding: sidebarOpen ? "12px 24px" : "12px", justifyContent: sidebarOpen ? "flex-start" : "center", background: "transparent", border: "none", color: "#a5b8a9", fontSize: "14px", fontWeight: 600, cursor: "pointer", borderRadius: sidebarOpen ? "0" : "8px" }}>
-              <SettingsIcon size={18} /> {sidebarOpen && "Settings"}
+            <button onClick={() => onTabChange("settings")} style={{ display: "flex", alignItems: "center", gap: "12px", padding: sidebarOpen ? "12px 24px" : "12px", justifyContent: sidebarOpen ? "flex-start" : "center", background: activeTab === "settings" ? "#1e3a2b" : "transparent", border: "none", color: activeTab === "settings" ? "#e9c349" : "#a5b8a9", fontSize: "14px", fontWeight: 600, cursor: "pointer", borderRadius: sidebarOpen ? "0" : "8px" }}>
+              <SettingsIcon size={18} color={activeTab === "settings" ? "#e9c349" : "#a5b8a9"} /> {sidebarOpen && "Settings"}
             </button>
           </div>
         </div>
@@ -333,7 +309,15 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
             </div>
           )}
 
-          {activeTab === "store" && (
+          {activeTab === "store" && previewThemePackId && (
+            <ThemePackDetailPage
+              packId={previewThemePackId}
+              onBack={() => setPreviewThemePackId(null)}
+              onPurchase={handlePurchase}
+            />
+          )}
+
+          {activeTab === "store" && !previewThemePackId && (
             <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "48px 48px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "40px" }}>
                 <div>
@@ -383,11 +367,22 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                           const canAfford = coins >= item.price;
                           const disabled = isPowerUp ? !canAfford : (!unlocked && !canAfford);
 
+                          const isThemePack = item.type === "theme_pack";
+
                           return (
-                            <div key={item.id} style={{ background: "rgba(10, 20, 15, 0.6)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "16px", padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+                            <div
+                              key={item.id}
+                              onClick={isThemePack ? () => setPreviewThemePackId(item.id) : undefined}
+                              style={{ background: "rgba(10, 20, 15, 0.6)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "16px", padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", position: "relative", cursor: isThemePack ? "pointer" : "default" }}
+                            >
                               {isPowerUp && owned > 0 && (
                                 <div style={{ position: "absolute", top: "12px", right: "12px", background: "#d4af37", color: "#111", fontWeight: 800, fontSize: "12px", borderRadius: "999px", padding: "2px 9px", zIndex: 1 }}>
                                   ×{owned}
+                                </div>
+                              )}
+                              {isThemePack && (
+                                <div style={{ position: "absolute", top: "12px", left: "12px", display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.6)", color: "#e9c349", fontWeight: 700, fontSize: "11px", borderRadius: "999px", padding: "3px 9px", zIndex: 1, border: "1px solid rgba(233,195,73,0.3)" }}>
+                                  <Eye size={12} /> Preview
                                 </div>
                               )}
                               <div style={{ width: "100%", display: "flex", justifyContent: "center", marginBottom: "24px" }}>
@@ -407,7 +402,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
 
                               <div style={{ width: "100%" }}>
                                 <button
-                                  onClick={() => handlePurchase(item)}
+                                  onClick={(e) => { e.stopPropagation(); handlePurchase(item); }}
                                   disabled={disabled}
                                   style={{
                                     width: "100%", padding: "14px", borderRadius: "8px", border: "none", fontWeight: 700, fontSize: "13px", letterSpacing: "1.5px", textTransform: "uppercase", cursor: disabled ? "not-allowed" : "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
@@ -436,6 +431,8 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
               </div>
             </div>
           )}
+
+          {activeTab === "settings" && <SettingsPage gameTypeCode={gameTypeCode} />}
         </div>
       </div>
     </div>

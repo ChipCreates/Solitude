@@ -1,18 +1,18 @@
 import React from "react";
+import { Lock } from "lucide-react";
 import { THEME_PRESETS, applyThemePack } from "../theme/presets";
 import { OverlayValidator, hexToRgb } from "../theme/overlayValidator";
 import { MUSIC_TRACKS, CUSTOM_TRACK_ID } from "../data/musicTracks";
+import { STORE_ITEMS } from "../data/storeItems";
 import { useUIStore } from "../store/uiStore";
 
 import { getBackPatternCss, getBackPatternSize, getBackPatternPosition } from "./CardWidget";
 
-interface SettingsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface SettingsPageProps {
   gameTypeCode?: number;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, gameTypeCode }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ gameTypeCode }) => {
   const [activeTab, setActiveTab] = React.useState<"theme" | "gameplay" | "sound">("theme");
   const [intensityWarning, setIntensityWarning] = React.useState(false);
   const {
@@ -37,6 +37,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
     customMusicUrl,
     customMusicName,
     autoComplete,
+    unlockedItems,
 
     setDrawMode,
     setThemeId,
@@ -72,8 +73,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
     e.target.value = "";
   };
 
-  if (!isOpen) return null;
-
   const handleSelectTheme = (id: string) => {
     applyThemePack(id, { setThemeId, setCardBackPattern, setSfxSetId, setMusicTrackId });
     setIntensityWarning(false);
@@ -95,96 +94,83 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
     }
   };
 
+  // Only themes actually sold somewhere (free or paid) are selectable here —
+  // a theme with no matching store entry isn't reachable by any purchase
+  // path, so it's excluded rather than shown as permanently locked.
+  const selectableThemes = Object.values(THEME_PRESETS)
+    .map((preset) => ({
+      preset,
+      storeItem: STORE_ITEMS.find((i) => (i.type === "theme" || i.type === "theme_pack") && i.id === preset.id),
+    }))
+    .filter((entry): entry is { preset: typeof entry.preset; storeItem: NonNullable<typeof entry.storeItem> } => !!entry.storeItem);
+
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.65)",
-        backdropFilter: "blur(16px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1500,
-      }}
-    >
-      <div
-        style={{
-          width: "90%",
-          maxWidth: "800px",
-          background: "rgba(26, 26, 26, 0.9)",
-          border: "1px solid rgba(255, 255, 255, 0.15)",
-          borderRadius: "24px",
-          padding: "24px",
-          color: "#e5e2e1",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
-        }}
-      >
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          <h2 style={{ fontFamily: "Manrope, sans-serif", fontSize: "24px", fontWeight: 700 }}>Settings</h2>
+    <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "48px 48px" }}>
+      <div style={{ marginBottom: "24px" }}>
+        <h2 style={{ margin: 0, fontSize: "28px", color: "#e9c349", fontFamily: "Manrope, sans-serif", letterSpacing: "2px", textTransform: "uppercase" }}>Settings</h2>
+        <p style={{ margin: "8px 0 0 0", fontSize: "16px", color: "#a5b8a9" }}>Tune the table to your taste.</p>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "4px", borderBottom: "1px solid rgba(255, 255, 255, 0.1)", paddingBottom: "16px", marginBottom: "24px", background: "rgba(0,0,0,0.3)", padding: "4px", borderRadius: "8px", width: "fit-content" }}>
+        {(["theme", "gameplay", "sound"] as const).map((tab) => (
           <button
-            onClick={onClose}
+            key={tab}
+            onClick={() => setActiveTab(tab)}
             style={{
-              background: "none",
+              background: activeTab === tab ? "#1e3a2b" : "transparent",
               border: "none",
-              color: "#e5e2e1",
-              fontSize: "24px",
+              borderRadius: "6px",
+              padding: "8px 20px",
+              color: activeTab === tab ? "#e9c349" : "#a5b8a9",
+              fontFamily: "Manrope, sans-serif",
+              fontWeight: 600,
+              fontSize: "13px",
               cursor: "pointer",
+              textTransform: "capitalize",
             }}
           >
-            ✕
+            {tab}
           </button>
-        </div>
+        ))}
+      </div>
 
-        {/* Tabs */}
-        <div style={{ display: "flex", gap: "12px", borderBottom: "1px solid rgba(255, 255, 255, 0.1)", paddingBottom: "12px", marginBottom: "20px" }}>
-          {(["theme", "gameplay", "sound"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                background: activeTab === tab ? "rgba(233, 195, 73, 0.2)" : "none",
-                border: activeTab === tab ? "1px solid #e9c349" : "1px solid transparent",
-                borderRadius: "8px",
-                padding: "8px 16px",
-                color: activeTab === tab ? "#e9c349" : "#8c928b",
-                fontFamily: "Manrope, sans-serif",
-                fontWeight: 600,
-                cursor: "pointer",
-                textTransform: "capitalize",
-              }}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
+      <div style={{ maxWidth: "700px" }}>
         {/* Content */}
         {activeTab === "theme" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "24px", maxHeight: "60vh", overflowY: "auto", paddingRight: "8px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
             <div>
               <h3 style={{ fontSize: "16px", marginBottom: "12px", color: "#c2c8c0" }}>Select Table Theme</h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "12px" }}>
-                {Object.values(THEME_PRESETS).map((preset) => (
-                  <div
-                    key={preset.id}
-                    onClick={() => handleSelectTheme(preset.id)}
-                    style={{
-                      background: preset.tableColor,
-                      border: themeId === preset.id ? "2px solid #e9c349" : "1px solid rgba(255, 255, 255, 0.1)",
-                      borderRadius: "12px",
-                      padding: "16px",
-                      cursor: "pointer",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#ffffff" }}>{preset.name}</div>
-                  </div>
-                ))}
+                {selectableThemes.map(({ preset, storeItem }) => {
+                  const unlocked = unlockedItems.includes(preset.id) || storeItem.price === 0;
+                  return (
+                    <div
+                      key={preset.id}
+                      onClick={unlocked ? () => handleSelectTheme(preset.id) : undefined}
+                      style={{
+                        background: preset.tableColor,
+                        border: themeId === preset.id ? "2px solid #e9c349" : "1px solid rgba(255, 255, 255, 0.1)",
+                        borderRadius: "12px",
+                        padding: "16px",
+                        cursor: unlocked ? "pointer" : "not-allowed",
+                        textAlign: "center",
+                        position: "relative",
+                        opacity: unlocked ? 1 : 0.55,
+                      }}
+                    >
+                      <div style={{ fontSize: "14px", fontWeight: 600, color: "#ffffff" }}>{preset.name}</div>
+                      {!unlocked && (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", marginTop: "6px", fontSize: "11px", color: "#e9c349" }}>
+                          <Lock size={11} /> {storeItem.price} in Emporium
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            
+
             <div>
               <h3 style={{ fontSize: "16px", marginBottom: "12px", color: "#c2c8c0" }}>Card Face Tint Intensity</h3>
               <input
@@ -305,7 +291,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
                     ))}
                   </div>
                 </div>
-                
+
                 {scoringMode === "vegas_cumulative" && (
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.3)", padding: "12px", borderRadius: "8px" }}>
                     <div style={{ display: "flex", flexDirection: "column" }}>

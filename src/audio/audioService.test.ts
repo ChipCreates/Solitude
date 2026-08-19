@@ -71,4 +71,31 @@ describe("audioService SFX sets", () => {
     const lastFour = spy.mock.results.slice(-4).map((r) => r.value as MockOscillator);
     expect(lastFour.every((osc) => osc.type === "triangle")).toBe(true);
   });
+
+  it("previewCardMove plays the requested set even when SFX is disabled and doesn't change the equipped set", () => {
+    audioService.setSfxSet("classic");
+    audioService.setConfig(false, 1); // SFX disabled — playCardMove() would no-op
+    const spy = vi.spyOn(MockAudioContext.prototype, "createOscillator");
+
+    audioService.previewCardMove("arcade");
+    const osc = spy.mock.results[spy.mock.results.length - 1].value as MockOscillator;
+    expect(osc.type).toBe("square");
+
+    // The equipped set is untouched — a subsequent real playCardMove (once
+    // re-enabled) still uses "classic", not the previewed "arcade".
+    audioService.setConfig(true, 1);
+    audioService.playCardMove();
+    const equippedOsc = spy.mock.results[spy.mock.results.length - 1].value as MockOscillator;
+    expect(equippedOsc.type).toBe("sine");
+  });
+
+  it("previewWin plays the requested set's notes regardless of the SFX enabled setting", () => {
+    audioService.setConfig(false, 1);
+    const spy = vi.spyOn(MockAudioContext.prototype, "createOscillator");
+
+    audioService.previewWin("mystic");
+
+    expect(spy).toHaveBeenCalledTimes(4);
+    expect(spy.mock.results.every((r) => (r.value as MockOscillator).type === "triangle")).toBe(true);
+  });
 });

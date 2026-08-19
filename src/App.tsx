@@ -20,7 +20,6 @@ import { checkWinAchievements } from "./achievements/checkAchievements";
 import type { SaveEnvelope } from "./persistence/store";
 import { MUSIC_TRACKS, CUSTOM_TRACK_ID } from "./data/musicTracks";
 import { CardWidget } from "./components/CardWidget";
-import { SettingsModal } from "./components/SettingsModal";
 import { GameChooserGrid } from "./components/GameChooserGrid";
 import { LevelBadge } from "./components/LevelBadge";
 import { VictoryModal } from "./components/VictoryModal";
@@ -77,11 +76,10 @@ export const App: React.FC = () => {
   useEffect(() => { moveCountRef.current = moveCount; }, [moveCount]);
   useEffect(() => { timerSecondsRef.current = timerSeconds; }, [timerSeconds]);
   const [, setLayoutTick] = useState(0);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"gameboard" | "store" | "trophy">("gameboard");
+  const [activeTab, setActiveTab] = useState<"gameboard" | "store" | "trophy" | "settings">("gameboard");
   const [isEngineReady, setIsEngineReady] = useState(false);
   const [isSplashComplete, setIsSplashComplete] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -1139,7 +1137,7 @@ export const App: React.FC = () => {
       onNewGame: () => startNewGame(),
       onHint: handleHint,
       onAutoPlay: handleAutoPlay,
-      onSettings: () => { cancelKeyboardSelection(); setIsSettingsOpen((o) => !o); },
+      onSettings: () => { cancelKeyboardSelection(); setActiveTab((t) => (t === "settings" ? "gameboard" : "settings")); },
       onCycleFocus: cycleFocusedPile,
       onSelectFocused: selectFocusedPile,
     });
@@ -1232,7 +1230,7 @@ export const App: React.FC = () => {
     </>
   ) : (
     <>
-      <button className="mobile-only-flex" onClick={() => setIsSettingsOpen(true)} style={{ background: "none", border: "none", color: "#e5e2e1", cursor: "pointer", display: "flex", alignItems: "center" }}><SettingsIcon size={20} /></button>
+      <button className="mobile-only-flex" onClick={() => setActiveTab("settings")} style={{ background: "none", border: "none", color: "#e5e2e1", cursor: "pointer", display: "flex", alignItems: "center" }}><SettingsIcon size={20} /></button>
     </>
   );
 
@@ -1242,11 +1240,11 @@ export const App: React.FC = () => {
         <SplashPage onLoadComplete={handleSplashComplete} />
       )}
       {isEngineReady && isSplashComplete && (
-        <MetaGameHub 
-          activeTab={activeTab} 
-          onTabChange={setActiveTab} 
-          onOpenSettings={() => setIsSettingsOpen(true)}
+        <MetaGameHub
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
           onOpenAbout={() => setIsAboutOpen(true)}
+          gameTypeCode={gameTypeCode ?? undefined}
           leftHeaderContent={leftHeaderContent}
           rightHeaderContent={rightHeaderContent}
           activeGameName={gameTypeCode !== null ? GAME_TYPE_NAMES[gameTypeCode] : undefined}
@@ -1390,7 +1388,6 @@ export const App: React.FC = () => {
     </MetaGameHub>
   )}
 
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} gameTypeCode={gameTypeCode ?? undefined} />
       {gameTypeCode !== null && <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} gameType={gameTypeCode} />}
       <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
 
