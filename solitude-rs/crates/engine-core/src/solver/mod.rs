@@ -38,6 +38,7 @@ impl PartialOrd for SolverNode {
 
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
+use std::collections::VecDeque;
 use std::cell::RefCell;
 
 // `Pile` derives `Hash`/`Eq` including its internal `version` counter, which
@@ -85,14 +86,29 @@ pub enum SolverContext {
     AutoPlay,
 }
 
+// Cap on how many recent post-move states AutoPlay remembers when deciding
+// whether a candidate move would just backtrack into a state it was
+// already in. Small and fixed-size on purpose: this only needs to catch
+// short back-and-forth cycles (e.g. shuffling a King/Queen pair between two
+// empty tableau columns), not long-range repetition.
+const AUTOPLAY_HISTORY_CAPACITY: usize = 12;
+
 thread_local! {
     static HINT_CACHED_PATH: RefCell<Vec<HintMove>> = RefCell::new(Vec::new());
     static HINT_EXPECTED_STATE_HASH: RefCell<u64> = RefCell::new(0);
     static AUTOPLAY_CACHED_PATH: RefCell<Vec<HintMove>> = RefCell::new(Vec::new());
     static AUTOPLAY_EXPECTED_STATE_HASH: RefCell<u64> = RefCell::new(0);
+    // Distinct from the BFS's per-call `visited` set (game.rs), which only
+    // dedupes states *within* one search and is discarded afterward. This
+    // ring buffer persists *across* separate AutoPlay steps, so it can
+    // catch a move that looks locally best on every individual call but
+    // only ever shuffles between a handful of already-seen states,
+    // producing a non-terminating loop no single search would ever see.
+    static AUTOPLAY_RECENT_HASHES: RefCell<VecDeque<u64>> = RefCell::new(VecDeque::new());
 }
 
-/// Clears both solver caches (Hint and AutoPlay).
+/// Clears both solver caches (Hint and AutoPlay) and AutoPlay's recent-state
+/// history.
 ///
 /// Must be called whenever a new game is initialized: a stale cache from
 /// the previous game could otherwise be replayed against the new state if
@@ -102,6 +118,7 @@ pub fn clear_solver_cache() {
     HINT_EXPECTED_STATE_HASH.with(|e| *e.borrow_mut() = 0);
     AUTOPLAY_CACHED_PATH.with(|p| p.borrow_mut().clear());
     AUTOPLAY_EXPECTED_STATE_HASH.with(|e| *e.borrow_mut() = 0);
+    AUTOPLAY_RECENT_HASHES.with(|h| h.borrow_mut().clear());
 }
 
 fn calculate_hash(game: &dyn GameRules) -> u64 {
@@ -156,9 +173,8 @@ impl SolverEngine {
             } else {
                 valid = game.is_valid_move(m.from, m.to, &m.cards);
             }
-            
+
             if valid {
-                // Update expected hash for the NEXT turn
                 let initial_snap = game.snapshot();
                 let initial_hist = game.snapshot_history();
                 if m.cards.is_empty() && m.from.kind == PileType::Stock {
@@ -166,11 +182,22 @@ impl SolverEngine {
                 } else {
                     let _ = game.execute_move(m.from, m.to, &m.cards);
                 }
-                expected_state_hash.with(|e| *e.borrow_mut() = calculate_hash(game));
+                let resulting_hash = calculate_hash(game);
                 game.restore(initial_snap);
                 game.restore_history(initial_hist);
 
-                return Some(m);
+                if Self::is_autoplay_repeat(context, resulting_hash) {
+                    // This cached step would just backtrack into a state
+                    // AutoPlay has already been in recently -- drop the
+                    // whole plan and fall through to a fresh search instead
+                    // of blindly replaying a path that's proven to cycle.
+                    cached_path.with(|p| p.borrow_mut().clear());
+                } else {
+                    // Update expected hash for the NEXT turn
+                    expected_state_hash.with(|e| *e.borrow_mut() = resulting_hash);
+                    Self::record_autoplay_state(context, resulting_hash);
+                    return Some(m);
+                }
             } else {
                 cached_path.with(|p| p.borrow_mut().clear());
             }
@@ -269,37 +296,101 @@ impl SolverEngine {
 
         if best_move_found.is_none() {
             best_move_found = mcts::MctsSolver::find_best_move(game, 10_000);
-            
+
             if best_move_found.is_none() {
                 best_move_found = game.get_hint();
             }
-        } else if let Some(ref m) = best_move_found {
-            // Save the remaining path to cache
-            cached_path.with(|p| {
-                let mut path = p.borrow_mut();
-                path.clear();
-                // The first move is returned, the rest are cached
-                if let Some(best_path) = best_path_found {
-                    if best_path.len() > 1 {
-                        path.extend(best_path.into_iter().skip(1));
-                    }
-                }
-            });
 
-            // Calculate what the hash WILL be after this move
-            if m.cards.is_empty() && m.from.kind == PileType::Stock {
-                let _ = game.tap_stock();
-            } else {
-                let _ = game.execute_move(m.from, m.to, &m.cards);
+            // Neither fallback draws from best_path_found, so there's no
+            // path to cache -- just apply the same repeat check + hash
+            // bookkeeping the cached-path and fresh-search branches use.
+            if let Some(ref m) = best_move_found {
+                if let Some(resulting_hash) =
+                    Self::simulate_move_hash(game, m, initial_snapshot.clone(), initial_history.clone())
+                {
+                    if Self::is_autoplay_repeat(context, resulting_hash) {
+                        best_move_found = None;
+                    } else {
+                        Self::record_autoplay_state(context, resulting_hash);
+                    }
+                } else {
+                    best_move_found = None;
+                }
             }
-            expected_state_hash.with(|e| *e.borrow_mut() = calculate_hash(game));
-            
-            // Restore again
-            game.restore(initial_snapshot);
-            game.restore_history(initial_history);
+        } else if let Some(ref m) = best_move_found {
+            let resulting_hash =
+                Self::simulate_move_hash(game, m, initial_snapshot.clone(), initial_history.clone());
+
+            match resulting_hash {
+                Some(hash) if Self::is_autoplay_repeat(context, hash) => {
+                    // The single best-scoring move BFS found would just
+                    // backtrack into a recently-seen state. Reject it
+                    // rather than commit AutoPlay to a step it already
+                    // knows leads nowhere new.
+                    best_move_found = None;
+                }
+                Some(hash) => {
+                    // Save the remaining path to cache
+                    cached_path.with(|p| {
+                        let mut path = p.borrow_mut();
+                        path.clear();
+                        // The first move is returned, the rest are cached
+                        if let Some(best_path) = best_path_found {
+                            if best_path.len() > 1 {
+                                path.extend(best_path.into_iter().skip(1));
+                            }
+                        }
+                    });
+                    expected_state_hash.with(|e| *e.borrow_mut() = hash);
+                    Self::record_autoplay_state(context, hash);
+                }
+                None => {
+                    best_move_found = None;
+                }
+            }
         }
 
         best_move_found
+    }
+
+    /// Applies `m` to `game` just to compute the resulting state hash, then
+    /// restores `game` to `snapshot`/`history` unconditionally. Returns
+    /// `None` if `m` turns out not to be executable (shouldn't normally
+    /// happen for a move the caller just found, but the underlying engine
+    /// calls are fallible).
+    fn simulate_move_hash(
+        game: &mut dyn GameRules,
+        m: &HintMove,
+        snapshot: crate::history::GameSnapshot,
+        history: crate::history::History,
+    ) -> Option<u64> {
+        let ok = if m.cards.is_empty() && m.from.kind == PileType::Stock {
+            game.tap_stock().is_ok()
+        } else {
+            game.execute_move(m.from, m.to, &m.cards).is_ok()
+        };
+        let hash = if ok { Some(calculate_hash(game)) } else { None };
+        game.restore(snapshot);
+        game.restore_history(history);
+        hash
+    }
+
+    fn is_autoplay_repeat(context: SolverContext, hash: u64) -> bool {
+        matches!(context, SolverContext::AutoPlay)
+            && AUTOPLAY_RECENT_HASHES.with(|h| h.borrow().contains(&hash))
+    }
+
+    fn record_autoplay_state(context: SolverContext, hash: u64) {
+        if !matches!(context, SolverContext::AutoPlay) {
+            return;
+        }
+        AUTOPLAY_RECENT_HASHES.with(|h| {
+            let mut buf = h.borrow_mut();
+            buf.push_back(hash);
+            while buf.len() > AUTOPLAY_HISTORY_CAPACITY {
+                buf.pop_front();
+            }
+        });
     }
 }
 
@@ -446,5 +537,77 @@ mod tests {
             }
             assert!(valid, "autoplay's next move must be valid against the actual post-move state");
         }
+    }
+
+    #[test]
+    fn test_autoplay_recent_hashes_detects_repeat_and_evicts_old_entries() {
+        clear_solver_cache();
+
+        assert!(!SolverEngine::is_autoplay_repeat(SolverContext::AutoPlay, 42));
+        SolverEngine::record_autoplay_state(SolverContext::AutoPlay, 42);
+        assert!(SolverEngine::is_autoplay_repeat(SolverContext::AutoPlay, 42));
+
+        // Hint's own repeated states must never be flagged -- only AutoPlay
+        // accumulates this history at all.
+        assert!(!SolverEngine::is_autoplay_repeat(SolverContext::Hint, 42));
+
+        // Push past capacity and confirm the oldest entry (42) ages out.
+        for h in 1..=AUTOPLAY_HISTORY_CAPACITY as u64 {
+            SolverEngine::record_autoplay_state(SolverContext::AutoPlay, 1000 + h);
+        }
+        assert!(!SolverEngine::is_autoplay_repeat(SolverContext::AutoPlay, 42));
+        assert!(SolverEngine::is_autoplay_repeat(
+            SolverContext::AutoPlay,
+            1000 + AUTOPLAY_HISTORY_CAPACITY as u64
+        ));
+
+        clear_solver_cache();
+        assert!(!SolverEngine::is_autoplay_repeat(
+            SolverContext::AutoPlay,
+            1000 + AUTOPLAY_HISTORY_CAPACITY as u64
+        ));
+    }
+
+    #[test]
+    fn test_autoplay_does_not_loop_forever_on_previously_stuck_deal() {
+        // Seed 1_700_000_000_000 is the exact deal from the reported bug: a
+        // fresh best-first search on every AutoPlay step kept picking the
+        // single highest-scoring immediate move even though it only ever
+        // shuffled a King/Queen pair between two open tableau columns,
+        // so the game never reached check_win()/is_lost() and AutoPlay
+        // (and, downstream, the Hint button gated behind isAutoPlaying)
+        // never stopped. Confirms find_best_move now bails out with None
+        // once AutoPlay would just be revisiting a recent state, instead of
+        // returning a "valid" move forever.
+        clear_solver_cache();
+        let mut game = GameFactory::create_game(GameType::Klondike);
+        game.initialize(1_700_000_000_000);
+
+        const MAX_STEPS: usize = 2000;
+        let mut terminated = false;
+        for _ in 0..MAX_STEPS {
+            if game.check_win() || game.is_lost() {
+                terminated = true;
+                break;
+            }
+            let mv = match SolverEngine::find_best_move(game.as_mut(), SolverContext::AutoPlay) {
+                Some(m) => m,
+                None => {
+                    terminated = true;
+                    break;
+                }
+            };
+            if mv.cards.is_empty() && mv.from.kind == PileType::Stock {
+                let _ = game.tap_stock();
+            } else {
+                let _ = game.execute_move(mv.from, mv.to, &mv.cards);
+            }
+        }
+
+        assert!(
+            terminated,
+            "AutoPlay must eventually stop (win, lose, or run out of non-repeating moves) \
+             instead of finding a 'valid' move forever on a deal it can't make progress on"
+        );
     }
 }

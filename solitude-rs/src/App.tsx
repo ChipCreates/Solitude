@@ -1056,6 +1056,16 @@ export const App: React.FC = () => {
         setIsAutoPlaying(false);
         return;
       }
+      if (isLostWasm()) {
+        // The engine itself has determined no path to a win remains, even
+        // though there may still be legal-but-useless moves to shuffle
+        // through forever (this is what let AutoPlay run indefinitely on
+        // an unwinnable deal). Stop here; the render loop's own loss
+        // handling (stats, toast, clearing the save) picks this up on its
+        // next frame regardless of AutoPlay.
+        setIsAutoPlaying(false);
+        return;
+      }
       const success = autoPlayStepWasm();
       if (success) {
         setMoveCount((m) => m + 1);

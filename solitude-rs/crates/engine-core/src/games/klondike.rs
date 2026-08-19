@@ -325,17 +325,17 @@ impl GameRules for KlondikeGame {
             }
         }
 
-        // Check tableau progress moves
+        // Check tableau progress moves: can any column's top card advance a
+        // foundation? Bug fix: this used to only look at columns with
+        // exactly one face-up card (`face_up_cards.len() == 1`), so any
+        // column with two or more face-up cards was skipped entirely --
+        // its top card was never checked even when it could legally go
+        // straight to a foundation. That silently declared a still-winnable
+        // board "lost".
         for i in 6..13 {
-            if self.piles[i].is_empty() {
-                continue;
-            }
-            let face_up_cards = self.piles[i].face_up_cards();
-            if let Some(&first_up) = face_up_cards.first() {
+            if let Some(top) = self.piles[i].top_card() {
                 for f in 2..6 {
-                    if face_up_cards.len() == 1
-                        && first_up.can_stack_on_foundation(self.piles[f].top_card())
-                    {
+                    if top.can_stack_on_foundation(self.piles[f].top_card()) {
                         return false;
                     }
                 }
@@ -444,5 +444,44 @@ mod tests {
         assert!(move_res.is_some());
         assert_eq!(game.piles()[0].len(), 23);
         assert_eq!(game.piles()[1].len(), 1);
+    }
+
+    #[test]
+    fn test_is_lost_checks_top_card_of_multi_face_up_columns() {
+        use crate::card::{Card, CardId, Rank, Suit};
+
+        // Regression test: is_lost() used to only check a tableau column's
+        // top card for a foundation move when that column had EXACTLY one
+        // face-up card, silently skipping any column with two or more --
+        // so a column whose top card could legally advance a foundation
+        // was still declared "lost" as long as anything face-down sat
+        // beneath the face-up run.
+        let mut game = KlondikeGame::new(DrawMode::One, None);
+        game.initialize(1); // real deal, then overwritten below
+
+        // Stock and Waste empty, all foundations empty -> only the tableau
+        // check can report "not lost".
+        game.piles[0].clear(); // Stock
+        game.piles[1].clear(); // Waste
+        for f in 2..6 {
+            game.piles[f].clear();
+        }
+        for t in 6..13 {
+            game.piles[t].clear();
+        }
+
+        // Tableau column 0: one face-down card, then two face-up cards with
+        // an Ace of Hearts on top -- directly playable to the empty Hearts
+        // foundation, but only reachable via this column's *top* card, and
+        // face_up_cards.len() == 2 here (the exact case the old code
+        // skipped).
+        game.piles[6].add_card(Card::new(Suit::Spades, Rank::King, CardId(0), false));
+        game.piles[6].add_card(Card::new(Suit::Clubs, Rank::Three, CardId(1), true));
+        game.piles[6].add_card(Card::new(Suit::Hearts, Rank::Ace, CardId(2), true));
+
+        assert!(
+            !game.is_lost(),
+            "a column with 2+ face-up cards whose top card can reach an empty foundation must not be reported as lost"
+        );
     }
 }
