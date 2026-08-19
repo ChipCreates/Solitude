@@ -92,6 +92,31 @@ pub fn redo() -> bool {
     }
 }
 
+/// "Lucky Reshuffle" power-up: shuffles Stock+Waste back into Stock without
+/// restarting the game. Irreversible — does not go through undo/redo.
+#[wasm_bindgen]
+pub fn reshuffle_stock_waste_wasm(seed: u64) -> bool {
+    let mut lock = CURRENT_GAME.lock().unwrap();
+    if let Some(game) = lock.as_mut() {
+        game.reshuffle_stock_waste(seed)
+    } else {
+        false
+    }
+}
+
+/// "Reset Column" power-up: shuffles one Tableau column in place, leaving
+/// only the new top card face-up. Irreversible — does not go through
+/// undo/redo.
+#[wasm_bindgen]
+pub fn reset_tableau_column_wasm(index: u8, seed: u64) -> bool {
+    let mut lock = CURRENT_GAME.lock().unwrap();
+    if let Some(game) = lock.as_mut() {
+        game.reset_tableau_column(index, seed)
+    } else {
+        false
+    }
+}
+
 #[wasm_bindgen]
 pub fn check_win() -> bool {
     let lock = CURRENT_GAME.lock().unwrap();

@@ -138,6 +138,9 @@ impl GameRules for TriPeaksGame {
     fn piles(&self) -> &[Pile] {
         &self.piles
     }
+    fn piles_mut(&mut self) -> &mut Vec<Pile> {
+        &mut self.piles
+    }
 
     fn initialize(&mut self, seed: u64) {
         self.piles = Self::create_piles();

@@ -29,6 +29,7 @@ pub trait GameRules: Send {
     fn game_type(&self) -> GameType;
     fn deck_size(&self) -> usize;
     fn piles(&self) -> &[Pile];
+    fn piles_mut(&mut self) -> &mut Vec<Pile>;
     fn initialize(&mut self, seed: u64);
     fn is_valid_move(&self, from: PileRef, to: PileRef, cards: &[CardId]) -> bool;
     fn execute_move(&mut self, from: PileRef, to: PileRef, cards: &[CardId]) -> Result<Move, EngineError>;
@@ -144,4 +145,180 @@ pub trait GameRules: Send {
     }
     fn get_hint(&self) -> Option<HintMove>;
     fn find_best_auto_move_destination(&self, from: PileRef, cards: &[CardId]) -> Option<PileRef>;
+
+    /// Power-up primitive ("Lucky Reshuffle"): gathers every card currently
+    /// in the Stock and Waste piles, shuffles them together, and redeals
+    /// them face-down into Stock (Waste ends up empty). Returns `false` if
+    /// the game has no Stock pile at all, or if Stock+Waste hold no cards.
+    /// Bypasses the undo/redo history by design — this is a paid,
+    /// irreversible reset, not a normal move.
+    fn reshuffle_stock_waste(&mut self, seed: u64) -> bool {
+        use rand::seq::SliceRandom;
+        use rand::SeedableRng;
+        use rand_chacha::ChaCha8Rng;
+
+        let has_stock = self.piles().iter().any(|p| p.kind == PileType::Stock);
+        if !has_stock {
+            return false;
+        }
+
+        let mut cards = Vec::new();
+        for pile in self.piles_mut().iter_mut() {
+            if pile.kind == PileType::Stock || pile.kind == PileType::Waste {
+                cards.extend(pile.remove_all());
+            }
+        }
+        if cards.is_empty() {
+            return false;
+        }
+
+        for card in cards.iter_mut() {
+            card.face_up = false;
+        }
+        let mut rng = ChaCha8Rng::seed_from_u64(seed);
+        cards.shuffle(&mut rng);
+
+        match self.piles_mut().iter_mut().find(|p| p.kind == PileType::Stock) {
+            Some(stock) => {
+                stock.add_cards(cards);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Power-up primitive ("Reset Column"): pulls every card out of one
+    /// Tableau pile, shuffles them, and restacks them with only the new top
+    /// card face-up (matching how a freshly-dealt column looks). Returns
+    /// `false` if no Tableau pile exists at that index or it's already
+    /// empty. Bypasses undo/redo history, same as `reshuffle_stock_waste`.
+    fn reset_tableau_column(&mut self, index: u8, seed: u64) -> bool {
+        use rand::seq::SliceRandom;
+        use rand::SeedableRng;
+        use rand_chacha::ChaCha8Rng;
+
+        let mut cards = match self
+            .piles_mut()
+            .iter_mut()
+            .find(|p| p.kind == PileType::Tableau && p.index == index)
+        {
+            Some(pile) if !pile.is_empty() => pile.remove_all(),
+            _ => return false,
+        };
+
+        let mut rng = ChaCha8Rng::seed_from_u64(seed);
+        cards.shuffle(&mut rng);
+        let last = cards.len() - 1;
+        for (i, card) in cards.iter_mut().enumerate() {
+            card.face_up = i == last;
+        }
+
+        match self
+            .piles_mut()
+            .iter_mut()
+            .find(|p| p.kind == PileType::Tableau && p.index == index)
+        {
+            Some(pile) => {
+                pile.add_cards(cards);
+                true
+            }
+            None => false,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::factory::GameFactory;
+    use crate::pile::PileType;
+
+    #[test]
+    fn test_reshuffle_stock_waste_preserves_total_card_count_and_faces_down() {
+        let mut game = GameFactory::create_game(GameType::Klondike);
+        game.initialize(42);
+        let _ = game.tap_stock(); // populate Waste with at least one card
+
+        let total_before: usize = game
+            .piles()
+            .iter()
+            .filter(|p| p.kind == PileType::Stock || p.kind == PileType::Waste)
+            .map(|p| p.len())
+            .sum();
+        assert!(total_before > 0, "expected stock+waste to hold cards before reshuffling");
+
+        let ok = game.reshuffle_stock_waste(999);
+        assert!(ok);
+
+        let total_after: usize = game
+            .piles()
+            .iter()
+            .filter(|p| p.kind == PileType::Stock || p.kind == PileType::Waste)
+            .map(|p| p.len())
+            .sum();
+        assert_eq!(total_before, total_after, "reshuffle must not create or destroy cards");
+
+        let waste = game.piles().iter().find(|p| p.kind == PileType::Waste).unwrap();
+        assert!(waste.is_empty(), "waste should be empty after reshuffling back into stock");
+
+        let stock = game.piles().iter().find(|p| p.kind == PileType::Stock).unwrap();
+        assert!(stock.cards().iter().all(|c| !c.face_up), "all reshuffled cards must be face-down");
+    }
+
+    #[test]
+    fn test_reshuffle_stock_waste_is_deterministic_for_same_seed() {
+        let mut game_a = GameFactory::create_game(GameType::Klondike);
+        game_a.initialize(42);
+        let _ = game_a.tap_stock();
+        game_a.reshuffle_stock_waste(555);
+
+        let mut game_b = GameFactory::create_game(GameType::Klondike);
+        game_b.initialize(42);
+        let _ = game_b.tap_stock();
+        game_b.reshuffle_stock_waste(555);
+
+        let stock_a = game_a.piles().iter().find(|p| p.kind == PileType::Stock).unwrap();
+        let stock_b = game_b.piles().iter().find(|p| p.kind == PileType::Stock).unwrap();
+        assert_eq!(stock_a.cards(), stock_b.cards(), "same seed must produce the same reshuffled order");
+    }
+
+    #[test]
+    fn test_reset_tableau_column_preserves_card_count_and_flips_only_top() {
+        let mut game = GameFactory::create_game(GameType::Klondike);
+        game.initialize(42);
+
+        let column_len_before = game
+            .piles()
+            .iter()
+            .find(|p| p.kind == PileType::Tableau && p.index == 6)
+            .unwrap()
+            .len();
+        assert!(column_len_before > 0);
+
+        let ok = game.reset_tableau_column(6, 777);
+        assert!(ok);
+
+        let column = game.piles().iter().find(|p| p.kind == PileType::Tableau && p.index == 6).unwrap();
+        assert_eq!(column.len(), column_len_before, "reset must not create or destroy cards");
+
+        let face_up_count = column.cards().iter().filter(|c| c.face_up).count();
+        assert_eq!(face_up_count, 1, "exactly the new top card should be face-up after a reset");
+        assert!(column.top_card().unwrap().face_up);
+    }
+
+    #[test]
+    fn test_reset_tableau_column_rejects_out_of_range_index() {
+        let mut game = GameFactory::create_game(GameType::Klondike);
+        game.initialize(42);
+        assert!(!game.reset_tableau_column(99, 1));
+    }
+
+    #[test]
+    fn test_reshuffle_stock_waste_returns_false_when_game_has_no_stock() {
+        // FreeCell deals every card to the tableau at start and has no
+        // Stock pile at all.
+        let mut game = GameFactory::create_game(GameType::FreeCell);
+        game.initialize(42);
+        assert!(!game.reshuffle_stock_waste(1));
+    }
 }
