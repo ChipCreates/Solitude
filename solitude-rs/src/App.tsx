@@ -13,6 +13,7 @@ import { useUIStore } from "./store/uiStore";
 import { useProfileStore } from "./store/profileStore";
 import { useStatisticsStore } from "./store/statisticsStore";
 import { GAME_TYPE_NAMES } from "./data/gameTypes";
+import { MUSIC_TRACKS, CUSTOM_TRACK_ID } from "./data/musicTracks";
 import { CardWidget } from "./components/CardWidget";
 import { SettingsModal } from "./components/SettingsModal";
 import { GameChooserGrid } from "./components/GameChooserGrid";
@@ -104,11 +105,21 @@ export const App: React.FC = () => {
   // whichever happens first for a given round.
   const vegasRoundCommittedRef = useRef(false);
 
-  const { themeId, themeOverlayIntensities, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern, scoringMode, vegasBankroll } = useUIStore();
+  const {
+    themeId, themeOverlayIntensities, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern, scoringMode, vegasBankroll,
+    musicEnabled, musicVolume, musicTrackId, customMusicUrl,
+  } = useUIStore();
   const currentTheme = THEME_PRESETS[themeId] || THEME_PRESETS.classic_felt;
   const overlayIntensity = themeOverlayIntensities[themeId] ?? currentTheme.defaultOverlayIntensity;
 
   useEffect(() => { audioService.setConfig(soundEnabled, soundVolume); }, [soundEnabled, soundVolume]);
+  useEffect(() => { audioService.setMusicConfig(musicEnabled, musicVolume); }, [musicEnabled, musicVolume]);
+  useEffect(() => {
+    const activeTrackUrl = musicTrackId === CUSTOM_TRACK_ID
+      ? customMusicUrl
+      : MUSIC_TRACKS.find((t) => t.id === musicTrackId)?.url ?? MUSIC_TRACKS[0]?.url ?? null;
+    audioService.setMusicTrack(activeTrackUrl);
+  }, [musicTrackId, customMusicUrl]);
   useEffect(() => {
     const timer = setInterval(() => setTimerSeconds((s) => s + 1), 1000);
     return () => clearInterval(timer);

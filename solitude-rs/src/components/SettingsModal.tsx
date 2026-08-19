@@ -1,6 +1,7 @@
 import React from "react";
 import { THEME_PRESETS } from "../theme/presets";
 import { OverlayValidator, hexToRgb } from "../theme/overlayValidator";
+import { MUSIC_TRACKS, CUSTOM_TRACK_ID } from "../data/musicTracks";
 import { useUIStore } from "../store/uiStore";
 
 import { getBackPatternCss, getBackPatternSize, getBackPatternPosition } from "./CardWidget";
@@ -32,6 +33,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
     golfWrapAround,
     musicEnabled,
     musicVolume,
+    musicTrackId,
+    customMusicUrl,
+    customMusicName,
     autoComplete,
 
     setDrawMode,
@@ -51,8 +55,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
     setGolfWrapAround,
     setMusicEnabled,
     setMusicVolume,
+    setMusicTrackId,
+    setCustomMusicTrack,
     setAutoComplete,
   } = useUIStore();
+
+  const musicFileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleCustomMusicFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (customMusicUrl) URL.revokeObjectURL(customMusicUrl);
+    setCustomMusicTrack(URL.createObjectURL(file), file.name);
+    setMusicTrackId(CUSTOM_TRACK_ID);
+    e.target.value = "";
+  };
 
   if (!isOpen) return null;
 
@@ -480,18 +497,79 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, g
             </div>
 
             {musicEnabled && (
-              <div>
-                <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#c2c8c0" }}>Music Volume ({(musicVolume * 100).toFixed(0)}%)</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={musicVolume}
-                  onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
-                  style={{ width: "100%", accentColor: "#e9c349" }}
-                />
-              </div>
+              <>
+                <div>
+                  <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#c2c8c0" }}>Music Volume ({(musicVolume * 100).toFixed(0)}%)</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={musicVolume}
+                    onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
+                    style={{ width: "100%", accentColor: "#e9c349" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#c2c8c0" }}>Track</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {MUSIC_TRACKS.map((track) => (
+                      <button
+                        key={track.id}
+                        onClick={() => setMusicTrackId(track.id)}
+                        style={{
+                          textAlign: "left",
+                          padding: "10px 14px",
+                          borderRadius: "8px",
+                          background: musicTrackId === track.id ? "#e9c349" : "rgba(255,255,255,0.05)",
+                          color: musicTrackId === track.id ? "#131313" : "#e5e2e1",
+                          border: "none",
+                          fontWeight: 600,
+                          fontSize: "14px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {track.name}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => customMusicUrl ? setMusicTrackId(CUSTOM_TRACK_ID) : musicFileInputRef.current?.click()}
+                      style={{
+                        textAlign: "left",
+                        padding: "10px 14px",
+                        borderRadius: "8px",
+                        background: musicTrackId === CUSTOM_TRACK_ID ? "#e9c349" : "rgba(255,255,255,0.05)",
+                        color: musicTrackId === CUSTOM_TRACK_ID ? "#131313" : "#e5e2e1",
+                        border: "1px dashed rgba(255,255,255,0.2)",
+                        fontWeight: 600,
+                        fontSize: "14px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {customMusicName ? `🎵 ${customMusicName}` : "Choose a file from your device…"}
+                    </button>
+                    {customMusicUrl && (
+                      <button
+                        onClick={() => musicFileInputRef.current?.click()}
+                        style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#a5b8a9", fontSize: "12px", cursor: "pointer", padding: "2px 4px", textDecoration: "underline" }}
+                      >
+                        Choose a different file
+                      </button>
+                    )}
+                    <input
+                      ref={musicFileInputRef}
+                      type="file"
+                      accept="audio/*"
+                      onChange={handleCustomMusicFile}
+                      style={{ display: "none" }}
+                    />
+                    <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>
+                      Files chosen from your device play for this session only.
+                    </span>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}

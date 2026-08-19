@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { useProfileStore } from "./profileStore";
 import type { Settings, Progression } from "../persistence/store";
+import { MUSIC_TRACKS } from "../data/musicTracks";
 
 export interface SettingsState {
   drawMode: number;
@@ -26,6 +27,12 @@ export interface SettingsState {
   golfWrapAround: boolean;
   musicEnabled: boolean;
   musicVolume: number;
+  musicTrackId: string;
+  // A player-picked local file, not a persisted setting: object URLs die
+  // with the page, and there's nothing meaningful to restore across
+  // sessions or devices, so this lives only in memory for the session.
+  customMusicUrl: string | null;
+  customMusicName: string | null;
 
   setDrawMode: (mode: number) => void;
   setAutoComplete: (enabled: boolean) => void;
@@ -46,7 +53,9 @@ export interface SettingsState {
   setGolfWrapAround: (enabled: boolean) => void;
   setMusicEnabled: (enabled: boolean) => void;
   setMusicVolume: (vol: number) => void;
-  
+  setMusicTrackId: (id: string) => void;
+  setCustomMusicTrack: (url: string | null, name: string | null) => void;
+
   addCoins: (amount: number) => void;
   subtractCoins: (amount: number) => boolean;
   unlockItem: (itemId: string) => void;
@@ -78,6 +87,7 @@ function settingsSnapshot(state: SettingsState): Settings {
     scoringMode: state.scoringMode,
     vegasBankroll: state.vegasBankroll,
     golfWrapAround: state.golfWrapAround,
+    musicTrackId: state.musicTrackId,
   };
 }
 
@@ -115,6 +125,9 @@ export const useUIStore = create<SettingsState>((set, get) => ({
   golfWrapAround: false,
   musicEnabled: false,
   musicVolume: 0.5,
+  musicTrackId: MUSIC_TRACKS[0]?.id ?? "",
+  customMusicUrl: null,
+  customMusicName: null,
 
   setDrawMode: (drawMode) => { set({ drawMode }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setAutoComplete: (autoComplete) => { set({ autoComplete }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
@@ -138,6 +151,8 @@ export const useUIStore = create<SettingsState>((set, get) => ({
   setGolfWrapAround: (golfWrapAround) => { set({ golfWrapAround }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setMusicEnabled: (musicEnabled) => { set({ musicEnabled }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setMusicVolume: (musicVolume) => { set({ musicVolume }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setMusicTrackId: (musicTrackId) => { set({ musicTrackId }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
+  setCustomMusicTrack: (customMusicUrl, customMusicName) => { set({ customMusicUrl, customMusicName }); },
 
   addCoins: (amount) => {
     set((state) => ({ coins: state.coins + amount }));
@@ -223,6 +238,7 @@ export const useUIStore = create<SettingsState>((set, get) => ({
         scoringMode: (settings.scoringMode as SettingsState["scoringMode"]) ?? "standard",
         vegasBankroll: settings.vegasBankroll ?? 0,
         golfWrapAround: settings.golfWrapAround ?? false,
+        musicTrackId: settings.musicTrackId ?? MUSIC_TRACKS[0]?.id ?? "",
 
         coins: progression.coins,
         unlockedItems: progression.unlockedItems,

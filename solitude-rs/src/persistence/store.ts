@@ -39,6 +39,7 @@ export interface Settings {
   scoringMode?: string;
   vegasBankroll?: number;
   golfWrapAround?: boolean;
+  musicTrackId?: string;
 }
 
 export interface GameProgression {
