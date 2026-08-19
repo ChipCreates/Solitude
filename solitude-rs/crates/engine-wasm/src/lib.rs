@@ -44,6 +44,9 @@ pub fn initialize_game(game_type_code: u8, seed: u64) -> bool {
 
     let mut lock = CURRENT_GAME.lock().unwrap();
     *lock = Some(game);
+    drop(lock);
+
+    engine_core::solver::clear_solver_cache();
     true
 }
 

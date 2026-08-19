@@ -51,6 +51,16 @@ thread_local! {
     static EXPECTED_STATE_HASH: RefCell<u64> = RefCell::new(0);
 }
 
+/// Clears the solver's cached move path and expected-state hash.
+///
+/// Must be called whenever a new game is initialized: a stale cache from
+/// the previous game could otherwise be replayed against the new state if
+/// the state hashes happen to collide.
+pub fn clear_solver_cache() {
+    CACHED_PATH.with(|p| p.borrow_mut().clear());
+    EXPECTED_STATE_HASH.with(|e| *e.borrow_mut() = 0);
+}
+
 fn calculate_hash(game: &dyn GameRules) -> u64 {
     let mut hasher = DefaultHasher::new();
     let snap = game.snapshot();
@@ -263,5 +273,49 @@ mod tests {
         // Should not panic and should restore the exact initial state & history
         assert_eq!(game.snapshot().move_count, 0);
         assert_eq!(game.snapshot_history().can_undo(), initial_history_len);
+    }
+
+    #[test]
+    fn test_clear_solver_cache_resets_state() {
+        let mut game = GameFactory::create_game(GameType::Klondike);
+        game.initialize(12345);
+
+        // Populate the cache with a real search.
+        let _ = SolverEngine::find_best_move(game.as_mut());
+        let had_cached_path = CACHED_PATH.with(|p| !p.borrow().is_empty());
+        let had_expected_hash = EXPECTED_STATE_HASH.with(|e| *e.borrow() != 0);
+        assert!(
+            had_cached_path || had_expected_hash,
+            "expected a real search to populate the solver cache"
+        );
+
+        clear_solver_cache();
+
+        CACHED_PATH.with(|p| assert!(p.borrow().is_empty(), "CACHED_PATH should be empty"));
+        EXPECTED_STATE_HASH.with(|e| assert_eq!(*e.borrow(), 0, "EXPECTED_STATE_HASH should be reset"));
+    }
+
+    #[test]
+    fn test_stale_cache_does_not_leak_across_games() {
+        // Simulates what initialize_game must do: clear the cache before a
+        // new game starts, so a cached path from game N can never be
+        // replayed against game N+1's state.
+        let mut game_a = GameFactory::create_game(GameType::Klondike);
+        game_a.initialize(111);
+        let _ = SolverEngine::find_best_move(game_a.as_mut());
+
+        // New game starts; without clearing, EXPECTED_STATE_HASH from game_a
+        // could coincidentally match game_b's hash and return a stale move.
+        clear_solver_cache();
+
+        let mut game_b = GameFactory::create_game(GameType::Klondike);
+        game_b.initialize(222);
+
+        EXPECTED_STATE_HASH.with(|e| assert_eq!(*e.borrow(), 0));
+        CACHED_PATH.with(|p| assert!(p.borrow().is_empty()));
+
+        // Sanity: solver still works normally on the fresh game.
+        let _ = SolverEngine::find_best_move(game_b.as_mut());
+        assert_eq!(game_b.snapshot().move_count, 0);
     }
 }
