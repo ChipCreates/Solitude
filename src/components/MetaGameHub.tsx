@@ -228,7 +228,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
           {/* Row 2: stat pill */}
           {!isLandscape && (
             <div style={{ padding: "0 12px 10px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(0,0,0,0.35)", borderRadius: "999px", padding: "6px 14px", border: "1px solid rgba(255,255,255,0.08)", overflowX: "auto" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(0,0,0,0.35)", borderRadius: "999px", height: "26px", padding: "0 14px", border: "1px solid rgba(255,255,255,0.08)" }}>
                 {mobileGameHud && gameTypeCode !== undefined && (
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
                     <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#2e8b4f", border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 800, color: "#fff" }}>
@@ -242,11 +242,11 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                     <Clock size={14} color="#fff" /> {formatTimer(mobileGameHud.timerSeconds)}
                   </div>
                 )}
-                <div style={{ width: "22px", height: "22px", borderRadius: "50%", overflow: "hidden", border: `1px solid ${activeAvatar.ringColor}88`, flexShrink: 0 }}>
+                <div style={{ width: "56px", height: "56px", borderRadius: "50%", overflow: "hidden", border: "2px solid rgba(255,255,255,0.85)", boxShadow: "0 2px 6px rgba(0,0,0,0.4)", flexShrink: 0, marginTop: "-15px", marginBottom: "-15px" }}>
                   <img src={activeAvatar.src} alt={activeAvatar.label} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 </div>
                 {mobileGameHud && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fff", fontSize: "13px", fontFamily: "JetBrains Mono, monospace", flexShrink: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fff", fontSize: "13px", fontFamily: "JetBrains Mono, monospace", flexShrink: 0, marginLeft: "12px" }}>
                     <RotateCw size={14} color="#fff" /> {mobileGameHud.moveCount}
                   </div>
                 )}
