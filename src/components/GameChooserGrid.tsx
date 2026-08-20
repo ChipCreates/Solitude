@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Layers, Bug, Triangle, FlagTriangleRight, LayoutGrid, Mountain, Trees, Shield, Dices, Scissors, PlayCircle } from "lucide-react";
+import { PlayCircle } from "lucide-react";
 import { useUIStore } from "../store/uiStore";
+import { useViewport } from "../hooks/useViewport";
 import { GameVariantModal } from "./GameVariantModal";
 import type { SaveEnvelope } from "../persistence/store";
 
@@ -14,61 +15,61 @@ const GAMES = [
   {
     id: 0,
     name: "Klondike",
-    icon: <Layers size={32} />,
+    portrait: "/assets/tiles/webp/king.webp",
     description: "The quintessential version of Solitaire. Build four foundations from Ace to King by maneuvering cards through a tableau of descending, alternating colors."
   },
   {
     id: 1,
     name: "Spider",
-    icon: <Bug size={32} />,
+    portrait: "/assets/tiles/webp/spider-king.webp",
     description: "Assemble complete suits within the tableau itself before they can be removed. Dealing two decks of cards, you must weave complex sequences to clear the board."
   },
   {
     id: 2,
     name: "FreeCell",
-    icon: <LayoutGrid size={32} />,
+    portrait: "/assets/tiles/webp/wizard.webp",
     description: "A game of open information. All cards are visible from the start, and you are given four temporary \"free cells\" to hold cards while you reorganize the tableau."
   },
   {
     id: 3,
     name: "Pyramid",
-    icon: <Triangle size={32} />,
+    portrait: "/assets/tiles/webp/pyramid.webp",
     description: "A mathematical puzzle where the goal is to dismantle a pyramid of cards by pairing them up to equal 13."
   },
   {
     id: 4,
     name: "Golf",
-    icon: <FlagTriangleRight size={32} />,
+    portrait: "/assets/tiles/webp/jester.webp",
     description: "Clear a tableau of cards into a single waste pile. You can play any card that is one rank higher or lower than the top card, regardless of suit."
   },
   {
     id: 5,
     name: "TriPeaks",
-    icon: <Mountain size={32} />,
+    portrait: "/assets/tiles/webp/tripeaks.webp",
     description: "Clear three overlapping pyramids of cards by removing any card that is one rank higher or lower than the top card of the waste pile."
   },
   {
     id: 6,
     name: "Yukon",
-    icon: <Trees size={32} />,
+    portrait: "/assets/tiles/webp/knight.webp",
     description: "Move any group of face-up cards regardless of what is beneath them, placing them on a card of the opposite color and next highest rank."
   },
   {
     id: 7,
     name: "Forty Thieves",
-    icon: <Shield size={32} />,
+    portrait: "/assets/tiles/webp/thief.webp",
     description: "A difficult variant using two decks. You face a wide tableau where you can only move the top card of each stack, and must build sequences by suit."
   },
   {
     id: 8,
     name: "Canfield",
-    icon: <Dices size={32} />,
+    portrait: "/assets/tiles/webp/fortune-teller.webp",
     description: "A casino game with a high-difficulty challenge. You must move cards to the foundation while managing a small tableau and a difficult draw pile."
   },
   {
     id: 9,
     name: "Scorpion",
-    icon: <Scissors size={32} />,
+    portrait: "/assets/tiles/webp/rogue.webp",
     description: "Build complete suits from King down to Ace within the tableau. Move large groups of cards even if they aren't in order."
   }
 ];
@@ -85,6 +86,10 @@ export const GameChooserGrid: React.FC<GameChooserGridProps> = ({ onSelectGame, 
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   const themeId = useUIStore((s) => s.themeId);
   const accentColor = themeId === "classic" ? "#166534" : (themeId === "midnight" ? "#818cf8" : "#e9c349");
+  const { isMobile } = useViewport();
+
+  const portraitHeight = isMobile ? 150 : 200;
+  const portraitOverflowX = isMobile ? 6 : 20;
 
   return (
     <div
@@ -93,7 +98,7 @@ export const GameChooserGrid: React.FC<GameChooserGridProps> = ({ onSelectGame, 
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        padding: "48px 48px",
+        padding: isMobile ? "20px 16px" : "48px 35px",
         overflowY: "auto"
       }}
     >
@@ -119,11 +124,10 @@ export const GameChooserGrid: React.FC<GameChooserGridProps> = ({ onSelectGame, 
         style={{
           flex: 1,
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: "24px",
-          maxWidth: "1200px",
-          margin: "0 auto",
-          width: "100%"
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(380px, 1fr))",
+          gap: isMobile ? "28px" : "36px 56px",
+          width: "100%",
+          alignContent: "start"
         }}
       >
         {GAMES.map((game) => {
@@ -135,47 +139,58 @@ export const GameChooserGrid: React.FC<GameChooserGridProps> = ({ onSelectGame, 
               onMouseLeave={() => setHoveredId(null)}
               onClick={() => setSelectedGameId(game.id)}
               style={{
-                backgroundColor: isHovered ? "rgba(212, 175, 55, 0.1)" : "#0f1c15",
-                borderRadius: "16px",
-                padding: "24px",
-                cursor: "pointer",
-                border: isHovered ? `1px solid ${accentColor}` : "1px solid rgba(255,255,255,0.05)",
-                transition: "all 0.2s ease-out",
-                transform: isHovered ? "translateY(-4px)" : "none",
                 display: "flex",
-                flexDirection: "column",
                 alignItems: "center",
-                textAlign: "center"
+                cursor: "pointer"
               }}
             >
+              {/* Large, unbordered — its own baked-in gold oval frame does the
+                  framing. Taller than the text box, so it pokes past the
+                  box's top and bottom too. Bled left via negative margin. */}
+              <img
+                src={game.portrait}
+                alt={game.name}
+                style={{
+                  height: `${portraitHeight}px`,
+                  width: "auto",
+                  flexShrink: 0,
+                  marginLeft: `-${portraitOverflowX}px`,
+                  position: "relative",
+                  zIndex: 1,
+                  filter: isHovered ? "drop-shadow(0 4px 16px rgba(212, 175, 55, 0.55))" : "drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5))",
+                  transition: "filter 0.2s ease-out"
+                }}
+              />
+              {/* A separate framed panel — not wrapped around the portrait —
+                  holding just the name and description. Overlaps the
+                  portrait's right edge slightly via its own negative margin
+                  instead of leaving a gap between them. */}
               <div
                 style={{
-                  width: "64px",
-                  height: "64px",
-                  borderRadius: "50%",
-                  backgroundColor: isHovered ? `${accentColor}33` : "rgba(255,255,255,0.05)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: isHovered ? accentColor : "#a5b8a9",
-                  marginBottom: "20px",
-                  transition: "all 0.2s ease-out",
-                  border: isHovered ? `1px solid ${accentColor}` : "1px solid transparent"
+                  flex: "1 1 0%",
+                  backgroundColor: isHovered ? "rgba(212, 175, 55, 0.1)" : "#0f1c15",
+                  borderRadius: "16px",
+                  padding: isMobile ? "4px 4px 4px 46px" : "22px 57px",
+                  border: isHovered ? "2px solid #f0d878" : "2px solid rgba(212, 175, 55, 0.45)",
+                  boxShadow: isHovered ? "0 8px 24px rgba(212, 175, 55, 0.15)" : "none",
+                  transition: "0.2s ease-out",
+                  marginLeft: isMobile ? "-42px" : "-43px",
+                  minHeight: isMobile ? "auto" : "135px",
+                  maxHeight: isMobile ? "120px" : "none"
                 }}
               >
-                {game.icon}
+                <h3 style={{ fontSize: isMobile ? "17px" : "18px", fontWeight: 800, color: "#e9c349", marginBottom: isMobile ? "3px" : "8px", fontFamily: "Manrope, sans-serif" }}>
+                  {game.name}
+                </h3>
+                <p style={{ fontSize: "13px", lineHeight: 1.5, color: "#a5b8a9", margin: 0 }}>
+                  {game.description}
+                </p>
               </div>
-              <h3 style={{ fontSize: "18px", fontWeight: 700, color: isHovered ? accentColor : "#fff", marginBottom: "12px", fontFamily: "Manrope, sans-serif" }}>
-                {game.name}
-              </h3>
-              <p style={{ fontSize: "13px", lineHeight: 1.5, color: "#a5b8a9", flex: 1 }}>
-                {game.description}
-              </p>
             </div>
           );
         })}
       </div>
-      
+
       {selectedGameId !== null && (
         <GameVariantModal
           gameId={selectedGameId}
