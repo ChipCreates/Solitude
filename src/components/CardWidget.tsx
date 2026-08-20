@@ -145,7 +145,7 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
                   </div>
                 )}
                 {isFaceCard ? (
-                  <div style={{ position: 'absolute', left: 0, bottom: 0, width: '96%', height: '90%' }}>
+                  <div style={{ position: 'absolute', left: 0, bottom: 0, width: '88%', height: '82%' }}>
                     {/* Source art faces left; mirrored so it faces into the card. */}
                     <img src={`/assets/cards/${faceAsset}`} alt={rankStr} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'left bottom', transform: 'scaleX(-1)' }} />
                   </div>
@@ -156,7 +156,7 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
                   // internal padding in their font metrics, so a bare
                   // fontSize badly undershoots the box it's meant to fill.
                   <div style={{ position: 'absolute', left: '4%', right: '4%', bottom: '2%', top: '28%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
-                    <span style={{ fontSize: height * 1.35, lineHeight: 1 }}>{suitStr}</span>
+                    <span style={{ fontSize: height * 1.1, lineHeight: 1 }}>{suitStr}</span>
                   </div>
                 )}
               </div>
