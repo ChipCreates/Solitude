@@ -41,10 +41,29 @@ const renderImageIcon = (
 
 /**
  * Solitude Theme - New Game (+) Icon
- * High-DPI WebP/PNG Graphic Asset
+ * Solid Gold Plus (matches the flat single-shape style of Home/User/Settings)
  */
-export const GraphicPlusIcon: React.FC<IconProps> = ({ size = 26, className, style }) =>
-  renderImageIcon("/assets/icons/add.webp", "/assets/icons/add.png", "New Game", size, 1.0, className, style);
+export const GraphicPlusIcon: React.FC<IconProps> = ({ size = 26, className, style }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    style={{ overflow: "visible", filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.7))", ...style }}
+  >
+    <defs>
+      <linearGradient id="solPlusSolidGold" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#fff8b5" />
+        <stop offset="50%" stopColor="#f5ce42" />
+        <stop offset="100%" stopColor="#e9c349" />
+      </linearGradient>
+    </defs>
+    <rect x="18" y="7" width="12" height="34" rx="4" fill="url(#solPlusSolidGold)" stroke="#fffec7" strokeWidth="1.2" />
+    <rect x="7" y="18" width="34" height="12" rx="4" fill="url(#solPlusSolidGold)" stroke="#fffec7" strokeWidth="1.2" />
+  </svg>
+);
 
 /**
  * Solitude Theme - Solver Key Icon
@@ -170,21 +189,65 @@ export const GraphicZapIcon = GraphicPowerUpIcon;
 
 /**
  * Solitude Theme - Help Icon
- * High-DPI WebP/PNG Graphic Asset
+ * Solid Gold Question Mark (matches the flat single-shape style of Home/User/Settings)
  */
-export const GraphicHelpIcon: React.FC<IconProps> = ({ size = 26, className, style }) =>
-  renderImageIcon("/assets/icons/help.webp", "/assets/icons/help.png", "Help", size, 1.0, className, style);
+export const GraphicHelpIcon: React.FC<IconProps> = ({ size = 26, className, style }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    style={{ overflow: "visible", filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.7))", ...style }}
+  >
+    <defs>
+      <linearGradient id="solHelpSolidGold" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#fff8b5" />
+        <stop offset="50%" stopColor="#f5ce42" />
+        <stop offset="100%" stopColor="#e9c349" />
+      </linearGradient>
+    </defs>
+    <path
+      d="M15 17C15 10.4 19.5 6 24.5 6C29.9 6 34 10 34 15.5C34 20.5 30.5 22.8 27.8 24.8C25.9 26.2 25 27.7 25 30.5"
+      stroke="url(#solHelpSolidGold)"
+      strokeWidth="6.5"
+      strokeLinecap="round"
+      fill="none"
+    />
+    <circle cx="24.5" cy="40" r="4.3" fill="url(#solHelpSolidGold)" />
+  </svg>
+);
 
 /**
  * Solitude Theme - About Icon
- * High-DPI WebP/PNG Graphic Asset
+ * Solid Gold Info Glyph (matches the flat single-shape style of Home/User/Settings)
  */
-export const GraphicAboutIcon: React.FC<IconProps> = ({ size = 26, className, style }) =>
-  renderImageIcon("/assets/icons/about.webp", "/assets/icons/about.png", "About", size, 1.0, className, style);
+export const GraphicAboutIcon: React.FC<IconProps> = ({ size = 26, className, style }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    style={{ overflow: "visible", filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.7))", ...style }}
+  >
+    <defs>
+      <linearGradient id="solAboutSolidGold" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#fff8b5" />
+        <stop offset="50%" stopColor="#f5ce42" />
+        <stop offset="100%" stopColor="#e9c349" />
+      </linearGradient>
+    </defs>
+    <circle cx="24" cy="10.5" r="5" fill="url(#solAboutSolidGold)" stroke="#fffec7" strokeWidth="1.2" />
+    <rect x="18.5" y="19" width="11" height="23" rx="4.5" fill="url(#solAboutSolidGold)" stroke="#fffec7" strokeWidth="1.2" />
+  </svg>
+);
 
 /**
  * Solitude Theme - User / Profile Icon
- * 3D Beveled Gold Shield with User Silhouette
+ * Solid Gold Bust Silhouette (matches the flat single-shape style of Home/Settings)
  */
 export const GraphicUserIcon: React.FC<IconProps> = ({ size = 26, className, style }) => (
   <svg
@@ -194,21 +257,21 @@ export const GraphicUserIcon: React.FC<IconProps> = ({ size = 26, className, sty
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     className={className}
-    style={{ overflow: "visible", filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.6))", ...style }}
+    style={{ overflow: "visible", filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.7))", ...style }}
   >
     <defs>
-      <linearGradient id="solUserGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient id="solUserSolidGold" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#fff8b5" />
-        <stop offset="50%" stopColor="#e9c349" />
-        <stop offset="100%" stopColor="#8a670f" />
+        <stop offset="50%" stopColor="#f5ce42" />
+        <stop offset="100%" stopColor="#e9c349" />
       </linearGradient>
     </defs>
-    <circle cx="24" cy="24" r="20" fill="url(#solUserGold)" stroke="#fffec7" strokeWidth="1" />
-    <circle cx="24" cy="24" r="15" fill="#0d1b13" stroke="#e9c349" strokeWidth="1" />
-    <circle cx="24" cy="18" r="5" fill="url(#solUserGold)" />
+    <circle cx="24" cy="16" r="9" fill="url(#solUserSolidGold)" stroke="#fffec7" strokeWidth="1.2" />
     <path
-      d="M14 34C14 28.5 18.5 25 24 25C29.5 25 34 28.5 34 34"
-      fill="url(#solUserGold)"
+      d="M8 41C8 31.6 15.2 25 24 25C32.8 25 40 31.6 40 41"
+      fill="url(#solUserSolidGold)"
+      stroke="#fffec7"
+      strokeWidth="1.2"
     />
   </svg>
 );

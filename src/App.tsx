@@ -31,7 +31,7 @@ import { POWER_UP_CONFIG } from "./powerups/config";
 import { audioService } from "./audio/audioService";
 import { ParticleSystem } from "./canvas/renderParticles";
 import { getCachedImage } from "./canvas/boardTexture";
-import { Undo2, Home } from "lucide-react";
+import { Undo2, Timer, Move, Coins } from "lucide-react";
 
 const POWER_UP_ITEMS = STORE_ITEMS.filter((i) => i.type === "power_up");
 const RANK_STRS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
@@ -1292,39 +1292,28 @@ export const App: React.FC = () => {
   const showVegasScore = gameTypeCode === 0 && scoringMode !== "standard" && isEngineReady;
   const vegasScore = showVegasScore ? computeVegasScore() : 0;
 
-  const leftHeaderContent = activeTab === "gameboard" && gameTypeCode !== null ? (
-    <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-      <button
-        onClick={() => setGameTypeCode(null)}
-        title="Back to game chooser"
-        style={{
-          width: "36px", height: "36px", borderRadius: "50%",
-          background: "radial-gradient(circle at 35% 35%, #244b33, #0a150d)",
-          border: "1.5px solid #d4af37",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.6)",
-          color: "#e5e2e1", display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", outline: "none", flexShrink: 0
-        }}
-      >
-        <Home size={18} />
-      </button>
-      <div style={{ display: "flex", gap: 14, fontFamily: "JetBrains Mono, monospace", fontSize: "13px", background: "rgba(10, 20, 15, 0.85)", border: "1.5px solid rgba(212, 175, 55, 0.4)", borderRadius: "20px", padding: "6px 16px", color: "#e5e2e1", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
-        <div><span style={{ opacity: 0.6 }}>TIME </span><span style={{ color: "#fff", fontWeight: 600 }}>{formatTime(timerSeconds)}</span></div>
-        <div><span style={{ opacity: 0.6 }}>MOVES </span><span style={{ color: "#fff", fontWeight: 600 }}>{moveCount}</span></div>
-        <div><span style={{ opacity: 0.6 }}>COINS </span><span style={{ color: "#e9c349", fontWeight: 700 }}>{coins}</span></div>
-        {showVegasScore && (
-          <div>
-            <span style={{ opacity: 0.6 }}>SCORE </span>
-            <span style={{ color: vegasScore >= 0 ? "#4caf50" : "#f44336", fontWeight: 600 }}>${vegasScore}</span>
+  const statSegments: { icon: React.ReactNode; label: string; value: string; color: string }[] = activeTab === "gameboard" && gameTypeCode !== null ? [
+    { icon: <Timer size={15} style={{ opacity: 0.75 }} />, label: "TIME", value: formatTime(timerSeconds), color: "#fff" },
+    { icon: <Move size={15} style={{ opacity: 0.75 }} />, label: "MOVES", value: String(moveCount), color: "#fff" },
+    { icon: <Coins size={15} style={{ color: "#e9c349" }} />, label: "COINS", value: String(coins), color: "#e9c349" },
+    ...(showVegasScore ? [{ icon: null, label: "SCORE", value: `$${vegasScore}`, color: vegasScore >= 0 ? "#4caf50" : "#f44336" }] : []),
+    ...(showVegasScore && scoringMode === "vegas_cumulative" ? [{ icon: null, label: "BANKROLL", value: `$${vegasBankroll + vegasScore}`, color: (vegasBankroll + vegasScore) >= 0 ? "#4caf50" : "#f44336" }] : []),
+  ] : [];
+
+  const leftHeaderContent = statSegments.length > 0 ? (
+    <div style={{ position: "absolute", left: "50%", bottom: "-22px", transform: "translateX(-50%)", display: "flex", alignItems: "center", fontFamily: "JetBrains Mono, monospace", fontSize: "13px", background: "rgba(10, 20, 15, 0.9)", border: "1.5px solid rgba(212, 175, 55, 0.4)", borderRadius: "20px", padding: "8px 22px", color: "#e5e2e1", boxShadow: "0 4px 16px rgba(0,0,0,0.6)" }}>
+      {statSegments.map((seg, i) => (
+        <div key={seg.label} style={{ display: "flex", alignItems: "center" }}>
+          {i > 0 && <div style={{ width: 1, height: 24, background: "rgba(212, 175, 55, 0.25)", margin: "0 18px" }} />}
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            {seg.icon}
+            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
+              <span style={{ fontSize: 9, letterSpacing: "0.6px", opacity: 0.6, fontWeight: 700 }}>{seg.label}</span>
+              <span style={{ color: seg.color, fontWeight: 700, fontSize: 14 }}>{seg.value}</span>
+            </div>
           </div>
-        )}
-        {showVegasScore && scoringMode === "vegas_cumulative" && (
-          <div>
-            <span style={{ opacity: 0.6 }}>BANKROLL </span>
-            <span style={{ color: (vegasBankroll + vegasScore) >= 0 ? "#4caf50" : "#f44336", fontWeight: 600 }}>${vegasBankroll + vegasScore}</span>
-          </div>
-        )}
-      </div>
+        </div>
+      ))}
     </div>
   ) : null;
 
@@ -1361,20 +1350,20 @@ export const App: React.FC = () => {
   const HUD_PILL: React.CSSProperties = {
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: 12,
     background: "rgba(8, 16, 11, 0.85)",
     backdropFilter: "blur(12px)",
     border: "1.5px solid rgba(212, 175, 55, 0.4)",
     borderRadius: "24px",
-    padding: "4px 10px",
+    padding: "6px 14px",
     boxShadow: "0 4px 16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.15)",
   };
 
   const rightHeaderContent = activeTab === "gameboard" && gameTypeCode !== null ? (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-end", position: "relative" }}>
-      {/* Row 1: Home, User, Help, About, Settings */}
-      <div style={HUD_PILL}>
-        <button onClick={() => setActiveTab("trophy")} title="Home" style={HUD_BTN}>
+    <>
+      {/* Row 1: Home, User, Help, About, Settings — plain icons, in-flow within the header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <button onClick={() => setGameTypeCode(null)} title="Home" style={HUD_BTN}>
           <GraphicHomeIcon size={20} />
         </button>
         <button onClick={() => setActiveTab("trophy")} title="User Profile" style={HUD_BTN}>
@@ -1391,8 +1380,8 @@ export const App: React.FC = () => {
         </button>
       </div>
 
-      {/* Row 2: New, Solver, Hints, Power-ups, Emporium, Trophies */}
-      <div style={HUD_PILL}>
+      {/* Row 2: New, Solver, Hints, Power-ups, Emporium, Trophies — pilled, straddling the header/felt seam */}
+      <div style={{ ...HUD_PILL, position: "absolute", right: "28px", bottom: "-24px" }}>
         <button onClick={() => startNewGame()} title="New Game (N)" style={HUD_BTN}>
           <GraphicPlusIcon size={20} />
         </button>
@@ -1447,7 +1436,7 @@ export const App: React.FC = () => {
           <GraphicTrophyIcon size={20} />
         </button>
       </div>
-    </div>
+    </>
   ) : null;
 
   return (

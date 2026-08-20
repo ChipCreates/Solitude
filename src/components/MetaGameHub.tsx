@@ -8,7 +8,7 @@ import { useStatisticsStore } from "../store/statisticsStore";
 import { GAME_TYPE_NAMES } from "../data/gameTypes";
 import achievementsData from "../data/achievements.json";
 import { DashboardOverview } from "./DashboardOverview";
-import { getLevelTitle, getOverallLevel } from "../utils/levelTitles";
+import { getOverallLevel } from "../utils/levelTitles";
 import { getAvatarOption } from "../data/avatars";
 import { applyThemePack } from "../theme/presets";
 import { STORE_ITEMS } from "../data/storeItems";
@@ -87,7 +87,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
   const activeAvatar = getAvatarOption(activeProfile?.avatarId ?? "");
   const overallLevel = getOverallLevel(gameProgress);
-  const overallLevelTitle = getLevelTitle(overallLevel.level);
+  const isChooserActive = activeTab === "gameboard" && gameTypeCode === undefined;
 
   useEffect(() => {
     if (activeTab === "trophy") loadAllStats();
@@ -150,7 +150,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
 
       {/* Top Header */}
       {!isMobile ? (
-        <div style={{ height: "88px", flexShrink: 0, background: "linear-gradient(180deg, #142419 0%, #0a140d 100%)", borderBottom: "1px solid rgba(212, 175, 55, 0.3)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", boxShadow: "0 4px 24px rgba(0,0,0,0.6)" }}>
+        <div style={{ height: "108px", flexShrink: 0, position: "relative", zIndex: 3000, background: "linear-gradient(180deg, #142419 0%, #0a140d 100%)", borderBottom: "1px solid rgba(212, 175, 55, 0.3)", display: "flex", alignItems: isChooserActive ? "center" : "flex-start", justifyContent: "space-between", padding: isChooserActive ? "0 28px" : "18px 28px 0", boxShadow: "0 4px 24px rgba(0,0,0,0.6)" }}>
           <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "16px" }}>
             {activeTab !== "gameboard" ? (
               <button onClick={() => onTabChange("gameboard")} style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", color: "#e9c349", fontSize: "16px", fontWeight: 600, cursor: "pointer", padding: "8px", marginLeft: "-8px" }}>
@@ -161,29 +161,38 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                 <div style={{ width: "44px", height: "44px", borderRadius: "50%", overflow: "hidden", border: `2px solid ${activeAvatar.ringColor || "#d4af37"}`, boxShadow: "0 2px 8px rgba(0,0,0,0.5)", flexShrink: 0 }}>
                   <img src={activeAvatar.src} alt={activeAvatar.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "16px", fontWeight: 800, color: "#fff", fontFamily: "Inter, sans-serif" }}>{activeProfile?.name || "Chip"}</span>
-                    <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", fontFamily: "Inter, sans-serif" }}>Veteran Novice, Senior Game Master Expanded ⚒</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(10, 20, 15, 0.8)", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: "14px", padding: "2px 10px", marginTop: "2px" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 800, color: "#e9c349", fontFamily: "JetBrains Mono, monospace" }}>LVL {overallLevel.level}</span>
-                    <div style={{ width: "100px", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <span style={{ fontSize: "16px", fontWeight: 800, color: "#fff", fontFamily: "Inter, sans-serif" }}>{activeProfile?.name || "Chip"}</span>
+                  <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", fontFamily: "Inter, sans-serif" }}>Veteran Novice, Senior Game Master Expanded ⚒</span>
+                </div>
+                {/* Straddles the header/felt seam: anchored to the header (which is position:relative), not the flex column above.
+                    Level progress is tracked per game variant, not globally, so it's meaningless on the chooser screen — only show it inside an active game. */}
+                {activeGameName && (
+                  <div style={{ position: "absolute", left: "28px", bottom: "-26px", display: "flex", flexDirection: "column", gap: "7px", background: "rgba(10, 20, 15, 0.9)", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: "14px", padding: "9px 16px", minWidth: "270px", boxShadow: "0 4px 12px rgba(0,0,0,0.5)" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 800, color: "#e9c349", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>LVL {overallLevel.level}</span>
+                      <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.7)", fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" }}>Next Unlocks: Gold Card Frame at Level 5</span>
+                    </div>
+                    <div style={{ width: "100%", height: "10px", background: "rgba(255,255,255,0.1)", borderRadius: "5px", overflow: "hidden" }}>
                       <div style={{ width: `${Math.min(100, Math.floor((overallLevel.xp / 1000) * 100))}%`, height: "100%", background: "linear-gradient(90deg, #2e7d32, #4caf50)" }} />
                     </div>
-                    <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.7)", fontFamily: "Inter, sans-serif" }}>Next Unlocks: Gold Card Frame at Level 5</span>
                   </div>
-                </div>
-                {leftHeaderContent}
+                )}
               </div>
             )}
           </div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#e9c349", fontFamily: "'Cinzel', 'Playfair Display', 'Georgia', serif", letterSpacing: "1.5px", textShadow: "0 2px 8px rgba(0,0,0,0.8)", flex: 1, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            SOLITUDE: {activeTab === "gameboard" && activeGameName ? activeGameName.toUpperCase() : "KLONDIKE"}
+          <div style={{ flex: "3 1 0%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", minWidth: 0 }}>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#e9c349", fontFamily: "'Cinzel', 'Playfair Display', 'Georgia', serif", letterSpacing: "1.5px", textShadow: "0 2px 8px rgba(0,0,0,0.8)", whiteSpace: "nowrap", overflow: "visible" }}>
+              {activeTab !== "gameboard" ? "SOLITUDE" : activeGameName ? `SOLITUDE: ${activeGameName.toUpperCase()}` : "SOLITUDE: CHOOSE YOUR GAME"}
+            </div>
+            {activeTab === "gameboard" && !activeGameName && (
+              <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.65)", fontFamily: "Inter, sans-serif" }}>Choose a variant to play</div>
+            )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1, justifyContent: "flex-end" }}>
             {rightHeaderContent}
           </div>
+          {leftHeaderContent}
         </div>
       ) : (
         <div style={{ flexShrink: 0, background: "radial-gradient(circle at 50% 0%, #1e3a2b, #0d1a13)", borderBottom: "1px solid rgba(0,0,0,0.3)", paddingTop: "env(safe-area-inset-top)" }}>
@@ -294,25 +303,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         {/* Left Sidebar (desktop only — mobile uses the bottom tab bar instead) */}
         {!isMobile && (
-        <div style={{ width: sidebarOpen ? "240px" : "80px", transition: "width 0.2s ease", background: "#13261a", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", padding: "24px 0", flexShrink: 0 }}>
-          <div style={{ padding: sidebarOpen ? "0 24px" : "0", marginBottom: "32px", display: "flex", justifyContent: sidebarOpen ? "space-between" : "center", alignItems: "flex-start" }}>
-            {sidebarOpen ? (
-              <>
-                <div>
-                  <div style={{ fontSize: "22px", fontWeight: 700, color: "#e9c349", fontFamily: "Manrope, sans-serif" }}>{activeProfile?.name || "Player"}</div>
-                  <div style={{ fontSize: "12px", color: "#a5b8a9", fontFamily: "JetBrains Mono, monospace", marginTop: "4px" }}>Level {overallLevel.level} - {overallLevelTitle}</div>
-                </div>
-                <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", color: "#a5b8a9", cursor: "pointer", padding: "4px", marginTop: "2px" }}>
-                  <PanelLeftClose size={20} />
-                </button>
-              </>
-            ) : (
-              <button onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "none", color: "#a5b8a9", cursor: "pointer", padding: "4px", marginTop: "2px" }}>
-                <PanelLeftOpen size={20} />
-              </button>
-            )}
-          </div>
-          
+        <div style={{ width: sidebarOpen ? "240px" : "80px", transition: "width 0.2s ease", background: "#13261a", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", padding: "44px 0 24px", flexShrink: 0 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "4px", padding: sidebarOpen ? "0" : "0 8px" }}>
             <button onClick={() => onTabChange("gameboard")} style={{ display: "flex", alignItems: "center", gap: "12px", padding: sidebarOpen ? "12px 24px" : "12px", justifyContent: sidebarOpen ? "flex-start" : "center", background: activeTab === "gameboard" ? "#1e3a2b" : "transparent", border: "none", color: activeTab === "gameboard" ? "#e9c349" : "#a5b8a9", fontSize: "14px", fontWeight: 600, cursor: "pointer", borderRadius: sidebarOpen ? "0" : "8px" }}>
               <LayoutGrid size={18} color={activeTab === "gameboard" ? "#e9c349" : "#a5b8a9"} /> {sidebarOpen && "Gameboard"}
@@ -351,6 +342,12 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
             </button>
             <button onClick={() => onTabChange("settings")} style={{ display: "flex", alignItems: "center", gap: "12px", padding: sidebarOpen ? "12px 24px" : "12px", justifyContent: sidebarOpen ? "flex-start" : "center", background: activeTab === "settings" ? "#1e3a2b" : "transparent", border: "none", color: activeTab === "settings" ? "#e9c349" : "#a5b8a9", fontSize: "14px", fontWeight: 600, cursor: "pointer", borderRadius: sidebarOpen ? "0" : "8px" }}>
               <SettingsIcon size={18} color={activeTab === "settings" ? "#e9c349" : "#a5b8a9"} /> {sidebarOpen && "Settings"}
+            </button>
+          </div>
+
+          <div style={{ marginTop: "auto", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: sidebarOpen ? "flex-end" : "center", padding: sidebarOpen ? "16px 24px 0" : "16px 8px 0" }}>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"} style={{ background: "none", border: "none", color: "#a5b8a9", cursor: "pointer", padding: "4px", display: "flex" }}>
+              {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
             </button>
           </div>
         </div>

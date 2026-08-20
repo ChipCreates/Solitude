@@ -97,11 +97,6 @@ export const GameChooserGrid: React.FC<GameChooserGridProps> = ({ onSelectGame, 
         overflowY: "auto"
       }}
     >
-      <div style={{ textAlign: "center", marginBottom: "40px" }}>
-        <h2 style={{ fontSize: "36px", fontWeight: 800, color: accentColor, marginBottom: "12px", fontFamily: "Manrope, sans-serif" }}>Choose Your Game</h2>
-        <p style={{ fontSize: "16px", color: "#a5b8a9" }}>Select a solitaire variant to play</p>
-      </div>
-
       {resumableSave && onResumeGame && (
         <button
           onClick={onResumeGame}
