@@ -122,46 +122,28 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
           }}
         >
           {/* Card Content */}
-          <div style={{ position: 'absolute', width: '100%', height: '100%', padding: compact && (isFaceCard || rank === 1) ? 0 : (compact ? '4px' : '8px') }}>
+          <div style={{ position: 'absolute', width: '100%', height: '100%', padding: compact ? 0 : '8px' }}>
             {compact ? (
-              isFaceCard ? (
-                // Face cards get the rank/pip in the top corners and the
-                // portrait art bled to the card's own edge (no padding),
-                // instead of shrinking the illustration to fit inside it.
-                <div style={{ position: 'relative', width: '100%', height: '100%', color: suitColor }}>
-                  <div style={{ position: 'absolute', top: 2, left: 4, fontWeight: 800, fontFamily: 'Manrope, sans-serif', fontSize: height * 0.25, lineHeight: 1 }}>
-                    {rankStr}
-                  </div>
-                  <div style={{ position: 'absolute', top: 2, right: 4, fontSize: height * 0.25, lineHeight: 1 }}>
-                    {suitStr}
-                  </div>
-                  <div style={{ position: 'absolute', left: 0, bottom: 0, width: '78%', height: '82%' }}>
+              // Unified compact layout matching a real card's index-corner
+              // convention: a small rank+pip index top-left, plus one large
+              // dominant element (a big pip for numbers/aces, or the face
+              // art for J/Q/K) filling the rest of the card.
+              <div style={{ position: 'relative', width: '100%', height: '100%', color: suitColor }}>
+                <div style={{ position: 'absolute', top: 2, left: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
+                  <div style={{ fontWeight: 800, fontFamily: 'Manrope, sans-serif', fontSize: height * 0.22 }}>{rankStr}</div>
+                  <div style={{ fontSize: height * 0.14, marginTop: height * 0.01 }}>{suitStr}</div>
+                </div>
+                {isFaceCard ? (
+                  <div style={{ position: 'absolute', left: '2%', bottom: 0, width: '85%', height: '78%' }}>
                     {/* Source art faces left; mirrored so it faces into the card. */}
                     <img src={`/assets/cards/${faceAsset}`} alt={rankStr} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'left bottom', transform: 'scaleX(-1)' }} />
                   </div>
-                </div>
-              ) : rank === 1 ? (
-                // Aces: small rank in the top-left corner, one big pip bled
-                // to the bottom-right corner (the traditional single-pip
-                // ace treatment, but corner-anchored to leave the rank
-                // legible at a glance).
-                <div style={{ position: 'relative', width: '100%', height: '100%', color: suitColor }}>
-                  <div style={{ position: 'absolute', top: 2, left: 4, fontWeight: 800, fontFamily: 'Manrope, sans-serif', fontSize: height * 0.3, lineHeight: 1 }}>
-                    {rankStr}
-                  </div>
-                  <div style={{ position: 'absolute', bottom: -4, right: -2, fontSize: height * 0.6, lineHeight: 1 }}>
+                ) : (
+                  <div style={{ position: 'absolute', left: '50%', bottom: '4%', transform: 'translateX(-50%)', fontSize: height * 0.7, lineHeight: 1 }}>
                     {suitStr}
                   </div>
-                </div>
-              ) : (
-                // Scaled to card height (not a fixed size) so the rank/pip
-                // fill the card rather than shrinking to an illegible dot
-                // at small mobile sizes.
-                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: suitColor, lineHeight: 1 }}>
-                  <div style={{ fontWeight: 800, fontFamily: 'Manrope, sans-serif', fontSize: height * 0.4 }}>{rankStr}</div>
-                  <div style={{ fontSize: height * 0.4, marginTop: width * 0.02 }}>{suitStr}</div>
-                </div>
-              )
+                )}
+              </div>
             ) : (
               <>
                 <div style={{ position: 'absolute', top: 8, left: 8, color: suitColor, display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
