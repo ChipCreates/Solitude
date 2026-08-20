@@ -129,14 +129,15 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
                 // portrait art bled to the card's own edge (no padding),
                 // instead of shrinking the illustration to fit inside it.
                 <div style={{ position: 'relative', width: '100%', height: '100%', color: suitColor }}>
-                  <div style={{ position: 'absolute', top: 3, left: 4, fontWeight: 800, fontFamily: 'Manrope, sans-serif', fontSize: width * 0.28, lineHeight: 1 }}>
+                  <div style={{ position: 'absolute', top: 2, left: 4, fontWeight: 800, fontFamily: 'Manrope, sans-serif', fontSize: width * 0.36, lineHeight: 1 }}>
                     {rankStr}
                   </div>
-                  <div style={{ position: 'absolute', top: 3, right: 4, fontSize: width * 0.24, lineHeight: 1 }}>
+                  <div style={{ position: 'absolute', top: 2, right: 4, fontSize: width * 0.3, lineHeight: 1 }}>
                     {suitStr}
                   </div>
                   <div style={{ position: 'absolute', left: 0, bottom: 0, width: '78%', height: '82%' }}>
-                    <img src={`/assets/cards/${faceAsset}`} alt={rankStr} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'left bottom' }} />
+                    {/* Source art faces left; mirrored so it faces into the card. */}
+                    <img src={`/assets/cards/${faceAsset}`} alt={rankStr} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'left bottom', transform: 'scaleX(-1)' }} />
                   </div>
                 </div>
               ) : (
@@ -146,8 +147,8 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
                 // to the rank letter, matching the traditional single-big-
                 // pip ace design.
                 <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: suitColor, lineHeight: 1 }}>
-                  <div style={{ fontWeight: 800, fontFamily: 'Manrope, sans-serif', fontSize: rank === 1 ? width * 0.24 : width * 0.32 }}>{rankStr}</div>
-                  <div style={{ fontSize: rank === 1 ? width * 0.6 : width * 0.44, marginTop: width * 0.02 }}>{suitStr}</div>
+                  <div style={{ fontWeight: 800, fontFamily: 'Manrope, sans-serif', fontSize: rank === 1 ? width * 0.3 : width * 0.4 }}>{rankStr}</div>
+                  <div style={{ fontSize: rank === 1 ? width * 0.7 : width * 0.54, marginTop: width * 0.02 }}>{suitStr}</div>
                 </div>
               )
             ) : (
@@ -164,7 +165,7 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
 
                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '75%', height: '75%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                   {(isFaceCard || (rank === 1 && suit === 3)) ? (
-                    <img src={`/assets/cards/${faceAsset}`} alt={rankStr} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    <img src={`/assets/cards/${faceAsset}`} alt={rankStr} style={{ width: '100%', height: '100%', objectFit: 'contain', transform: 'scaleX(-1)' }} />
                   ) : (
                     <div style={{ fontSize: `${width * 0.4}px`, color: suitColor }}>{suitStr}</div>
                   )}
