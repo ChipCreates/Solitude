@@ -10,6 +10,7 @@ import achievementsData from "../data/achievements.json";
 import { DashboardOverview } from "./DashboardOverview";
 import { getLevelTitle, getLevelTitleDescription, getGlobalLevel, xpRequiredForLevel } from "../utils/levelTitles";
 import { getAvatarOption } from "../data/avatars";
+import { getGamePortrait } from "../data/gamePortraits";
 import { applyThemePack } from "../theme/presets";
 import { STORE_ITEMS } from "../data/storeItems";
 import { SettingsPage } from "./SettingsPage";
@@ -198,6 +199,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
 
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
   const activeAvatar = getAvatarOption(activeProfile?.avatarId ?? "");
+  const activeGamePortrait = gameTypeCode !== undefined ? getGamePortrait(gameTypeCode) : undefined;
   // Global, game-agnostic: pools XP earned across every variant into one account-wide level/title.
   const globalLevel = getGlobalLevel(gameProgress);
   const globalLevelTitle = getLevelTitle(globalLevel.level);
@@ -465,7 +467,22 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
             </button>
           </div>
 
-          <div style={{ marginTop: "auto", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: sidebarOpen ? "flex-end" : "center", padding: sidebarOpen ? "16px 24px 0" : "16px 8px 0" }}>
+          <div style={{ flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", padding: sidebarOpen ? "16px 20px 4px" : "16px 8px 4px" }}>
+            {activeGamePortrait && (
+              <img
+                src={activeGamePortrait}
+                alt={activeGameName}
+                style={{
+                  width: sidebarOpen ? "160px" : "56px",
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  objectFit: "contain",
+                  transition: "width 0.2s ease"
+                }}
+              />
+            )}
+          </div>
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", width: "100%", display: "flex", justifyContent: sidebarOpen ? "flex-end" : "center", padding: sidebarOpen ? "16px 24px 0" : "16px 8px 0", flexShrink: 0 }}>
             <button onClick={() => setSidebarOpen(!sidebarOpen)} title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"} style={{ background: "none", border: "none", color: "#a5b8a9", cursor: "pointer", padding: "4px", display: "flex" }}>
               {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
             </button>

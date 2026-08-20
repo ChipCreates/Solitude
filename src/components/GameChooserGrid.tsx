@@ -4,6 +4,7 @@ import { useUIStore } from "../store/uiStore";
 import { useViewport } from "../hooks/useViewport";
 import { GameVariantModal } from "./GameVariantModal";
 import type { SaveEnvelope } from "../persistence/store";
+import { GAME_PORTRAITS } from "../data/gamePortraits";
 
 interface GameChooserGridProps {
   onSelectGame: (gameType: number) => void;
@@ -15,61 +16,61 @@ const GAMES = [
   {
     id: 0,
     name: "Klondike",
-    portrait: "/assets/tiles/webp/king.webp",
+    portrait: GAME_PORTRAITS[0],
     description: "The quintessential version of Solitaire. Build four foundations from Ace to King by maneuvering cards through a tableau of descending, alternating colors."
   },
   {
     id: 1,
     name: "Spider",
-    portrait: "/assets/tiles/webp/spider-king.webp",
+    portrait: GAME_PORTRAITS[1],
     description: "Assemble complete suits within the tableau itself before they can be removed. Dealing two decks of cards, you must weave complex sequences to clear the board."
   },
   {
     id: 2,
     name: "FreeCell",
-    portrait: "/assets/tiles/webp/wizard.webp",
+    portrait: GAME_PORTRAITS[2],
     description: "A game of open information. All cards are visible from the start, and you are given four temporary \"free cells\" to hold cards while you reorganize the tableau."
   },
   {
     id: 3,
     name: "Pyramid",
-    portrait: "/assets/tiles/webp/pyramid.webp",
+    portrait: GAME_PORTRAITS[3],
     description: "A mathematical puzzle where the goal is to dismantle a pyramid of cards by pairing them up to equal 13."
   },
   {
     id: 4,
     name: "Golf",
-    portrait: "/assets/tiles/webp/jester.webp",
+    portrait: GAME_PORTRAITS[4],
     description: "Clear a tableau of cards into a single waste pile. You can play any card that is one rank higher or lower than the top card, regardless of suit."
   },
   {
     id: 5,
     name: "TriPeaks",
-    portrait: "/assets/tiles/webp/tripeaks.webp",
+    portrait: GAME_PORTRAITS[5],
     description: "Clear three overlapping pyramids of cards by removing any card that is one rank higher or lower than the top card of the waste pile."
   },
   {
     id: 6,
     name: "Yukon",
-    portrait: "/assets/tiles/webp/knight.webp",
+    portrait: GAME_PORTRAITS[6],
     description: "Move any group of face-up cards regardless of what is beneath them, placing them on a card of the opposite color and next highest rank."
   },
   {
     id: 7,
     name: "Forty Thieves",
-    portrait: "/assets/tiles/webp/thief.webp",
+    portrait: GAME_PORTRAITS[7],
     description: "A difficult variant using two decks. You face a wide tableau where you can only move the top card of each stack, and must build sequences by suit."
   },
   {
     id: 8,
     name: "Canfield",
-    portrait: "/assets/tiles/webp/fortune-teller.webp",
+    portrait: GAME_PORTRAITS[8],
     description: "A casino game with a high-difficulty challenge. You must move cards to the foundation while managing a small tableau and a difficult draw pile."
   },
   {
     id: 9,
     name: "Scorpion",
-    portrait: "/assets/tiles/webp/rogue.webp",
+    portrait: GAME_PORTRAITS[9],
     description: "Build complete suits from King down to Ace within the tableau. Move large groups of cards even if they aren't in order."
   }
 ];
