@@ -228,7 +228,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
           {/* Row 2: stat pill */}
           {!isLandscape && (
             <div style={{ padding: "0 12px 24px" }}>
-              <div style={{ position: "relative", display: "flex", alignItems: "center", gap: "10px", background: "rgba(0,0,0,0.35)", borderRadius: "999px", height: "26px", padding: "0 14px", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ position: "relative", display: "flex", alignItems: "center", gap: "10px", background: "rgba(0,0,0,0.35)", borderRadius: "999px", height: "26px", marginTop: "16px", padding: "0 14px", border: "1px solid rgba(255,255,255,0.08)" }}>
                 {mobileGameHud && gameTypeCode !== undefined && (
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
                     <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#2e8b4f", border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 800, color: "#fff" }}>
