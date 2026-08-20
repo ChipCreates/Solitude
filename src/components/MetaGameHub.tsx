@@ -8,7 +8,7 @@ import { useStatisticsStore } from "../store/statisticsStore";
 import { GAME_TYPE_NAMES } from "../data/gameTypes";
 import achievementsData from "../data/achievements.json";
 import { DashboardOverview } from "./DashboardOverview";
-import { getOverallLevel } from "../utils/levelTitles";
+import { getLevelTitle, getLevelTitleDescription, getGlobalLevel, xpRequiredForLevel } from "../utils/levelTitles";
 import { getAvatarOption } from "../data/avatars";
 import { applyThemePack } from "../theme/presets";
 import { STORE_ITEMS } from "../data/storeItems";
@@ -59,6 +59,117 @@ function formatDuration(ms: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+// "Choose Your Game" is omitted — it's redundant with the fixed header title above it.
+const CHOOSER_SUBTITLES = [
+  "Deal Me In",
+  "Pick Your Challenge",
+  "Choose Your Hand",
+  "Select Your Solitaire",
+  "How Will You Play?",
+  "Choose Your Battle",
+  "Pick a Game to Play",
+  "Choose Your Table",
+  "What'll It Be?",
+  "Deal the Cards",
+  "Choose Your Adventure",
+  "The Cards Await",
+  "Your Move Begins Here",
+  "Choose Your Fate",
+  "Take Your Seat",
+  "Pick Your Poison",
+  "Name Your Game",
+  "Let the Cards Decide",
+  "Step Up to the Table",
+  "The Cards Are Waiting",
+  "What Will You Dare?",
+  "What Lies in the Deck?",
+  "The Table Awaits",
+  "Which Hand Calls You?",
+  "Let Fate Deal",
+  "Enter the Game",
+  "The Deck Has Chosen",
+  "Your Fate Awaits",
+  "Draw Your Destiny",
+  "What Will the Cards Reveal?",
+  "The Cards Know",
+  "Fate Is in Your Hands",
+  "Whisper to the Deck",
+  "The First Move Is Yours",
+  "There Is a Game to Be Played",
+  "Choose What Awaits",
+  "The Deck Remembers",
+  "Turn the First Card",
+  "See What Fate Deals",
+  "What Will You Play?",
+  "What Awaits You?",
+  "Which Game Calls?",
+  "What Will Fate Deal?",
+  "Which Hand Will You Choose?",
+  "What's Your Fortune?",
+  "Where Will the Cards Lead?",
+  "Which Secret Will You Uncover?",
+  "What Lies Beneath?",
+  "Shall We Deal?",
+  "Care to Tempt Fate?",
+  "Ready to See What Awaits?",
+  "Come. The Cards Are Waiting.",
+  "Let's See What Fate Has Dealt.",
+  "The Next Hand Is Yours.",
+  "Something Awaits in the Deck.",
+  "Fate Has Left You a Hand.",
+  "Go On. Choose a Game.",
+  "The Deck Is Calling.",
+  "There's More Than One Way to Play.",
+  "Your Next Game Awaits.",
+  "Turn the Cards. Discover What Awaits.",
+  "Where Shall We Begin?",
+  "What Shall We Play?",
+  "Which Will It Be?",
+  "Make Your Choice",
+  "The Choice Is Yours",
+  "Find Your Game",
+  "Take Your Pick",
+  "Set the Cards in Motion",
+  "Begin Somewhere",
+  "Let's Begin",
+  "A Game Awaits",
+  "Something Different?",
+  "In the Mood for…",
+  "What Tempts You?",
+  "What Catches Your Eye?",
+  "Which One Will You Try?",
+  "Which one has your attention?",
+  "Which one will you choose?",
+  "What shall it be?",
+  "Which one tempts you?",
+  "What catches your eye?",
+  "What are you in the mood for?",
+  "Which one calls to you?",
+  "What looks interesting?",
+  "Shall we see?",
+  "What will you try?",
+  "Which one feels right?",
+  "What will it be tonight?",
+  "Care to choose?",
+  "Something catch your eye?",
+  "Which one is yours?",
+  "What have you got in mind?",
+  "Shall we play?",
+  "Ready for something different?",
+  "What are you drawn to?",
+  "Go on. Pick one.",
+  "Indulge your curiosity.",
+  "Follow your inclination.",
+  "Trust your instincts.",
+  "See where it leads.",
+  "Follow your fancy.",
+  "Choose what intrigues you.",
+  "Let curiosity decide.",
+  "Make it interesting.",
+  "Surprise yourself.",
+  "What shall it be? Choose what awaits.",
+];
+
 const STORE_CATEGORIES = [
   { id: "card_back", label: "CARD BACKS" },
   { id: "theme", label: "THEMES" },
@@ -76,6 +187,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
   const [storeCategory, setStoreCategory] = useState("card_back");
   const [trophySubTab, setTrophySubTab] = useState<"overview" | "stats">("overview");
   const [previewThemePackId, setPreviewThemePackId] = useState<string | null>(null);
+  const [chooserSubtitle] = useState(() => CHOOSER_SUBTITLES[Math.floor(Math.random() * CHOOSER_SUBTITLES.length)]);
   const { isMobile, isLandscape } = useViewport();
 
   const goToDashboard = () => {
@@ -86,7 +198,11 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
 
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
   const activeAvatar = getAvatarOption(activeProfile?.avatarId ?? "");
-  const overallLevel = getOverallLevel(gameProgress);
+  // Global, game-agnostic: pools XP earned across every variant into one account-wide level/title.
+  const globalLevel = getGlobalLevel(gameProgress);
+  const globalLevelTitle = getLevelTitle(globalLevel.level);
+  // Per-game: the level pill shown during an active game reflects that specific variant's own progress.
+  const activeGameProgress = gameTypeCode !== undefined ? (gameProgress[String(gameTypeCode)] ?? { level: 1, xp: 0 }) : undefined;
   const isChooserActive = activeTab === "gameboard" && gameTypeCode === undefined;
 
   useEffect(() => {
@@ -161,20 +277,24 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                 <div style={{ width: "44px", height: "44px", borderRadius: "50%", overflow: "hidden", border: `2px solid ${activeAvatar.ringColor || "#d4af37"}`, boxShadow: "0 2px 8px rgba(0,0,0,0.5)", flexShrink: 0 }}>
                   <img src={activeAvatar.src} alt={activeAvatar.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                   <span style={{ fontSize: "16px", fontWeight: 800, color: "#fff", fontFamily: "Inter, sans-serif" }}>{activeProfile?.name || "Chip"}</span>
-                  <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", fontFamily: "Inter, sans-serif" }}>Veteran Novice, Senior Game Master Expanded ⚒</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "15px", fontWeight: 800, color: "#e9c349", fontFamily: "Inter, sans-serif", flexShrink: 0 }}>{globalLevelTitle}</span>
+                    <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.35)", flexShrink: 0 }}>•</span>
+                    <span style={{ fontSize: "11px", fontStyle: "italic", color: "rgba(255,255,255,0.6)", fontFamily: "Inter, sans-serif", lineHeight: 1.35, maxWidth: "220px" }}>{getLevelTitleDescription(globalLevel.level)}</span>
+                  </div>
                 </div>
                 {/* Straddles the header/felt seam: anchored to the header (which is position:relative), not the flex column above.
                     Level progress is tracked per game variant, not globally, so it's meaningless on the chooser screen — only show it inside an active game. */}
-                {activeGameName && (
+                {activeGameName && activeGameProgress && (
                   <div style={{ position: "absolute", left: "28px", bottom: "-26px", display: "flex", flexDirection: "column", gap: "7px", background: "rgba(10, 20, 15, 0.9)", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: "14px", padding: "9px 16px", minWidth: "270px", boxShadow: "0 4px 12px rgba(0,0,0,0.5)" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 800, color: "#e9c349", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>LVL {overallLevel.level}</span>
+                      <span style={{ fontSize: "11px", fontWeight: 800, color: "#e9c349", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>LVL {activeGameProgress.level}</span>
                       <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.7)", fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" }}>Next Unlocks: Gold Card Frame at Level 5</span>
                     </div>
                     <div style={{ width: "100%", height: "10px", background: "rgba(255,255,255,0.1)", borderRadius: "5px", overflow: "hidden" }}>
-                      <div style={{ width: `${Math.min(100, Math.floor((overallLevel.xp / 1000) * 100))}%`, height: "100%", background: "linear-gradient(90deg, #2e7d32, #4caf50)" }} />
+                      <div style={{ width: `${Math.min(100, Math.floor((activeGameProgress.xp / xpRequiredForLevel(activeGameProgress.level)) * 100))}%`, height: "100%", background: "linear-gradient(90deg, #2e7d32, #4caf50)" }} />
                     </div>
                   </div>
                 )}
@@ -183,10 +303,10 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
           </div>
           <div style={{ flex: "3 1 0%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", minWidth: 0 }}>
             <div style={{ fontSize: "28px", fontWeight: 800, color: "#e9c349", fontFamily: "'Cinzel', 'Playfair Display', 'Georgia', serif", letterSpacing: "1.5px", textShadow: "0 2px 8px rgba(0,0,0,0.8)", whiteSpace: "nowrap", overflow: "visible" }}>
-              {activeTab !== "gameboard" ? "SOLITUDE" : activeGameName ? `SOLITUDE: ${activeGameName.toUpperCase()}` : "SOLITUDE: CHOOSE YOUR GAME"}
+              {activeTab === "gameboard" && activeGameName ? `SOLITUDE: ${activeGameName.toUpperCase()}` : "SOLITUDE"}
             </div>
             {activeTab === "gameboard" && !activeGameName && (
-              <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.65)", fontFamily: "Inter, sans-serif" }}>Choose a variant to play</div>
+              <div style={{ fontSize: "20px", color: "rgba(255,255,255,0.65)", fontFamily: "Inter, sans-serif" }}>{chooserSubtitle}</div>
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1, justifyContent: "flex-end" }}>

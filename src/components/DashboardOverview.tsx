@@ -19,7 +19,7 @@ import { useProfileStore } from "../store/profileStore";
 import { useStatisticsStore } from "../store/statisticsStore";
 import { GAME_TYPE_NAMES } from "../data/gameTypes";
 import achievementsData from "../data/achievements.json";
-import { getLevelTitle, getOverallLevel } from "../utils/levelTitles";
+import { getLevelTitle, getLevelTitleDescription, getGlobalLevel, xpRequiredForLevel } from "../utils/levelTitles";
 import { bucketCoinLedgerByWeek } from "../utils/coinLedger";
 import { loadProfileSummary, type ProfileSummary } from "../utils/profileSummary";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR_ID, getAvatarOption } from "../data/avatars";
@@ -85,11 +85,9 @@ export const DashboardOverview: React.FC = () => {
   const [editAvatarId, setEditAvatarId] = useState(DEFAULT_AVATAR_ID);
 
   const aggregate = getAggregateStats();
-  const overallLevel = getOverallLevel(gameProgress);
-  const overallLevelTitle = getLevelTitle(overallLevel.level);
-  const xpForNextLevel = Math.floor(500 * Math.pow(overallLevel.level, 1.5));
-  const xpForCurrentLevel = overallLevel.level === 1 ? 0 : Math.floor(500 * Math.pow(overallLevel.level - 1, 1.5));
-  const xpProgressPercent = Math.max(0, Math.min(100, Math.round(((overallLevel.xp - xpForCurrentLevel) / (xpForNextLevel - xpForCurrentLevel)) * 100)));
+  const globalLevel = getGlobalLevel(gameProgress);
+  const globalLevelTitle = getLevelTitle(globalLevel.level);
+  const xpProgressPercent = Math.max(0, Math.min(100, Math.round((globalLevel.xp / xpRequiredForLevel(globalLevel.level)) * 100)));
 
   const winRateData = useMemo(
     () =>
@@ -194,8 +192,8 @@ export const DashboardOverview: React.FC = () => {
         />
         <div style={{ flex: 1, minWidth: "200px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", padding: "16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: "11px", color: SAGE, fontFamily: "JetBrains Mono, monospace", letterSpacing: "0.5px", textTransform: "uppercase" }}>Level {overallLevel.level}</div>
-            <div style={{ fontSize: "22px", fontWeight: 800, color: "#fff", fontFamily: "Manrope, sans-serif" }}>{overallLevelTitle}</div>
+            <div style={{ fontSize: "11px", color: SAGE, fontFamily: "JetBrains Mono, monospace", letterSpacing: "0.5px", textTransform: "uppercase" }}>Level {globalLevel.level}</div>
+            <div title={getLevelTitleDescription(globalLevel.level)} style={{ fontSize: "22px", fontWeight: 800, color: "#fff", fontFamily: "Manrope, sans-serif", cursor: "default" }}>{globalLevelTitle}</div>
           </div>
           <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <XPRing percent={xpProgressPercent} />

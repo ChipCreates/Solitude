@@ -3,6 +3,7 @@ import { useProfileStore } from "./profileStore";
 import type { Settings, Progression, CoinLedgerEntry } from "../persistence/store";
 import { MUSIC_TRACKS } from "../data/musicTracks";
 import { DEFAULT_SFX_SET_ID } from "../data/sfxSets";
+import { xpRequiredForLevel } from "../utils/levelTitles";
 
 // Bound on how many coin-earning events we keep around for the dashboard's
 // trend chart — enough for ~12 weekly buckets' worth of activity without
@@ -250,15 +251,13 @@ export const useUIStore = create<SettingsState>((set, get) => ({
     let newLevel = progress.level;
     let leveledUp = false;
     
-    // Calculate required XP for next level: Base * (Level ^ 1.5)
-    // Let's use 500 as the base for level 2, scaling up.
-    let xpRequired = Math.floor(500 * Math.pow(newLevel, 1.5));
-    
+    let xpRequired = xpRequiredForLevel(newLevel);
+
     while (newXP >= xpRequired) {
       newXP -= xpRequired;
       newLevel++;
       leveledUp = true;
-      xpRequired = Math.floor(500 * Math.pow(newLevel, 1.5));
+      xpRequired = xpRequiredForLevel(newLevel);
     }
     
     set({

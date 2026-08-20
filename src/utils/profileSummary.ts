@@ -1,6 +1,6 @@
 import { store } from "../persistence/store";
 import { GAME_TYPE_NAMES } from "../data/gameTypes";
-import { getOverallLevel } from "./levelTitles";
+import { getGlobalLevel } from "./levelTitles";
 
 export interface ProfileSummary {
   coins: number;
@@ -16,6 +16,6 @@ export async function loadProfileSummary(profileId: string): Promise<ProfileSumm
   ]);
   const gamesPlayed = statsEntries.reduce((sum, s) => sum + s.gamesPlayed, 0);
   const gamesWon = statsEntries.reduce((sum, s) => sum + s.gamesWon, 0);
-  const { level } = getOverallLevel(progression.gameProgress);
+  const { level } = getGlobalLevel(progression.gameProgress);
   return { coins: progression.coins, gamesPlayed, gamesWon, level };
 }
