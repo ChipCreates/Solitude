@@ -11,21 +11,29 @@ export function calculatePyramidLayout(
   viewportWidth: number,
   viewportHeight: number
 ): PyramidLayoutResult {
-  const horizontalPadding = 16;
+  const isLandscape = viewportWidth > viewportHeight;
+  const horizontalPadding = isLandscape ? 12 : 16;
   const availableWidth = viewportWidth - horizontalPadding * 2;
 
-  // Base needs space for ~8 cards (7 cards with 1.1x spacing). Floor of 44px
-  // matches the minimum touch-target guidance used in gridLayout.ts.
-  const cardWidth = Math.max(44, Math.min(100, availableWidth / 8.0));
+  const rawWidth = availableWidth / 8.0;
+
+  const topPadding = isLandscape ? (viewportHeight < 500 ? 44 : 56) : 80;
+  const availableHeight = viewportHeight - topPadding - (isLandscape ? 12 : 24);
+
+  // Pyramid height factor = 7 rows * 0.4 * cardHeight + 2 * cardHeight + padding = ~4.8 * cardHeight
+  const heightConstrainedCardWidth = (availableHeight / 4.8) / 1.4;
+
+  let cardWidth = Math.min(rawWidth, heightConstrainedCardWidth);
+  if (isLandscape) {
+    cardWidth = Math.min(cardWidth, viewportHeight * 0.14);
+  }
+
+  cardWidth = Math.max(44, Math.min(100, cardWidth));
   const cardHeight = cardWidth * 1.4;
 
   const pyramidHeight = 7 * cardHeight * 0.4 + cardHeight;
-  const bottomRowHeight = cardHeight + 16;
-  const totalContentHeight = pyramidHeight + bottomRowHeight + 20;
-
-  const topPadding = Math.max(85, Math.min(120, 80 + (viewportHeight - totalContentHeight - 80) / 3));
   const centerX = viewportWidth / 2;
-  const bottomY = viewportHeight - cardHeight - 24;
+  const bottomY = Math.min(viewportHeight - cardHeight - (isLandscape ? 8 : 24), topPadding + pyramidHeight + 12);
 
   const isCompactTier = cardWidth < 60;
 

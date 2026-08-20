@@ -21,17 +21,17 @@ import type { SaveEnvelope } from "./persistence/store";
 import { MUSIC_TRACKS, CUSTOM_TRACK_ID } from "./data/musicTracks";
 import { CardWidget } from "./components/CardWidget";
 import { GameChooserGrid } from "./components/GameChooserGrid";
-import { LevelBadge } from "./components/LevelBadge";
 import { VictoryModal } from "./components/VictoryModal";
 import { HelpModal } from "./components/HelpModal";
 import { AboutModal } from "./components/AboutModal";
 import { SplashPage } from "./components/SplashPage";
 import { MetaGameHub, STORE_ITEMS } from "./components/MetaGameHub";
+import { GraphicPlusIcon, GraphicKeyIcon, GraphicHintIcon, GraphicStoreIcon, GraphicTrophyIcon, GraphicPowerUpIcon, GraphicHelpIcon, GraphicAboutIcon, GraphicUserIcon, GraphicHomeIcon, GraphicSettingsIcon } from "./components/GraphicIcons";
 import { POWER_UP_CONFIG } from "./powerups/config";
 import { audioService } from "./audio/audioService";
 import { ParticleSystem } from "./canvas/renderParticles";
 import { getCachedImage } from "./canvas/boardTexture";
-import { RotateCcw, Play, Lightbulb, Sparkles, HelpCircle, Zap, Undo2, Info, Home } from "lucide-react";
+import { Undo2, Home } from "lucide-react";
 
 const POWER_UP_ITEMS = STORE_ITEMS.filter((i) => i.type === "power_up");
 const RANK_STRS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
@@ -95,7 +95,11 @@ export const App: React.FC = () => {
 
   const cardBoundsListRef = useRef<CardBounds[]>([]);
   const animatedCardsRef = useRef(new Map<number, AnimatedCard>());
-  const dragStateRef = useRef<{ cardId: number; ptrX: number; ptrY: number; offsetX: number; offsetY: number } | null>(null);
+  const dragStateRef = useRef<{
+    ptrX: number;
+    ptrY: number;
+    draggedMap: Map<number, { offsetX: number; offsetY: number; relativeIndex: number }>;
+  } | null>(null);
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
   const movedRef = useRef(false);
   const dragStartCardRef = useRef<CardBounds | null>(null);
@@ -117,7 +121,7 @@ export const App: React.FC = () => {
   const [shelvedCard, setShelvedCard] = useState<ShelvedCard | null>(null);
 
   const hintCardIdRef = useRef<number | null>(null);
-  const [hintGhost, setHintGhost] = useState<{startX: number, startY: number, endX: number, endY: number, width: number, height: number, rank: number, suit: number} | null>(null);
+  const [hintGhost, setHintGhost] = useState<{startX: number, startY: number, endX: number, endY: number, width: number, height: number, rank: number, suit: number, faceUp?: boolean} | null>(null);
   const [ghostPos, setGhostPos] = useState({x: 0, y: 0});
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const autoPlayTimeoutRef = useRef<number | null>(null);
@@ -147,7 +151,7 @@ export const App: React.FC = () => {
 
   const {
     themeId, themeOverlayIntensities, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern, scoringMode, vegasBankroll,
-    musicEnabled, musicVolume, musicTrackId, customMusicUrl, powerUpInventory, sfxSetId,
+    musicEnabled, musicVolume, musicTrackId, customMusicUrl, powerUpInventory, sfxSetId, coins,
   } = useUIStore();
   const currentTheme = THEME_PRESETS[themeId] || THEME_PRESETS.classic_felt;
   const overlayIntensity = themeOverlayIntensities[themeId] ?? currentTheme.defaultOverlayIntensity;
@@ -183,6 +187,15 @@ export const App: React.FC = () => {
     const pushSlot = (pileKind: number, pileIndex: number, x: number, y: number, w: number, h: number) =>
       boundsList.push({ pileKind, pileIndex, cardIndex: -1, cardId: -1, x, y, width: w, height: h, faceUp: true, rank: 0, suit: 0 });
 
+    const getEffectiveStackOffset = (cardCount: number, defaultOffset: number, startY: number, vHeight: number, cHeight: number): number => {
+      if (cardCount <= 1) return defaultOffset;
+      const maxAvailableY = vHeight - cHeight - 12;
+      const totalOffsetNeeded = (cardCount - 1) * defaultOffset;
+      if (startY + totalOffsetNeeded <= maxAvailableY) return defaultOffset;
+      const maxOffset = (maxAvailableY - startY) / (cardCount - 1);
+      return Math.max(8, Math.floor(maxOffset));
+    };
+
     if (type === 3) {
       // PYRAMID
       const pl = calculatePyramidLayout(rect.width, rect.height);
@@ -216,27 +229,29 @@ export const App: React.FC = () => {
       const layout = calculateGridLayout(rect.width, rect.height, 8);
       for (let c = 0; c < 4; c++) pushSlot(4, c, layout.startX + c * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
       for (let f = 0; f < 4; f++) pushSlot(2, f, layout.startX + (4 + f) * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
-      for (let t = 0; t < 8; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 8; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 16, layout.cardWidth, layout.cardHeight);
       piles.forEach((pile) => {
         let bx = layout.startX, by = layout.topOffset;
         if (pile.kind === 4) bx = layout.startX + pile.index * (layout.cardWidth + layout.gap);
         else if (pile.kind === 2) bx = layout.startX + (4 + pile.index) * (layout.cardWidth + layout.gap);
-        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 16; }
+        const stackOffset = pile.kind === 3 ? getEffectiveStackOffset(pile.cards.length, layout.stackOffset, by, rect.height, layout.cardHeight) : 0;
         pile.cards.forEach((card, ci) => {
-          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
         });
       });
     } else if (type === 6) {
       // YUKON
       const layout = calculateGridLayout(rect.width, rect.height, 7);
       for (let f = 0; f < 4; f++) pushSlot(2, f, layout.startX + (3 + f) * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
-      for (let t = 0; t < 7; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 7; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 16, layout.cardWidth, layout.cardHeight);
       piles.forEach((pile) => {
         let bx = layout.startX, by = layout.topOffset;
         if (pile.kind === 2) bx = layout.startX + (3 + pile.index) * (layout.cardWidth + layout.gap);
-        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 16; }
+        const stackOffset = pile.kind === 3 ? getEffectiveStackOffset(pile.cards.length, layout.stackOffset, by, rect.height, layout.cardHeight) : 0;
         pile.cards.forEach((card, ci) => {
-          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
         });
       });
     } else if (type === 7) {
@@ -245,15 +260,16 @@ export const App: React.FC = () => {
       pushSlot(0, 0, layout.startX, layout.topOffset, layout.cardWidth, layout.cardHeight);
       pushSlot(1, 0, layout.startX + layout.cardWidth + layout.gap, layout.topOffset, layout.cardWidth, layout.cardHeight);
       for (let f = 0; f < 8; f++) pushSlot(2, f, layout.startX + (2 + f) * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
-      for (let t = 0; t < 10; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 10; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 16, layout.cardWidth, layout.cardHeight);
       piles.forEach((pile) => {
         let bx = layout.startX, by = layout.topOffset;
         if (pile.kind === 0) bx = layout.startX;
         else if (pile.kind === 1) bx = layout.startX + layout.cardWidth + layout.gap;
         else if (pile.kind === 2) bx = layout.startX + (2 + pile.index) * (layout.cardWidth + layout.gap);
-        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 16; }
+        const stackOffset = pile.kind === 3 ? getEffectiveStackOffset(pile.cards.length, layout.stackOffset, by, rect.height, layout.cardHeight) : 0;
         pile.cards.forEach((card, ci) => {
-          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
         });
       });
     } else if (type === 8) {
@@ -263,16 +279,17 @@ export const App: React.FC = () => {
       pushSlot(1, 0, layout.startX + layout.cardWidth + layout.gap, layout.topOffset, layout.cardWidth, layout.cardHeight);
       pushSlot(5, 0, layout.startX + 2 * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
       for (let f = 0; f < 4; f++) pushSlot(2, f, layout.startX + (3 + f) * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
-      for (let t = 0; t < 4; t++) pushSlot(3, t, layout.startX + (3 + t) * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 4; t++) pushSlot(3, t, layout.startX + (3 + t) * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 16, layout.cardWidth, layout.cardHeight);
       piles.forEach((pile) => {
         let bx = layout.startX, by = layout.topOffset;
         if (pile.kind === 0) bx = layout.startX;
         else if (pile.kind === 1) bx = layout.startX + layout.cardWidth + layout.gap;
         else if (pile.kind === 5) bx = layout.startX + 2 * (layout.cardWidth + layout.gap);
         else if (pile.kind === 2) bx = layout.startX + (3 + pile.index) * (layout.cardWidth + layout.gap);
-        else if (pile.kind === 3) { bx = layout.startX + (3 + pile.index) * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        else if (pile.kind === 3) { bx = layout.startX + (3 + pile.index) * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 16; }
+        const stackOffset = pile.kind === 3 ? getEffectiveStackOffset(pile.cards.length, layout.stackOffset, by, rect.height, layout.cardHeight) : 0;
         pile.cards.forEach((card, ci) => {
-          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : (pile.kind === 5 ? ci * 4 : 0)), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * stackOffset : (pile.kind === 5 ? ci * 4 : 0)), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
         });
       });
     } else if (type === 1) {
@@ -280,14 +297,15 @@ export const App: React.FC = () => {
       const layout = calculateGridLayout(rect.width, rect.height, 10);
       pushSlot(0, 0, layout.startX, layout.topOffset, layout.cardWidth, layout.cardHeight);
       for (let f = 0; f < 8; f++) pushSlot(2, f, layout.startX + (2 + f) * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
-      for (let t = 0; t < 10; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 10; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 16, layout.cardWidth, layout.cardHeight);
       piles.forEach((pile) => {
         let bx = layout.startX, by = layout.topOffset;
         if (pile.kind === 0) bx = layout.startX;
         else if (pile.kind === 2) bx = layout.startX + (2 + pile.index) * (layout.cardWidth + layout.gap);
-        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 16; }
+        const stackOffset = pile.kind === 3 ? getEffectiveStackOffset(pile.cards.length, layout.stackOffset, by, rect.height, layout.cardHeight) : 0;
         pile.cards.forEach((card, ci) => {
-          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
         });
       });
     } else if (type === 4) {
@@ -300,23 +318,23 @@ export const App: React.FC = () => {
       // Stock and Waste sit above the tableau on the right
       pushSlot(0, 0, rightX2, layout.topOffset, layout.cardWidth, layout.cardHeight);
       pushSlot(1, 0, rightX, layout.topOffset, layout.cardWidth, layout.cardHeight);
-      for (let t = 0; t < 7; t++) pushSlot(3, t, tStartX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 7; t++) pushSlot(3, t, tStartX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 16, layout.cardWidth, layout.cardHeight);
       piles.forEach((pile) => {
         let bx = tStartX, by = layout.topOffset;
         if (pile.kind === 0) { bx = rightX2; }
         else if (pile.kind === 1) { bx = rightX; }
-        else if (pile.kind === 3) { bx = tStartX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        else if (pile.kind === 3) { bx = tStartX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 16; }
+        const stackOffset = pile.kind === 3 ? getEffectiveStackOffset(pile.cards.length, layout.stackOffset, by, rect.height, layout.cardHeight) : 0;
         pile.cards.forEach((card, ci) => {
-          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
         });
       });
     } else if (type === 5) {
       // TRIPEAKS
       const layout = calculateGridLayout(rect.width, rect.height, 10);
+      const isLandscape = rect.width > rect.height;
       const topY = layout.topOffset;
-      // rowGap = 60% of card height: each row overlaps the one above, but
-      // enough of each card is visible to read rank/suit
-      const rowGap = layout.cardHeight * 0.6;
+      const rowGap = layout.cardHeight * (isLandscape ? 0.42 : 0.5);
 
       const peakPos = (idx: number) => {
         if (idx === 0) return { x: layout.startX + 1.5 * (layout.cardWidth + layout.gap), y: topY };
@@ -338,7 +356,7 @@ export const App: React.FC = () => {
         pushSlot(6, p, pos.x, pos.y, layout.cardWidth, layout.cardHeight);
       }
       // Stock and waste sit below the BOTTOM EDGE of the base row cards + padding
-      const bY = topY + 3 * rowGap + layout.cardHeight + 20;
+      const bY = Math.min(rect.height - layout.cardHeight - 12, topY + 3 * rowGap + layout.cardHeight + (isLandscape ? 12 : 20));
       pushSlot(0, 0, layout.startX, bY, layout.cardWidth, layout.cardHeight);
       pushSlot(1, 0, layout.startX + layout.cardWidth + layout.gap, bY, layout.cardWidth, layout.cardHeight);
 
@@ -357,13 +375,14 @@ export const App: React.FC = () => {
       // SCORPION
       const layout = calculateGridLayout(rect.width, rect.height, 7);
       pushSlot(0, 0, layout.startX, layout.topOffset, layout.cardWidth, layout.cardHeight);
-      for (let t = 0; t < 7; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 7; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 16, layout.cardWidth, layout.cardHeight);
       piles.forEach((pile) => {
         let bx = layout.startX, by = layout.topOffset;
         if (pile.kind === 0) bx = layout.startX;
-        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 16; }
+        const stackOffset = pile.kind === 3 ? getEffectiveStackOffset(pile.cards.length, layout.stackOffset, by, rect.height, layout.cardHeight) : 0;
         pile.cards.forEach((card, ci) => {
-          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
         });
       });
     } else {
@@ -372,15 +391,16 @@ export const App: React.FC = () => {
       pushSlot(0, 0, layout.startX, layout.topOffset, layout.cardWidth, layout.cardHeight);
       pushSlot(1, 0, layout.startX + layout.cardWidth + layout.gap, layout.topOffset, layout.cardWidth, layout.cardHeight);
       for (let f = 0; f < 4; f++) pushSlot(2, f, layout.startX + (3 + f) * (layout.cardWidth + layout.gap), layout.topOffset, layout.cardWidth, layout.cardHeight);
-      for (let t = 0; t < 7; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 24, layout.cardWidth, layout.cardHeight);
+      for (let t = 0; t < 7; t++) pushSlot(3, t, layout.startX + t * (layout.cardWidth + layout.gap), layout.topOffset + layout.cardHeight + 16, layout.cardWidth, layout.cardHeight);
       piles.forEach((pile) => {
         let bx = layout.startX, by = layout.topOffset;
         if (pile.kind === 0) bx = layout.startX;
         else if (pile.kind === 1) bx = layout.startX + layout.cardWidth + layout.gap;
         else if (pile.kind === 2) bx = layout.startX + (3 + pile.index) * (layout.cardWidth + layout.gap);
-        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 24; }
+        else if (pile.kind === 3) { bx = layout.startX + pile.index * (layout.cardWidth + layout.gap); by = layout.topOffset + layout.cardHeight + 16; }
+        const stackOffset = pile.kind === 3 ? getEffectiveStackOffset(pile.cards.length, layout.stackOffset, by, rect.height, layout.cardHeight) : 0;
         pile.cards.forEach((card, ci) => {
-          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * layout.stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
+          boundsList.push({ pileKind: pile.kind, pileIndex: pile.index, cardIndex: ci, cardId: card.id, x: bx, y: by + (pile.kind === 3 ? ci * stackOffset : 0), width: layout.cardWidth, height: layout.cardHeight, faceUp: card.faceUp, rank: card.rank, suit: card.suit });
         });
       });
     }
@@ -459,13 +479,21 @@ export const App: React.FC = () => {
           if (!animatedCardsRef.current.has(b.cardId))
             animatedCardsRef.current.set(b.cardId, { x: b.x, y: b.y, vx: 0, vy: 0 });
           const anim = animatedCardsRef.current.get(b.cardId)!;
-          if (ds && ds.cardId === b.cardId) {
-            anim.x = ds.ptrX - ds.offsetX; anim.y = ds.ptrY - ds.offsetY; anim.vx = 0; anim.vy = 0;
+          const dragInfo = ds?.draggedMap.get(b.cardId);
+          if (dragInfo) {
+            anim.x = ds!.ptrX - dragInfo.offsetX; anim.y = ds!.ptrY - dragInfo.offsetY; anim.vx = 0; anim.vy = 0;
           } else {
             const spring = 400, damp = 30;
             anim.vx += ((b.x - anim.x) * spring - anim.vx * damp) * dt;
             anim.vy += ((b.y - anim.y) * spring - anim.vy * damp) * dt;
             anim.x += anim.vx * dt; anim.y += anim.vy * dt;
+          }
+          const isMoving = !!dragInfo || Math.hypot(b.x - anim.x, b.y - anim.y) > 1.5;
+          const baseZIndex = b.pileKind === 3 ? b.cardIndex + 10 : 20 + b.cardIndex;
+          const el = document.getElementById(`card-dom-${b.cardId}`);
+          if (el) {
+            el.style.transform = `translate3d(${anim.x.toFixed(1)}px, ${anim.y.toFixed(1)}px, 0px)`;
+            el.style.zIndex = String(isMoving ? 2000 + (dragInfo?.relativeIndex ?? b.cardIndex) : baseZIndex);
           }
         }
       });
@@ -653,21 +681,46 @@ export const App: React.FC = () => {
   }, [updateLayout]);
 
   const handleDoubleTap = useCallback((card: CardBounds) => {
-    if (card.cardId === -1) return;
+    if (card.cardId === -1 || !card.faceUp) return;
     const type = gameTypeRef.current;
+
+    // Pyramid (3), Golf (4), TriPeaks (5) handle single taps specially
+    if (type === 3 || type === 4 || type === 5) return;
+
     const foundationCount = (type === 7) ? 8 : 4;
-    if (type === 0 || type === 2 || type === 6 || type === 7 || type === 8) {
-      for (let f = 0; f < foundationCount; f++) {
-        if (executeMoveWasm(card.pileKind, card.pileIndex, 2, f, card.cardId)) {
-          setMoveCount((m) => m + 1); audioService.playCardMove(); updateLayout(); return;
+    const tableauCount = (type === 1 || type === 7) ? 10 : (type === 2) ? 8 : 7;
+
+    // 1. Try Foundation Piles (kind 2)
+    for (let f = 0; f < foundationCount; f++) {
+      if (executeMoveWasm(card.pileKind, card.pileIndex, 2, f, card.cardId)) {
+        setMoveCount((m) => m + 1);
+        audioService.playCardMove();
+        updateLayout();
+        return;
+      }
+    }
+
+    // 2. For FreeCell (type 2), try FreeCell Cells (kind 4)
+    if (type === 2) {
+      for (let c = 0; c < 4; c++) {
+        if (card.pileKind === 4 && card.pileIndex === c) continue;
+        if (executeMoveWasm(card.pileKind, card.pileIndex, 4, c, card.cardId)) {
+          setMoveCount((m) => m + 1);
+          audioService.playCardMove();
+          updateLayout();
+          return;
         }
       }
-      if (type === 2) {
-        for (let c = 0; c < 4; c++) {
-          if (executeMoveWasm(card.pileKind, card.pileIndex, 4, c, card.cardId)) {
-            setMoveCount((m) => m + 1); audioService.playCardMove(); updateLayout(); return;
-          }
-        }
+    }
+
+    // 3. Try Tableau Columns (kind 3)
+    for (let t = 0; t < tableauCount; t++) {
+      if (card.pileKind === 3 && card.pileIndex === t) continue;
+      if (executeMoveWasm(card.pileKind, card.pileIndex, 3, t, card.cardId)) {
+        setMoveCount((m) => m + 1);
+        audioService.playCardMove();
+        updateLayout();
+        return;
       }
     }
   }, [updateLayout]);
@@ -704,12 +757,20 @@ export const App: React.FC = () => {
     movedRef.current = false;
     const hit = findHit(x, y);
     dragStartCardRef.current = hit;
-    if (hit && hit.cardId !== -1) {
-      const anim = animatedCardsRef.current.get(hit.cardId);
-      dragStateRef.current = {
-        cardId: hit.cardId, ptrX: x, ptrY: y,
-        offsetX: x - (anim?.x ?? hit.x), offsetY: y - (anim?.y ?? hit.y),
-      };
+    if (hit && hit.cardId !== -1 && hit.faceUp) {
+      const stackCards = cardBoundsListRef.current.filter(
+        (b) => b.pileKind === hit.pileKind && b.pileIndex === hit.pileIndex && b.cardIndex >= hit.cardIndex && b.faceUp
+      );
+      const draggedMap = new Map<number, { offsetX: number; offsetY: number; relativeIndex: number }>();
+      stackCards.forEach((b) => {
+        const anim = animatedCardsRef.current.get(b.cardId);
+        draggedMap.set(b.cardId, {
+          offsetX: x - (anim?.x ?? b.x),
+          offsetY: y - (anim?.y ?? b.y),
+          relativeIndex: b.cardIndex - hit.cardIndex,
+        });
+      });
+      dragStateRef.current = { ptrX: x, ptrY: y, draggedMap };
     }
   }, []);
 
@@ -722,6 +783,15 @@ export const App: React.FC = () => {
     if (dragStateRef.current) {
       dragStateRef.current.ptrX = x;
       dragStateRef.current.ptrY = y;
+      dragStateRef.current.draggedMap.forEach((dragInfo, cardId) => {
+        const el = document.getElementById(`card-dom-${cardId}`);
+        if (el) {
+          const dx = x - dragInfo.offsetX;
+          const dy = y - dragInfo.offsetY;
+          el.style.transform = `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0px)`;
+          el.style.zIndex = String(2000 + dragInfo.relativeIndex);
+        }
+      });
     }
   }, []);
 
@@ -903,24 +973,25 @@ export const App: React.FC = () => {
     if (isWonRef.current || isAutoPlaying) return;
     usedHintOrUndoRef.current = true;
     const hint = getHintWasm();
+    const bounds = cardBoundsListRef.current;
+
+    const getPileKind = (k: any): number => {
+      if (typeof k === 'number') return k;
+      switch(k) {
+        case "Stock": return 0; case "Waste": return 1; case "Foundation": return 2;
+        case "Tableau": return 3; case "Cell": return 4; case "Reserve": return 5;
+        case "Pyramid": return 6; case "Discard": return 7; default: return -1;
+      }
+    };
+
     if (hint && hint.cards && hint.cards.length > 0) {
       const sourceId = hint.cards[0];
       hintCardIdRef.current = sourceId;
       setLayoutTick(t => t + 1);
 
-      const getPileKind = (k: any): number => {
-        if (typeof k === 'number') return k;
-        switch(k) {
-          case "Stock": return 0; case "Waste": return 1; case "Foundation": return 2;
-          case "Tableau": return 3; case "Cell": return 4; case "Reserve": return 5;
-          case "Pyramid": return 6; case "Discard": return 7; default: return -1;
-        }
-      };
-
-      const bounds = cardBoundsListRef.current;
       const sourceCard = bounds.find(b => b.cardId === sourceId);
-      const destKind = getPileKind(hint.to.kind);
-      const destPileItems = bounds.filter(b => b.pileKind === destKind && b.pileIndex === hint.to.index);
+      const destKind = getPileKind(hint.to?.kind);
+      const destPileItems = bounds.filter(b => b.pileKind === destKind && b.pileIndex === hint.to?.index);
 
       if (sourceCard && destPileItems.length > 0) {
         const destCard = destPileItems[destPileItems.length - 1];
@@ -931,6 +1002,13 @@ export const App: React.FC = () => {
           endX: destCard.x, endY: destY,
           width: sourceCard.width, height: sourceCard.height,
           rank: sourceCard.rank, suit: sourceCard.suit,
+          faceUp: sourceCard.faceUp,
+        });
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setGhostPos({ x: destCard.x, y: destY });
+          });
         });
       }
 
@@ -939,10 +1017,50 @@ export const App: React.FC = () => {
         setHintGhost(null);
         setLayoutTick(t => t + 1);
       }, 1800);
-    } else if (hint && hint.cards && hint.cards.length === 0) {
-      setToastMessage("Hint: Tap the stock pile");
     } else {
-      setToastMessage("No moves available.");
+      // Draw action from stock pile
+      const stockCards = bounds.filter(b => b.pileKind === 0);
+      const stockSlot = stockCards.length > 0 ? stockCards[stockCards.length - 1] : bounds.find(b => b.pileKind === 0);
+
+      let destKind = 1;
+      let destIndex = 0;
+      if (hint && hint.to) {
+        destKind = getPileKind(hint.to.kind);
+        destIndex = hint.to.index;
+      }
+      const destItems = bounds.filter(b => b.pileKind === (destKind !== -1 ? destKind : 1) && b.pileIndex === destIndex);
+      const destSlot = destItems.length > 0 ? destItems[destItems.length - 1] : bounds.find(b => b.pileKind === 1);
+
+      if (stockSlot && destSlot) {
+        if (stockSlot.cardId !== -1) {
+          hintCardIdRef.current = stockSlot.cardId;
+        }
+        setLayoutTick(t => t + 1);
+
+        setGhostPos({ x: stockSlot.x, y: stockSlot.y });
+        setHintGhost({
+          startX: stockSlot.x, startY: stockSlot.y,
+          endX: destSlot.x, endY: destSlot.y,
+          width: stockSlot.width, height: stockSlot.height,
+          rank: stockSlot.rank > 0 ? stockSlot.rank : 1,
+          suit: stockSlot.suit >= 0 ? stockSlot.suit : 0,
+          faceUp: false, // Draw action shows card back
+        });
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setGhostPos({ x: destSlot.x, y: destSlot.y });
+          });
+        });
+
+        setTimeout(() => {
+          hintCardIdRef.current = null;
+          setHintGhost(null);
+          setLayoutTick(t => t + 1);
+        }, 1800);
+      } else {
+        setToastMessage("No moves available.");
+      }
     }
   }, [isAutoPlaying]);
 
@@ -1171,21 +1289,44 @@ export const App: React.FC = () => {
     setIsSplashComplete(true);
   }, []);
 
+  const showVegasScore = gameTypeCode === 0 && scoringMode !== "standard" && isEngineReady;
+  const vegasScore = showVegasScore ? computeVegasScore() : 0;
+
   const leftHeaderContent = activeTab === "gameboard" && gameTypeCode !== null ? (
-    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
       <button
         onClick={() => setGameTypeCode(null)}
         title="Back to game chooser"
-        style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", color: "#e5e2e1", padding: "8px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", outline: "none", marginLeft: "-8px" }}
+        style={{
+          width: "36px", height: "36px", borderRadius: "50%",
+          background: "radial-gradient(circle at 35% 35%, #244b33, #0a150d)",
+          border: "1.5px solid #d4af37",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.6)",
+          color: "#e5e2e1", display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", outline: "none", flexShrink: 0
+        }}
       >
         <Home size={18} />
       </button>
-      <LevelBadge gameTypeCode={gameTypeCode} />
+      <div style={{ display: "flex", gap: 14, fontFamily: "JetBrains Mono, monospace", fontSize: "13px", background: "rgba(10, 20, 15, 0.85)", border: "1.5px solid rgba(212, 175, 55, 0.4)", borderRadius: "20px", padding: "6px 16px", color: "#e5e2e1", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+        <div><span style={{ opacity: 0.6 }}>TIME </span><span style={{ color: "#fff", fontWeight: 600 }}>{formatTime(timerSeconds)}</span></div>
+        <div><span style={{ opacity: 0.6 }}>MOVES </span><span style={{ color: "#fff", fontWeight: 600 }}>{moveCount}</span></div>
+        <div><span style={{ opacity: 0.6 }}>COINS </span><span style={{ color: "#e9c349", fontWeight: 700 }}>{coins}</span></div>
+        {showVegasScore && (
+          <div>
+            <span style={{ opacity: 0.6 }}>SCORE </span>
+            <span style={{ color: vegasScore >= 0 ? "#4caf50" : "#f44336", fontWeight: 600 }}>${vegasScore}</span>
+          </div>
+        )}
+        {showVegasScore && scoringMode === "vegas_cumulative" && (
+          <div>
+            <span style={{ opacity: 0.6 }}>BANKROLL </span>
+            <span style={{ color: (vegasBankroll + vegasScore) >= 0 ? "#4caf50" : "#f44336", fontWeight: 600 }}>${vegasBankroll + vegasScore}</span>
+          </div>
+        )}
+      </div>
     </div>
   ) : null;
-
-  const showVegasScore = gameTypeCode === 0 && scoringMode !== "standard" && isEngineReady;
-  const vegasScore = showVegasScore ? computeVegasScore() : 0;
 
   // Feeds MetaGameHub's compact 2-row mobile header (separate from
   // leftHeaderContent/rightHeaderContent, which stay desktop-shaped).
@@ -1201,69 +1342,112 @@ export const App: React.FC = () => {
     onOpenHelp: () => setIsHelpOpen(true),
   } : undefined;
 
+  const HUD_BTN: React.CSSProperties = {
+    width: "34px",
+    height: "34px",
+    borderRadius: "50%",
+    background: "radial-gradient(circle at 35% 35%, #244b33, #0a150d)",
+    border: "1.5px solid #d4af37",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.25)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    padding: 0,
+    outline: "none",
+    transition: "transform 0.15s ease, filter 0.15s ease",
+  };
+
+  const HUD_PILL: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    background: "rgba(8, 16, 11, 0.85)",
+    backdropFilter: "blur(12px)",
+    border: "1.5px solid rgba(212, 175, 55, 0.4)",
+    borderRadius: "24px",
+    padding: "4px 10px",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.15)",
+  };
+
   const rightHeaderContent = activeTab === "gameboard" && gameTypeCode !== null ? (
-    <>
-      <div style={{ display: "flex", gap: 16, fontFamily: "JetBrains Mono,monospace", fontSize: "14px", marginRight: "8px", alignItems: "center" }}>
-        <div><span style={{ opacity: 0.6, color: "#e5e2e1" }}>TIME: </span><span style={{ color: "#fff" }}>{formatTime(timerSeconds)}</span></div>
-        <div><span style={{ opacity: 0.6, color: "#e5e2e1" }}>MOVES: </span><span style={{ color: "#fff" }}>{moveCount}</span></div>
-        {showVegasScore && (
-          <div>
-            <span style={{ opacity: 0.6, color: "#e5e2e1" }}>SCORE: </span>
-            <span style={{ color: vegasScore >= 0 ? "#4caf50" : "#f44336" }}>${vegasScore}</span>
-          </div>
-        )}
-        {showVegasScore && scoringMode === "vegas_cumulative" && (
-          <div>
-            <span style={{ opacity: 0.6, color: "#e5e2e1" }}>BANKROLL: </span>
-            <span style={{ color: (vegasBankroll + vegasScore) >= 0 ? "#4caf50" : "#f44336" }}>${vegasBankroll + vegasScore}</span>
-          </div>
-        )}
-      </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", position: "relative" }}>
-        <button onClick={() => setIsHelpOpen(true)} title="Help" style={HUD_BTN}><HelpCircle size={18} /></button>
-        <button onClick={() => setIsAboutOpen(true)} title="About" style={HUD_BTN}><Info size={18} /></button>
-        <button onClick={() => setPowerUpTrayOpen((v) => !v)} title="Power-ups" style={{ ...HUD_BTN, position: "relative", color: powerUpTrayOpen ? currentTheme.accentColor : "#e5e2e1" }}>
-          <Zap size={18} />
-          {Object.values(powerUpInventory).some((n) => n > 0) && (
-            <span style={{ position: "absolute", top: 2, right: 2, width: 8, height: 8, borderRadius: "50%", background: "#d4af37" }} />
-          )}
+    <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-end", position: "relative" }}>
+      {/* Row 1: Home, User, Help, About, Settings */}
+      <div style={HUD_PILL}>
+        <button onClick={() => setActiveTab("trophy")} title="Home" style={HUD_BTN}>
+          <GraphicHomeIcon size={20} />
         </button>
-        {powerUpTrayOpen && (
-          <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 280, maxHeight: 360, overflowY: "auto", background: "rgba(19,19,19,0.97)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: 12, zIndex: 200, display: "flex", flexDirection: "column", gap: 8 }}>
-            {POWER_UP_ITEMS.filter((item) => (powerUpInventory[item.id] ?? 0) > 0).length === 0 ? (
-              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", padding: "12px 4px" }}>No power-ups owned. Visit The Emporium to buy some.</div>
-            ) : POWER_UP_ITEMS.filter((item) => (powerUpInventory[item.id] ?? 0) > 0).map((item) => {
-              const config = POWER_UP_CONFIG[item.id];
-              const compatible = !config?.compatibleGameTypes || gameTypeCode === null || config.compatibleGameTypes.includes(gameTypeCode);
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => activatePowerUp(item.id)}
-                  disabled={!compatible}
-                  title={!compatible ? "Not usable in this game" : item.description}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8,
-                    background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                    color: compatible ? "#e5e2e1" : "rgba(255,255,255,0.3)", textAlign: "left",
-                    cursor: compatible ? "pointer" : "not-allowed", fontFamily: "Inter, sans-serif",
-                  }}
-                >
-                  <span style={{ fontWeight: 700, color: compatible ? "#d4af37" : "rgba(255,255,255,0.3)", minWidth: 20 }}>×{powerUpInventory[item.id]}</span>
-                  <span style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{item.name}</div>
-                    <div style={{ fontSize: 11, opacity: 0.7, lineHeight: 1.3 }}>{item.description}</div>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <button onClick={handleHint} title="Hint (H)" style={HUD_BTN}><Lightbulb size={18} /></button>
-        <button onClick={handleAutoPlay} title="Auto Play (A)" style={{ ...HUD_BTN, color: isAutoPlaying ? currentTheme.accentColor : "#e5e2e1" }}><Sparkles size={18} /></button>
-        <button onClick={() => { usedHintOrUndoRef.current = true; undoWasm(); updateLayout(); }} title="Undo (U)" style={HUD_BTN}><RotateCcw size={18} /></button>
-        <button onClick={() => startNewGame()} title="New Game (N)" style={HUD_BTN}><Play size={18} /></button>
+        <button onClick={() => setActiveTab("trophy")} title="User Profile" style={HUD_BTN}>
+          <GraphicUserIcon size={20} />
+        </button>
+        <button onClick={() => setIsHelpOpen(true)} title="Help" style={HUD_BTN}>
+          <GraphicHelpIcon size={20} />
+        </button>
+        <button onClick={() => setIsAboutOpen(true)} title="About" style={HUD_BTN}>
+          <GraphicAboutIcon size={20} />
+        </button>
+        <button onClick={() => setActiveTab("settings")} title="Settings" style={HUD_BTN}>
+          <GraphicSettingsIcon size={20} />
+        </button>
       </div>
-    </>
+
+      {/* Row 2: New, Solver, Hints, Power-ups, Emporium, Trophies */}
+      <div style={HUD_PILL}>
+        <button onClick={() => startNewGame()} title="New Game (N)" style={HUD_BTN}>
+          <GraphicPlusIcon size={20} />
+        </button>
+        <button onClick={handleAutoPlay} title="Solver (A)" style={{ ...HUD_BTN, color: isAutoPlaying ? currentTheme.accentColor : "#e5e2e1" }}>
+          <GraphicKeyIcon size={20} />
+        </button>
+        <button onClick={handleHint} title="Hint (H)" style={HUD_BTN}>
+          <GraphicHintIcon size={20} />
+        </button>
+        <div style={{ position: "relative" }}>
+          <button onClick={() => setPowerUpTrayOpen((v) => !v)} title="Power-ups" style={{ ...HUD_BTN, position: "relative" }}>
+            <GraphicPowerUpIcon size={20} />
+            {Object.values(powerUpInventory).some((n) => n > 0) && (
+              <span style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: "50%", background: "#d4af37", boxShadow: "0 0 4px #ffd700" }} />
+            )}
+          </button>
+          {powerUpTrayOpen && (
+            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 280, maxHeight: 360, overflowY: "auto", background: "rgba(19,19,19,0.97)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: 12, zIndex: 200, display: "flex", flexDirection: "column", gap: 8 }}>
+              {POWER_UP_ITEMS.filter((item) => (powerUpInventory[item.id] ?? 0) > 0).length === 0 ? (
+                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", padding: "12px 4px" }}>No power-ups owned. Visit The Emporium to buy some.</div>
+              ) : POWER_UP_ITEMS.filter((item) => (powerUpInventory[item.id] ?? 0) > 0).map((item) => {
+                const config = POWER_UP_CONFIG[item.id];
+                const compatible = !config?.compatibleGameTypes || gameTypeCode === null || config.compatibleGameTypes.includes(gameTypeCode);
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => activatePowerUp(item.id)}
+                    disabled={!compatible}
+                    title={!compatible ? "Not usable in this game" : item.description}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8,
+                      background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                      color: compatible ? "#e5e2e1" : "rgba(255,255,255,0.3)", textAlign: "left",
+                      cursor: compatible ? "pointer" : "not-allowed", fontFamily: "Inter, sans-serif",
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, color: compatible ? "#d4af37" : "rgba(255,255,255,0.3)", minWidth: 20 }}>×{powerUpInventory[item.id]}</span>
+                    <span style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{item.name}</div>
+                      <div style={{ fontSize: 11, opacity: 0.7, lineHeight: 1.3 }}>{item.description}</div>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <button onClick={() => setActiveTab("store")} title="The Emporium" style={HUD_BTN}>
+          <GraphicStoreIcon size={20} />
+        </button>
+        <button onClick={() => setActiveTab("trophy")} title="Trophies & Stats" style={HUD_BTN}>
+          <GraphicTrophyIcon size={20} />
+        </button>
+      </div>
+    </div>
   ) : null;
 
   return (
@@ -1314,21 +1498,24 @@ export const App: React.FC = () => {
           })()}
           {/* Render Cards */}
           {cardBoundsListRef.current.filter(b => b.cardId !== -1).map(b => {
-            const anim = animatedCardsRef.current.get(b.cardId);
-            const isDragging = dragStateRef.current?.cardId === b.cardId;
-            const x = isDragging ? dragStateRef.current!.ptrX - dragStateRef.current!.offsetX : (anim ? anim.x : b.x);
-            const y = isDragging ? dragStateRef.current!.ptrY - dragStateRef.current!.offsetY : (anim ? anim.y : b.y);
+            const ds = dragStateRef.current;
+            const dragInfo = ds?.draggedMap.get(b.cardId);
+            const isDragging = !!dragInfo;
+            const x = isDragging ? ds!.ptrX - dragInfo!.offsetX : b.x;
+            const y = isDragging ? ds!.ptrY - dragInfo!.offsetY : b.y;
 
             const isPerfectlyStacked = b.pileKind === 0 || b.pileKind === 2 || b.pileKind === 7;
             
             return (
               <div
+                id={`card-dom-${b.cardId}`}
                 key={b.cardId}
                 style={{
                   position: "absolute", left: 0, top: 0, width: b.width, height: b.height,
-                  transform: `translate(${x}px, ${y}px)`,
-                  zIndex: isDragging ? 1000 : b.pileKind === 3 ? b.cardIndex : 10,
-                  transition: isDragging ? "none" : (isAutoPlaying ? "transform 0.1s linear" : "transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)"),
+                  transform: `translate3d(${x}px, ${y}px, 0px)`,
+                  willChange: "transform",
+                  zIndex: isDragging ? 2000 + dragInfo!.relativeIndex : (b.pileKind === 3 ? b.cardIndex + 10 : 20 + b.cardIndex),
+                  transition: isDragging ? "none" : (isAutoPlaying ? "transform 0.12s cubic-bezier(0.25, 1, 0.5, 1)" : "transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"),
                 }}
               >
                 <CardWidget
@@ -1350,17 +1537,17 @@ export const App: React.FC = () => {
             );
           })}
 
-          {/* Hint ghost: translucent card that flies source → dest → source */}
+          {/* Hint ghost: translucent card that flies source → dest */}
           {hintGhost && (
             <div style={{
               position: "absolute", left: 0, top: 0,
               width: hintGhost.width, height: hintGhost.height,
-              transform: `translate(${ghostPos.x}px, ${ghostPos.y}px)`,
+              transform: `translate3d(${ghostPos.x}px, ${ghostPos.y}px, 0px)`,
               transition: "transform 0.65s cubic-bezier(0.4, 0, 0.2, 1)",
               opacity: 0.55, zIndex: 999, pointerEvents: "none"
             }}>
               <CardWidget
-                id={-2} rank={hintGhost.rank} suit={hintGhost.suit} faceUp={true}
+                id={-2} rank={hintGhost.rank} suit={hintGhost.suit} faceUp={hintGhost.faceUp ?? true}
                 width={hintGhost.width} height={hintGhost.height}
                 theme={currentTheme} overlayIntensity={overlayIntensity}
                 cardBackPattern={cardBackPattern} cardBackColor={cardBackColor}
@@ -1444,5 +1631,4 @@ export const App: React.FC = () => {
   );
 };
 
-const HUD_BTN: React.CSSProperties = { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "8px", color: "#e5e2e1", padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" };
 export default App;

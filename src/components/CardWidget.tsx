@@ -66,16 +66,113 @@ export const getBackPatternPosition = (pattern: string) => {
   }
 };
 
+const getDesktopPipSize = (rank: number, height: number): number => {
+  if (rank === 1) return Math.max(34, height * 0.46);
+  if (rank <= 3) return Math.max(20, Math.min(36, height * 0.28));
+  if (rank <= 6) return Math.max(17, Math.min(28, height * 0.23));
+  return Math.max(14, Math.min(22, height * 0.19));
+};
+
+const getDesktopPipPositions = (rank: number): { x: number; y: number; invert?: boolean }[] => {
+  switch (rank) {
+    case 1:
+      return [{ x: 50, y: 50 }];
+    case 2:
+      return [
+        { x: 50, y: 18 },
+        { x: 50, y: 82, invert: true },
+      ];
+    case 3:
+      return [
+        { x: 50, y: 18 },
+        { x: 50, y: 50 },
+        { x: 50, y: 82, invert: true },
+      ];
+    case 4:
+      return [
+        { x: 25, y: 18 },
+        { x: 75, y: 18 },
+        { x: 25, y: 82, invert: true },
+        { x: 75, y: 82, invert: true },
+      ];
+    case 5:
+      return [
+        { x: 25, y: 18 },
+        { x: 75, y: 18 },
+        { x: 50, y: 50 },
+        { x: 25, y: 82, invert: true },
+        { x: 75, y: 82, invert: true },
+      ];
+    case 6:
+      return [
+        { x: 25, y: 18 },
+        { x: 75, y: 18 },
+        { x: 25, y: 50 },
+        { x: 75, y: 50 },
+        { x: 25, y: 82, invert: true },
+        { x: 75, y: 82, invert: true },
+      ];
+    case 7:
+      return [
+        { x: 25, y: 18 },
+        { x: 75, y: 18 },
+        { x: 50, y: 34 },
+        { x: 25, y: 50 },
+        { x: 75, y: 50 },
+        { x: 25, y: 82, invert: true },
+        { x: 75, y: 82, invert: true },
+      ];
+    case 8:
+      return [
+        { x: 25, y: 18 },
+        { x: 75, y: 18 },
+        { x: 50, y: 34 },
+        { x: 25, y: 50 },
+        { x: 75, y: 50 },
+        { x: 50, y: 66, invert: true },
+        { x: 25, y: 82, invert: true },
+        { x: 75, y: 82, invert: true },
+      ];
+    case 9:
+      return [
+        { x: 22, y: 18 },
+        { x: 50, y: 18 },
+        { x: 78, y: 18 },
+        { x: 22, y: 50 },
+        { x: 50, y: 50 },
+        { x: 78, y: 50 },
+        { x: 22, y: 82, invert: true },
+        { x: 50, y: 82, invert: true },
+        { x: 78, y: 82, invert: true },
+      ];
+    case 10:
+      return [
+        { x: 22, y: 16 },
+        { x: 78, y: 16 },
+        { x: 50, y: 28 },
+        { x: 22, y: 40 },
+        { x: 78, y: 40 },
+        { x: 22, y: 64, invert: true },
+        { x: 78, y: 64, invert: true },
+        { x: 50, y: 76, invert: true },
+        { x: 22, y: 88, invert: true },
+        { x: 78, y: 88, invert: true },
+      ];
+    default:
+      return [];
+  }
+};
+
 const CardWidgetComponent: React.FC<CardWidgetProps> = ({
   id, rank, suit, faceUp, width, height, theme, overlayIntensity, cardBackPattern, cardBackColor, isSelected, isHint, hideShadow
 }) => {
   const isRed = suit === 0 || suit === 1;
-  const suitColor = isRed ? "#cc3333" : "#111111";
+  const suitColor = isRed ? "#e00000" : "#000000";
   const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
   const suits = ["♥", "♦", "♣", "♠"];
   const rankStr = ranks[rank - 1];
   const suitStr = suits[suit];
-  const compact = width < 60;
+  const compact = width < 80;
 
   const isFaceCard = rank >= 11;
   let faceAsset = '';
@@ -97,8 +194,7 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
         left: 0,
         top: 0,
         pointerEvents: 'none',
-        willChange: 'transform',
-        filter: (isSelected || isHint) ? `drop-shadow(0 0 8px ${theme.accentColor})` : (hideShadow ? 'none' : 'drop-shadow(0 -2px 8px rgba(0,0,0,0.4))')
+        willChange: 'transform'
       }}
     >
       <div 
@@ -107,7 +203,7 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
           width: '100%',
           height: '100%',
           transformStyle: 'preserve-3d',
-          transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+          transition: 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
           transform: faceUp ? 'rotateY(0deg)' : 'rotateY(180deg)'
         }}
       >
@@ -118,68 +214,101 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
             backgroundColor: isSelected ? '#fffde7' : '#ffffff',
             borderRadius: '8px',
             border: (isSelected || isHint) ? `3px solid #ffd700` : `1px solid rgba(0,0,0,0.15)`,
+            boxShadow: (isSelected || isHint) ? `0 0 12px ${theme.accentColor || '#ffd700'}` : (hideShadow ? 'none' : '0 2px 8px rgba(0,0,0,0.3)'),
             overflow: 'hidden'
           }}
         >
           {/* Card Content */}
-          <div style={{ position: 'absolute', width: '100%', height: '100%', padding: compact ? 0 : '8px' }}>
+          <div style={{ position: 'absolute', width: '100%', height: '100%', padding: compact ? 0 : '2px' }}>
             {compact ? (
-              // Unified compact layout matching a real card's index-corner
-              // convention: a small rank+pip index top-left, plus one large
-              // dominant element (a big pip for numbers/aces, or the face
-              // art for J/Q/K) filling the rest of the card.
+              // Mobile / compact layout matching reference:
+              // Rank on top-left, Suit on top-right, and a large centered pip or face art below (or overflowing lower-right pip for Aces).
               <div style={{ position: 'relative', width: '100%', height: '100%', color: suitColor }}>
-                {isFaceCard ? (
-                  <>
-                    <div style={{ position: 'absolute', top: 2, left: 4, fontWeight: 800, fontFamily: 'Manrope, sans-serif', fontSize: height * 0.24, lineHeight: 1 }}>
-                      {rankStr}
-                    </div>
-                    <div style={{ position: 'absolute', top: 2, right: 4, fontSize: height * 0.2, lineHeight: 1 }}>
-                      {suitStr}
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ position: 'absolute', top: 2, left: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
-                    <div style={{ fontWeight: 800, fontFamily: 'Manrope, sans-serif', fontSize: height * 0.22 }}>{rankStr}</div>
-                    <div style={{ fontSize: height * 0.14, marginTop: height * 0.01 }}>{suitStr}</div>
+                <div style={{
+                  position: 'absolute',
+                  top: Math.max(1, height * 0.01),
+                  left: Math.max(3, width * 0.04),
+                  fontWeight: 900,
+                  fontFamily: 'Manrope, sans-serif',
+                  fontSize: Math.max(16, height * 0.28),
+                  lineHeight: 1
+                }}>
+                  {rankStr}
+                </div>
+                <div style={{
+                  position: 'absolute',
+                  top: Math.max(1, height * 0.01),
+                  right: Math.max(3, width * 0.04),
+                  fontSize: Math.max(16, height * 0.28),
+                  lineHeight: 1
+                }}>
+                  {suitStr}
+                </div>
+
+                {rank === 1 ? (
+                  <div style={{ position: 'absolute', right: '-22%', bottom: '-15%', width: '110%', height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', overflow: 'hidden' }}>
+                    <span style={{ fontSize: height * 1.35, lineHeight: 0.8, transform: 'translate(22%, 10%)', userSelect: 'none' }}>{suitStr}</span>
                   </div>
-                )}
-                {isFaceCard ? (
-                  <div style={{ position: 'absolute', left: 0, bottom: 0, width: '88%', height: '82%' }}>
+                ) : isFaceCard ? (
+                  <div style={{ position: 'absolute', left: 0, bottom: 0, width: '92%', height: '82%' }}>
                     {/* Source art faces left; mirrored so it faces into the card. */}
                     <img src={`/assets/cards/${faceAsset}`} alt={rankStr} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'left bottom', transform: 'scaleX(-1)' }} />
                   </div>
                 ) : (
-                  // A fixed box (not a bare font-size) so the glyph is
-                  // flex-centered and scaled relative to a box that fills
-                  // most of the card body — suit glyphs carry a lot of
-                  // internal padding in their font metrics, so a bare
-                  // fontSize badly undershoots the box it's meant to fill.
-                  <div style={{ position: 'absolute', left: '4%', right: '4%', bottom: '2%', top: '28%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
-                    <span style={{ fontSize: height * 1.1, lineHeight: 1 }}>{suitStr}</span>
+                  <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, top: '15%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    <span style={{ fontSize: height * 0.85, lineHeight: 1, userSelect: 'none' }}>{suitStr}</span>
                   </div>
                 )}
               </div>
             ) : (
-              <>
-                <div style={{ position: 'absolute', top: 8, left: 8, color: suitColor, display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
-                  <div style={{ fontSize: '18px', fontWeight: 800, fontFamily: 'Manrope, sans-serif' }}>{rankStr}</div>
-                  <div style={{ fontSize: '16px' }}>{suitStr}</div>
-                </div>
-                
-                <div style={{ position: 'absolute', bottom: 8, right: 8, color: suitColor, display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, transform: 'rotate(180deg)' }}>
-                  <div style={{ fontSize: '18px', fontWeight: 800, fontFamily: 'Manrope, sans-serif' }}>{rankStr}</div>
-                  <div style={{ fontSize: '16px' }}>{suitStr}</div>
+              // Full Desktop Cards Suite:
+              // Smaller corner ranks + authentic multi-pip grid layouts (e.g. 3x3 for 9, 1 column of 2 for 2, etc.)
+              <div style={{ position: 'relative', width: '100%', height: '100%', color: suitColor }}>
+                {/* Top-left corner index */}
+                <div style={{ position: 'absolute', top: 4, left: 5, color: suitColor, display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
+                  <div style={{ fontSize: `${Math.max(11, Math.min(16, height * 0.14))}px`, fontWeight: 800, fontFamily: 'Manrope, sans-serif' }}>{rankStr}</div>
+                  <div style={{ fontSize: `${Math.max(10, Math.min(14, height * 0.12))}px` }}>{suitStr}</div>
                 </div>
 
-                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '75%', height: '75%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                {/* Bottom-right corner index (inverted) */}
+                <div style={{ position: 'absolute', bottom: 4, right: 5, color: suitColor, display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, transform: 'rotate(180deg)' }}>
+                  <div style={{ fontSize: `${Math.max(11, Math.min(16, height * 0.14))}px`, fontWeight: 800, fontFamily: 'Manrope, sans-serif' }}>{rankStr}</div>
+                  <div style={{ fontSize: `${Math.max(10, Math.min(14, height * 0.12))}px` }}>{suitStr}</div>
+                </div>
+
+                {/* Center area for pips or court illustration */}
+                <div style={{ position: 'absolute', top: '7%', bottom: '7%', left: '12%', right: '12%' }}>
                   {(isFaceCard || (rank === 1 && suit === 3)) ? (
-                    <img src={`/assets/cards/${faceAsset}`} alt={rankStr} style={{ width: '100%', height: '100%', objectFit: 'contain', transform: 'scaleX(-1)' }} />
+                    <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <img src={`/assets/cards/${faceAsset}`} alt={rankStr} style={{ width: '100%', height: '100%', objectFit: 'contain', transform: 'scaleX(-1)' }} />
+                    </div>
+                  ) : rank === 1 ? (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <span style={{ fontSize: `${getDesktopPipSize(1, height)}px`, color: suitColor, userSelect: 'none' }}>{suitStr}</span>
+                    </div>
                   ) : (
-                    <div style={{ fontSize: `${width * 0.4}px`, color: suitColor }}>{suitStr}</div>
+                    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                      {getDesktopPipPositions(rank).map((pos, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            position: 'absolute',
+                            left: `${pos.x}%`,
+                            top: `${pos.y}%`,
+                            transform: `translate(-50%, -50%) ${pos.invert ? 'rotate(180deg)' : ''}`,
+                            fontSize: `${getDesktopPipSize(rank, height)}px`,
+                            color: suitColor,
+                            lineHeight: 1,
+                            userSelect: 'none',
+                          }}
+                        >
+                          {suitStr}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
-              </>
+              </div>
             )}
           </div>
 
@@ -209,6 +338,7 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
             backgroundPosition: getBackPatternPosition(cardBackPattern),
             borderRadius: '8px',
             border: (isSelected || isHint) ? `2.5px solid #ffd700` : `1px solid ${theme.accentColor || 'rgba(255,255,255,0.2)'}`,
+            boxShadow: (isSelected || isHint) ? `0 0 12px ${theme.accentColor || '#ffd700'}` : (hideShadow ? 'none' : '0 2px 8px rgba(0,0,0,0.3)'),
             overflow: 'hidden'
           }}
         >

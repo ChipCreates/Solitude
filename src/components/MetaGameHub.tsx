@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Trophy, Store, Settings as SettingsIcon, ArrowLeft, LayoutGrid, Coins, PanelLeftClose, PanelLeftOpen, Info, Eye, Users, X, Home, Menu, Clock, RotateCw, Lightbulb, Sparkles, Play, HelpCircle } from "lucide-react";
+import { Trophy, Store, Settings as SettingsIcon, ArrowLeft, LayoutGrid, Coins, PanelLeftClose, PanelLeftOpen, Info, Eye, Users, X, Menu, Clock, RotateCw, HelpCircle } from "lucide-react";
+import { GraphicPlusIcon, GraphicKeyIcon, GraphicHintIcon, GraphicUndoIcon, GraphicStoreIcon, GraphicTrophyIcon, GraphicSettingsIcon, GraphicHomeIcon } from "./GraphicIcons";
 import { useViewport } from "../hooks/useViewport";
 import { useUIStore } from "../store/uiStore";
 import { useProfileStore } from "../store/profileStore";
@@ -76,9 +77,6 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
   const [trophySubTab, setTrophySubTab] = useState<"overview" | "stats">("overview");
   const [previewThemePackId, setPreviewThemePackId] = useState<string | null>(null);
   const { isMobile, isLandscape } = useViewport();
-  // Only hide the tab bar once a game is actually in progress — the game
-  // chooser grid itself isn't gameplay and still needs primary nav.
-  const hideBottomChromeForLandscapeGameplay = isMobile && isLandscape && activeTab === "gameboard" && gameTypeCode !== undefined;
 
   const goToDashboard = () => {
     onTabChange("trophy");
@@ -137,16 +135,13 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
 
   const avatarMenuItems = [
     ...(isMobile ? [{ label: "Switch Profile", icon: <Users size={isMobile ? 20 : 15} />, onClick: goToDashboard }] : []),
-    { label: "Dashboard", icon: <Trophy size={isMobile ? 20 : 15} />, onClick: goToDashboard },
-    { label: "Settings", icon: <SettingsIcon size={isMobile ? 20 : 15} />, onClick: () => { onTabChange("settings"); setIsAvatarMenuOpen(false); } },
+    { label: "Dashboard", icon: <GraphicTrophyIcon size={isMobile ? 20 : 16} />, onClick: goToDashboard },
+    { label: "Settings", icon: <GraphicSettingsIcon size={isMobile ? 20 : 16} />, onClick: () => { onTabChange("settings"); setIsAvatarMenuOpen(false); } },
     { label: "About", icon: <Info size={isMobile ? 20 : 15} />, onClick: () => { onOpenAbout(); setIsAvatarMenuOpen(false); } },
   ];
 
   const gameMenuItems = mobileGameHud ? [
-    { label: "New Game", icon: <Play size={20} />, onClick: () => { mobileGameHud.onNewGame(); setIsAvatarMenuOpen(false); } },
-    { label: "Hint", icon: <Lightbulb size={20} />, onClick: () => { mobileGameHud.onHint(); setIsAvatarMenuOpen(false); } },
-    { label: "Undo", icon: <ArrowLeft size={20} />, onClick: () => { mobileGameHud.onUndo(); setIsAvatarMenuOpen(false); } },
-    { label: mobileGameHud.isAutoPlaying ? "Stop Autoplay" : "Autoplay", icon: <Sparkles size={20} />, onClick: () => { mobileGameHud.onToggleAutoplay(); setIsAvatarMenuOpen(false); } },
+    { label: "New Game", icon: <GraphicPlusIcon size={20} />, onClick: () => { mobileGameHud.onNewGame(); setIsAvatarMenuOpen(false); } },
     { label: "Help", icon: <HelpCircle size={20} />, onClick: () => { mobileGameHud.onOpenHelp(); setIsAvatarMenuOpen(false); } },
   ] : [];
 
@@ -155,50 +150,38 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
 
       {/* Top Header */}
       {!isMobile ? (
-        <div style={{ height: "64px", flexShrink: 0, background: "#111111", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px" }}>
+        <div style={{ height: "88px", flexShrink: 0, background: "linear-gradient(180deg, #142419 0%, #0a140d 100%)", borderBottom: "1px solid rgba(212, 175, 55, 0.3)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", boxShadow: "0 4px 24px rgba(0,0,0,0.6)" }}>
           <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "16px" }}>
             {activeTab !== "gameboard" ? (
               <button onClick={() => onTabChange("gameboard")} style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", color: "#e9c349", fontSize: "16px", fontWeight: 600, cursor: "pointer", padding: "8px", marginLeft: "-8px" }}>
                 <ArrowLeft size={20} /> Back
               </button>
-            ) : leftHeaderContent}
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                <div style={{ width: "44px", height: "44px", borderRadius: "50%", overflow: "hidden", border: `2px solid ${activeAvatar.ringColor || "#d4af37"}`, boxShadow: "0 2px 8px rgba(0,0,0,0.5)", flexShrink: 0 }}>
+                  <img src={activeAvatar.src} alt={activeAvatar.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "16px", fontWeight: 800, color: "#fff", fontFamily: "Inter, sans-serif" }}>{activeProfile?.name || "Chip"}</span>
+                    <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", fontFamily: "Inter, sans-serif" }}>Veteran Novice, Senior Game Master Expanded ⚒</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(10, 20, 15, 0.8)", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: "14px", padding: "2px 10px", marginTop: "2px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 800, color: "#e9c349", fontFamily: "JetBrains Mono, monospace" }}>LVL {overallLevel.level}</span>
+                    <div style={{ width: "100px", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
+                      <div style={{ width: `${Math.min(100, Math.floor((overallLevel.xp / 1000) * 100))}%`, height: "100%", background: "linear-gradient(90deg, #2e7d32, #4caf50)" }} />
+                    </div>
+                    <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.7)", fontFamily: "Inter, sans-serif" }}>Next Unlocks: Gold Card Frame at Level 5</span>
+                  </div>
+                </div>
+                {leftHeaderContent}
+              </div>
+            )}
           </div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#e9c349", fontFamily: "Manrope, sans-serif", letterSpacing: "1px", flex: 1, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            Solitude{activeTab === "gameboard" && activeGameName ? `: ${activeGameName}` : ""}
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#e9c349", fontFamily: "'Cinzel', 'Playfair Display', 'Georgia', serif", letterSpacing: "1.5px", textShadow: "0 2px 8px rgba(0,0,0,0.8)", flex: 1, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            SOLITUDE: {activeTab === "gameboard" && activeGameName ? activeGameName.toUpperCase() : "KLONDIKE"}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1, justifyContent: "flex-end" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(0,0,0,0.4)", padding: "4px 12px", borderRadius: "12px", border: "1px solid rgba(233, 195, 73, 0.3)" }}>
-              <span style={{ color: "#e9c349", fontWeight: "bold", fontSize: "14px", fontFamily: "JetBrains Mono, monospace" }}>{coins}</span>
-              <span style={{ fontSize: "12px", opacity: 0.8, color: "#e5e2e1", fontFamily: "Inter, sans-serif" }}>Coins</span>
-            </div>
-            <div style={{ position: "relative" }}>
-              <button
-                onClick={() => setIsAvatarMenuOpen((open) => !open)}
-                data-testid="avatar-menu-button"
-                style={{ background: "none", cursor: "pointer", padding: 0, width: "36px", height: "36px", borderRadius: "50%", overflow: "hidden", border: `1px solid ${activeAvatar.ringColor}88`, flexShrink: 0 }}
-              >
-                <img src={activeAvatar.src} alt={activeAvatar.label} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              </button>
-              {isAvatarMenuOpen && (
-                <>
-                  <div onClick={() => setIsAvatarMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 1099 }} />
-                  <div style={{ position: "absolute", top: "44px", right: 0, minWidth: "180px", background: "#111111", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 1100, overflow: "hidden", padding: "6px" }}>
-                    <div style={{ padding: "8px 12px", fontSize: "12px", color: "#e9c349", fontWeight: 700 }}>{activeProfile?.name || "Player"}</div>
-                    {avatarMenuItems.map((item) => (
-                      <button
-                        key={item.label}
-                        onClick={item.onClick}
-                        style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", background: "none", border: "none", color: "#e5e2e1", fontSize: "13px", fontWeight: 500, padding: "8px 12px", borderRadius: "8px", cursor: "pointer", textAlign: "left" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-                      >
-                        {item.icon} {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
             {rightHeaderContent}
           </div>
         </div>
@@ -208,12 +191,12 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
           <div style={{ height: isLandscape ? "44px" : "52px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px" }}>
             <div style={{ width: "36px" }}>
               {mobileGameHud ? (
-                <button onClick={mobileGameHud.onExitGame} style={{ background: "none", border: "none", color: "#e9c349", cursor: "pointer", padding: "6px", display: "flex" }}>
-                  <Home size={22} />
+                <button onClick={mobileGameHud.onExitGame} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", display: "flex" }} title="Exit to Menu">
+                  <GraphicHomeIcon size={isLandscape ? 22 : 26} />
                 </button>
               ) : activeTab !== "gameboard" ? (
-                <button onClick={() => onTabChange("gameboard")} style={{ background: "none", border: "none", color: "#e9c349", cursor: "pointer", padding: "6px", display: "flex" }}>
-                  <ArrowLeft size={22} />
+                <button onClick={() => onTabChange("gameboard")} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", display: "flex" }} title="Back to Game">
+                  <GraphicHomeIcon size={isLandscape ? 22 : 26} />
                 </button>
               ) : null}
             </div>
@@ -603,27 +586,76 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
         </div>
       </div>
 
-      {/* Bottom Tab Bar (mobile only — hidden during landscape gameplay to maximize board space) */}
-      {isMobile && !hideBottomChromeForLandscapeGameplay && (
-        <div style={{ display: "flex", flexShrink: 0, background: "#111111", borderTop: "1px solid rgba(255,255,255,0.08)", paddingBottom: "env(safe-area-inset-bottom)" }}>
-          {([
-            { id: "gameboard" as const, label: "Gameboard", Icon: LayoutGrid },
-            { id: "store" as const, label: "Emporium", Icon: Store },
-            { id: "trophy" as const, label: "Trophies", Icon: Trophy },
-            { id: "settings" as const, label: "Settings", Icon: SettingsIcon },
-          ]).map(({ id, label, Icon }) => {
-            const active = activeTab === id;
-            return (
+      {/* Bottom Tab Bar (mobile only) */}
+      {isMobile && (
+        <div style={{ display: "flex", flexShrink: 0, background: "#111111", borderTop: "1px solid rgba(255,255,255,0.12)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+          {/* 1. New (Gameboard / New Game) */}
+          <button
+            onClick={() => {
+              onTabChange("gameboard");
+              if (mobileGameHud) {
+                mobileGameHud.onNewGame();
+              }
+            }}
+            title="New Game"
+            style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", background: "none", border: "none", color: activeTab === "gameboard" ? "#e9c349" : "#a5b8a9", padding: "8px 2px", cursor: "pointer", minHeight: isLandscape ? "56px" : "68px" }}
+          >
+            <GraphicPlusIcon size={isLandscape ? 28 : 34} />
+            <span style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.2px" }}>New</span>
+          </button>
+
+          {/* Gameplay controls (only shown when active game HUD is available) */}
+          {mobileGameHud && (
+            <>
+              {/* 2. Solver */}
               <button
-                key={id}
-                onClick={() => onTabChange(id)}
-                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", background: "none", border: "none", color: active ? "#e9c349" : "#a5b8a9", padding: "10px 4px", cursor: "pointer", minHeight: "56px" }}
+                onClick={mobileGameHud.onToggleAutoplay}
+                title="Solver"
+                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", background: mobileGameHud.isAutoPlaying ? "rgba(233,195,73,0.15)" : "none", border: "none", color: mobileGameHud.isAutoPlaying ? "#e9c349" : "#a5b8a9", padding: "8px 2px", cursor: "pointer", minHeight: isLandscape ? "56px" : "68px" }}
               >
-                <Icon size={22} color={active ? "#e9c349" : "#a5b8a9"} />
-                <span style={{ fontSize: "11px", fontWeight: 600 }}>{label}</span>
+                <GraphicKeyIcon size={isLandscape ? 28 : 34} />
+                <span style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.2px" }}>{mobileGameHud.isAutoPlaying ? "Stop" : "Solver"}</span>
               </button>
-            );
-          })}
+
+              {/* 3. Hint */}
+              <button
+                onClick={mobileGameHud.onHint}
+                title="Get hint"
+                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", background: "none", border: "none", color: "#e9c349", padding: "8px 2px", cursor: "pointer", minHeight: isLandscape ? "56px" : "68px" }}
+              >
+                <GraphicHintIcon size={isLandscape ? 28 : 34} />
+                <span style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.2px" }}>Hint</span>
+              </button>
+
+              {/* 4. Undo */}
+              <button
+                onClick={mobileGameHud.onUndo}
+                title="Undo move"
+                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", background: "none", border: "none", color: "#a5b8a9", padding: "8px 2px", cursor: "pointer", minHeight: isLandscape ? "56px" : "68px" }}
+              >
+                <GraphicUndoIcon size={isLandscape ? 28 : 34} />
+                <span style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.2px" }}>Undo</span>
+              </button>
+            </>
+          )}
+
+          {/* 5. Emporium */}
+          <button
+            onClick={() => onTabChange("store")}
+            style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", background: "none", border: "none", color: activeTab === "store" ? "#e9c349" : "#a5b8a9", padding: "8px 2px", cursor: "pointer", minHeight: isLandscape ? "56px" : "68px" }}
+          >
+            <GraphicStoreIcon size={isLandscape ? 28 : 34} />
+            <span style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.2px" }}>Emporium</span>
+          </button>
+
+          {/* 6. Trophies */}
+          <button
+            onClick={() => onTabChange("trophy")}
+            style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", background: "none", border: "none", color: activeTab === "trophy" ? "#e9c349" : "#a5b8a9", padding: "8px 2px", cursor: "pointer", minHeight: isLandscape ? "56px" : "68px" }}
+          >
+            <GraphicTrophyIcon size={isLandscape ? 28 : 34} />
+            <span style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.2px" }}>Trophies</span>
+          </button>
         </div>
       )}
     </div>
