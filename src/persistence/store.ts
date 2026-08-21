@@ -28,6 +28,7 @@ export interface Settings {
   themeOverlayIntensities?: Record<string, number>;
   cardBack: string;
   cardBackColor?: string;
+  cardFaceSet?: string;
   soundEnabled: boolean;
   soundVolume: number;
   musicEnabled?: boolean;

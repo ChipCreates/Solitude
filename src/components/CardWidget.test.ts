@@ -20,4 +20,10 @@ describe("card back pattern helpers", () => {
     expect(getBackPatternCss("bicycle")).toBe("url(/assets/cards/back_bicycle.png)");
     expect(getBackPatternCss("mystic")).toBe("url(/assets/cards/back_mystic.png)");
   });
+
+  it("resolves the Gilded Mystery card back to its own asset folder", () => {
+    expect(getBackPatternCss("gilded_mystery")).toBe("url(/assets/cards/the_gilded_mystery/back.webp)");
+    expect(getBackPatternSize("gilded_mystery")).toBe("100% 100%");
+    expect(getBackPatternPosition("gilded_mystery")).toBe("center");
+  });
 });

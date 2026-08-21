@@ -42,6 +42,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ gameTypeCode }) => {
     setDrawMode,
     setThemeId,
     setThemeOverlayIntensity,
+    setCardFaceSetId,
     setCardBackPattern,
     setCardBackColor,
     setSoundEnabled,
@@ -74,7 +75,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ gameTypeCode }) => {
   };
 
   const handleSelectTheme = (id: string) => {
-    applyThemePack(id, { setThemeId, setCardBackPattern, setSfxSetId, setMusicTrackId });
+    applyThemePack(id, { setThemeId, setCardBackPattern, setCardFaceSetId, setSfxSetId, setMusicTrackId });
     setIntensityWarning(false);
   };
 

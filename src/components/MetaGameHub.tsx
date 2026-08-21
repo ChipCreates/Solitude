@@ -173,6 +173,7 @@ const CHOOSER_SUBTITLES = [
 
 const STORE_CATEGORIES = [
   { id: "card_back", label: "CARD BACKS" },
+  { id: "card_deck", label: "CARD DECKS" },
   { id: "theme", label: "THEMES" },
   { id: "theme_pack", label: "THEME PACKS" },
   { id: "power_up", label: "POWER UPS" },
@@ -180,7 +181,7 @@ const STORE_CATEGORIES = [
 ];
 
 export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange, onOpenAbout, gameTypeCode, leftHeaderContent, rightHeaderContent, activeGameName, children, mobileGameHud }) => {
-  const { coins, subtractCoins, unlockedItems, unlockItem, cardBackPattern, setCardBackPattern, themeId, setThemeId, setSfxSetId, setMusicTrackId, unlockedAchievements, powerUpInventory, purchasePowerUp, gameProgress } = useUIStore();
+  const { coins, subtractCoins, unlockedItems, unlockItem, cardBackPattern, setCardBackPattern, cardFaceSetId, setCardFaceSetId, themeId, setThemeId, setSfxSetId, setMusicTrackId, unlockedAchievements, powerUpInventory, purchasePowerUp, gameProgress } = useUIStore();
   const { profiles, activeProfileId } = useProfileStore();
   const { statsByGameType, loadAllStats } = useStatisticsStore();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -214,10 +215,16 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
   // --- Store Handlers ---
   const equipItem = (item: any) => {
     if (item.type === "card_back") setCardBackPattern(item.id);
-    // Theme packs bundle a coordinated card back/SFX/music with the theme,
-    // fanned out by applyThemePack; plain themes just set the color scheme.
+    // A card deck bundles matching face art + back art together.
+    if (item.type === "card_deck") {
+      setCardFaceSetId(item.cardFaceSetId ?? item.id);
+      setCardBackPattern(item.cardBackPatternId ?? item.id);
+    }
+    // Theme packs bundle a coordinated card face/back/SFX/music with the
+    // theme, fanned out by applyThemePack; plain themes just set the color
+    // scheme.
     if (item.type === "theme" || item.type === "theme_pack") {
-      applyThemePack(item.id, { setThemeId, setCardBackPattern, setSfxSetId, setMusicTrackId });
+      applyThemePack(item.id, { setThemeId, setCardBackPattern, setCardFaceSetId, setSfxSetId, setMusicTrackId });
     }
   };
 
@@ -242,6 +249,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
 
   const isEquipped = (item: any) => {
     if (item.type === "card_back" && cardBackPattern === item.id) return true;
+    if (item.type === "card_deck" && cardFaceSetId === (item.cardFaceSetId ?? item.id)) return true;
     if ((item.type === "theme" || item.type === "theme_pack") && themeId === item.id) return true;
     return false;
   };
@@ -628,6 +636,7 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                   
                   const categoryNames: Record<string, string> = {
                     'card_back': 'CARD BACKS',
+                    'card_deck': 'CARD DECKS',
                     'theme': 'THEMES',
                     'theme_pack': 'THEME PACKS',
                     'power_up': 'POWER UPS',

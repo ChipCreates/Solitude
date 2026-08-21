@@ -12,6 +12,7 @@ export interface ThemePreset {
   // card back / SFX / music together via `applyThemePack` rather than
   // leaving them as independently-chosen settings.
   cardBackPatternId?: string;
+  cardFaceSetId?: string;
   sfxSetId?: string;
   musicTrackId?: string;
   // Optional felt/board texture image, drawn under the table gradient.
@@ -99,11 +100,25 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
     sfxSetId: "mystic",
     musicTrackId: "aces_at_dawn",
   },
+  gilded_manor: {
+    id: "gilded_manor",
+    name: "The Gilded Manor",
+    tableColor: "#1a1410",
+    tableGradientEnd: "#0d0a08",
+    accentColor: "#d4af37",
+    cardFaceOverlay: "#2a1f10",
+    defaultOverlayIntensity: 0,
+    cardBackPatternId: "gilded_mystery",
+    cardFaceSetId: "gilded_mystery",
+    sfxSetId: "classic",
+    musicTrackId: "velvet_at_seven",
+  },
 };
 
 export interface ThemePackSetters {
   setThemeId: (id: string) => void;
   setCardBackPattern: (pattern: string) => void;
+  setCardFaceSetId: (id: string) => void;
   setSfxSetId: (id: string) => void;
   setMusicTrackId: (id: string) => void;
 }
@@ -116,6 +131,7 @@ export function applyThemePack(themeId: string, setters: ThemePackSetters): void
   const preset = THEME_PRESETS[themeId];
   if (!preset) return;
   if (preset.cardBackPatternId) setters.setCardBackPattern(preset.cardBackPatternId);
+  if (preset.cardFaceSetId) setters.setCardFaceSetId(preset.cardFaceSetId);
   if (preset.sfxSetId) setters.setSfxSetId(preset.sfxSetId);
   if (preset.musicTrackId) setters.setMusicTrackId(preset.musicTrackId);
 }

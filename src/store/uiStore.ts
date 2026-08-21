@@ -15,6 +15,7 @@ export interface SettingsState {
   autoComplete: boolean;
   themeId: string;
   themeOverlayIntensities: Record<string, number>;
+  cardFaceSetId: string;
   cardBackPattern: string;
   cardBackColor: string;
   soundEnabled: boolean;
@@ -52,6 +53,7 @@ export interface SettingsState {
   setAutoComplete: (enabled: boolean) => void;
   setThemeId: (id: string) => void;
   setThemeOverlayIntensity: (themeId: string, intensity: number) => void;
+  setCardFaceSetId: (id: string) => void;
   setCardBackPattern: (pattern: string) => void;
   setCardBackColor: (color: string) => void;
   setSoundEnabled: (enabled: boolean) => void;
@@ -92,6 +94,7 @@ function settingsSnapshot(state: SettingsState): Settings {
     autoComplete: state.autoComplete,
     themeId: state.themeId,
     themeOverlayIntensities: state.themeOverlayIntensities,
+    cardFaceSet: state.cardFaceSetId,
     cardBack: state.cardBackPattern,
     cardBackColor: state.cardBackColor,
     soundEnabled: state.soundEnabled,
@@ -128,6 +131,7 @@ export const useUIStore = create<SettingsState>((set, get) => ({
   autoComplete: true,
   themeId: "classic_felt",
   themeOverlayIntensities: {},
+  cardFaceSetId: "default",
   cardBackPattern: "diamond",
   cardBackColor: "#1e3a2b",
   soundEnabled: true,
@@ -162,6 +166,7 @@ export const useUIStore = create<SettingsState>((set, get) => ({
     set((state) => ({ themeOverlayIntensities: { ...state.themeOverlayIntensities, [themeId]: intensity } }));
     import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get())));
   },
+  setCardFaceSetId: (cardFaceSetId) => { set({ cardFaceSetId }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setCardBackPattern: (cardBackPattern) => { set({ cardBackPattern }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setCardBackColor: (cardBackColor) => { set({ cardBackColor }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
   setSoundEnabled: (soundEnabled) => { set({ soundEnabled }); import("../persistence/store").then(({ store }) => store.saveSettings(useProfileStore.getState().activeProfileId, settingsSnapshot(get()))); },
@@ -283,6 +288,7 @@ export const useUIStore = create<SettingsState>((set, get) => ({
         autoComplete: settings.autoComplete,
         themeId: settings.themeId,
         themeOverlayIntensities: settings.themeOverlayIntensities ?? {},
+        cardFaceSetId: settings.cardFaceSet ?? "default",
         cardBackPattern: settings.cardBack,
         cardBackColor: settings.cardBackColor ?? "#1e3a2b",
         soundEnabled: settings.soundEnabled,

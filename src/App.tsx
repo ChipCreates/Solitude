@@ -19,7 +19,7 @@ import { GAME_TYPE_NAMES } from "./data/gameTypes";
 import { checkWinAchievements } from "./achievements/checkAchievements";
 import type { SaveEnvelope } from "./persistence/store";
 import { MUSIC_TRACKS, CUSTOM_TRACK_ID } from "./data/musicTracks";
-import { CardWidget } from "./components/CardWidget";
+import { CardWidget, preloadCardDeck } from "./components/CardWidget";
 import { GameChooserGrid } from "./components/GameChooserGrid";
 import { VictoryModal } from "./components/VictoryModal";
 import { HelpModal } from "./components/HelpModal";
@@ -150,11 +150,16 @@ export const App: React.FC = () => {
   const [keyboardSelectedId, setKeyboardSelectedId] = useState<number | null>(null);
 
   const {
-    themeId, themeOverlayIntensities, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern, scoringMode, vegasBankroll,
+    themeId, themeOverlayIntensities, cardFaceSetId, cardBackPattern, cardBackColor, soundEnabled, soundVolume, victoryPattern, scoringMode, vegasBankroll,
     musicEnabled, musicVolume, musicTrackId, customMusicUrl, powerUpInventory, sfxSetId, coins,
   } = useUIStore();
   const currentTheme = THEME_PRESETS[themeId] || THEME_PRESETS.classic_felt;
   const overlayIntensity = themeOverlayIntensities[themeId] ?? currentTheme.defaultOverlayIntensity;
+
+  // Warm the browser's image cache/decode for the equipped deck up front,
+  // so dealing/animating cards doesn't stutter decoding each face the first
+  // time it's needed mid-animation.
+  useEffect(() => { preloadCardDeck(cardFaceSetId); }, [cardFaceSetId]);
 
   useEffect(() => { audioService.setConfig(soundEnabled, soundVolume); }, [soundEnabled, soundVolume]);
   useEffect(() => { audioService.setSfxSet(sfxSetId); }, [sfxSetId]);
@@ -1516,6 +1521,7 @@ export const App: React.FC = () => {
                   height={b.height}
                   theme={currentTheme}
                   overlayIntensity={overlayIntensity}
+                  cardFaceSet={cardFaceSetId}
                   cardBackPattern={cardBackPattern}
                   cardBackColor={cardBackColor}
                   isSelected={selectedPyramidCardRef.current?.cardId === b.cardId || keyboardSelectedId === b.cardId}
@@ -1539,6 +1545,7 @@ export const App: React.FC = () => {
                 id={-2} rank={hintGhost.rank} suit={hintGhost.suit} faceUp={hintGhost.faceUp ?? true}
                 width={hintGhost.width} height={hintGhost.height}
                 theme={currentTheme} overlayIntensity={overlayIntensity}
+                cardFaceSet={cardFaceSetId}
                 cardBackPattern={cardBackPattern} cardBackColor={cardBackColor}
                 isSelected={false} isHint={false}
               />

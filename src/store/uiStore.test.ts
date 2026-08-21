@@ -19,6 +19,7 @@ vi.mock("../persistence/store", () => ({
 }));
 
 import { useUIStore } from "./uiStore";
+import { store } from "../persistence/store";
 
 describe("uiStore", () => {
   beforeEach(() => {
@@ -86,5 +87,33 @@ describe("uiStore", () => {
     expect(result.leveledUp).toBe(false);
     expect(result.newLevel).toBe(1);
     expect(result.newXP).toBe(200);
+  });
+
+  describe("cardFaceSetId", () => {
+    it("defaults to the always-available 'default' illustrated deck", () => {
+      expect(useUIStore.getState().cardFaceSetId).toBe("default");
+    });
+
+    it("setCardFaceSetId updates state and persists the change", async () => {
+      vi.mocked(store.saveSettings).mockClear();
+      useUIStore.getState().setCardFaceSetId("gilded_mystery");
+      expect(useUIStore.getState().cardFaceSetId).toBe("gilded_mystery");
+      // The save is fired via a dynamic import, so let its promise settle.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(store.saveSettings).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ cardFaceSet: "gilded_mystery" })
+      );
+    });
+
+    it("initializeStore falls back to 'default' when a pre-existing save has no cardFaceSet field", async () => {
+      vi.mocked(store.loadSettings).mockResolvedValueOnce({
+        drawMode: 1, autoComplete: true, themeId: "classic_felt", cardBack: "diamond",
+        soundEnabled: true, soundVolume: 0.8,
+        // cardFaceSet intentionally omitted -- simulates a save from before this field existed.
+      } as any);
+      await useUIStore.getState().initializeStore();
+      expect(useUIStore.getState().cardFaceSetId).toBe("default");
+    });
   });
 });

@@ -27,7 +27,7 @@ function SwatchRow({ label, hex }: { label: string; hex: string }) {
 }
 
 export const ThemePackDetailPage: React.FC<ThemePackDetailPageProps> = ({ packId, onBack, onPurchase }) => {
-  const { coins, unlockedItems, themeId, cardBackPattern } = useUIStore();
+  const { coins, unlockedItems, themeId, cardBackPattern, cardFaceSetId } = useUIStore();
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -75,6 +75,10 @@ export const ThemePackDetailPage: React.FC<ThemePackDetailPageProps> = ({ packId
   };
 
   const cardBackForPreview = pack.cardBackPatternId ?? cardBackPattern;
+  const cardFaceSetForPreview = pack.cardFaceSetId ?? cardFaceSetId;
+  // Illustrated decks need more room than the default 90-100px preview size
+  // to read their corner glyphs/heraldry.
+  const previewScale = pack.cardFaceSetId ? 1.7 : 1;
 
   return (
     <div style={{ maxWidth: "900px", margin: "0 auto", padding: "48px 48px" }}>
@@ -116,14 +120,14 @@ export const ThemePackDetailPage: React.FC<ThemePackDetailPageProps> = ({ packId
             border: "1px solid rgba(255,255,255,0.1)",
           }}
         >
-          <div style={{ position: "relative", width: "90px", height: "126px", transform: "rotate(-6deg)" }}>
-            <CardWidget id={1} rank={13} suit={2} faceUp={false} width={90} height={126} theme={pack} overlayIntensity={pack.defaultOverlayIntensity} cardBackPattern={cardBackForPreview} cardBackColor={pack.tableGradientEnd} isSelected={false} isHint={false} hideShadow />
+          <div style={{ position: "relative", width: `${90 * previewScale}px`, height: `${126 * previewScale}px`, transform: "rotate(-6deg)" }}>
+            <CardWidget id={1} rank={13} suit={2} faceUp={false} width={90 * previewScale} height={126 * previewScale} theme={pack} overlayIntensity={pack.defaultOverlayIntensity} cardFaceSet={cardFaceSetForPreview} cardBackPattern={cardBackForPreview} cardBackColor={pack.tableGradientEnd} isSelected={false} isHint={false} hideShadow />
           </div>
-          <div style={{ position: "relative", width: "100px", height: "140px" }}>
-            <CardWidget id={2} rank={13} suit={2} faceUp={true} width={100} height={140} theme={pack} overlayIntensity={pack.defaultOverlayIntensity} cardBackPattern={cardBackForPreview} cardBackColor={pack.tableGradientEnd} isSelected={false} isHint={false} hideShadow />
+          <div style={{ position: "relative", width: `${100 * previewScale}px`, height: `${140 * previewScale}px` }}>
+            <CardWidget id={2} rank={13} suit={2} faceUp={true} width={100 * previewScale} height={140 * previewScale} theme={pack} overlayIntensity={pack.defaultOverlayIntensity} cardFaceSet={cardFaceSetForPreview} cardBackPattern={cardBackForPreview} cardBackColor={pack.tableGradientEnd} isSelected={false} isHint={false} hideShadow />
           </div>
-          <div style={{ position: "relative", width: "90px", height: "126px", transform: "rotate(6deg)" }}>
-            <CardWidget id={3} rank={1} suit={3} faceUp={true} width={90} height={126} theme={pack} overlayIntensity={pack.defaultOverlayIntensity} cardBackPattern={cardBackForPreview} cardBackColor={pack.tableGradientEnd} isSelected={false} isHint={false} hideShadow />
+          <div style={{ position: "relative", width: `${90 * previewScale}px`, height: `${126 * previewScale}px`, transform: "rotate(6deg)" }}>
+            <CardWidget id={3} rank={1} suit={3} faceUp={true} width={90 * previewScale} height={126 * previewScale} theme={pack} overlayIntensity={pack.defaultOverlayIntensity} cardFaceSet={cardFaceSetForPreview} cardBackPattern={cardBackForPreview} cardBackColor={pack.tableGradientEnd} isSelected={false} isHint={false} hideShadow />
           </div>
         </div>
       </div>

@@ -1,10 +1,15 @@
 export interface StoreItem {
   id: string;
-  type: "card_back" | "theme" | "theme_pack" | "victory" | "power_up";
+  type: "card_back" | "card_deck" | "theme" | "theme_pack" | "victory" | "power_up";
   name: string;
   price: number;
   description?: string;
   icon?: string;
+  // A "card_deck" bundles matching face art + back art; a "theme_pack" may
+  // additionally bundle both on top of its table/SFX/music. Both default to
+  // the item's own id when unset (see MetaGameHub's equip/isEquipped logic).
+  cardFaceSetId?: string;
+  cardBackPatternId?: string;
 }
 
 export const STORE_ITEMS: StoreItem[] = [
@@ -15,12 +20,15 @@ export const STORE_ITEMS: StoreItem[] = [
   { id: "filigree", type: "card_back", name: "Golden Filigree", price: 500, icon: "/assets/cards/back_filigree.png" },
   { id: "dragon", type: "card_back", name: "Dragon Ruby", price: 1000, icon: "/assets/cards/card_back_dragon_1787130558476.png" },
   { id: "celestial", type: "card_back", name: "Celestial Skies", price: 1000, icon: "/assets/cards/card_back_celestial_1787130567064.png" },
+  { id: "gilded_mystery", type: "card_back", name: "Gilded Mystery", price: 1000, icon: "/assets/cards/the_gilded_mystery/back.webp", description: "Black leather and gilt heraldry — griffin and peacock, handcrafted for the refined." },
+  { id: "gilded_mystery_deck", type: "card_deck", name: "The Gilded Mystery Deck", price: 1600, icon: "/assets/cards/the_gilded_mystery/KH.webp", description: "The full Arcanum deck: 52 hand-illustrated gilt faces bound in black leather, with the matching gilded back.", cardFaceSetId: "gilded_mystery", cardBackPatternId: "gilded_mystery" },
   { id: "classic_felt", type: "theme", name: "Casino Green", price: 0 },
   { id: "midnight", type: "theme", name: "Midnight Blue", price: 300 },
   { id: "burgundy_velvet", type: "theme", name: "Burgundy Velvet", price: 300 },
   { id: "nordic", type: "theme", name: "Obsidian Glass", price: 800 },
   { id: "dragons_hoard", type: "theme_pack", name: "Dragon's Hoard", description: "A full pack: table felt, the Dragon Ruby card back, arcade SFX, and Golden Hour Bet music, bundled together.", price: 1400, icon: "/assets/cards/card_back_dragon_1787130558476.png" },
   { id: "celestial_veil", type: "theme_pack", name: "Celestial Veil", description: "A full pack: table felt, the Celestial Skies card back, mystic SFX, and Aces at Dawn music, bundled together.", price: 1400, icon: "/assets/cards/card_back_celestial_1787130567064.png" },
+  { id: "gilded_manor", type: "theme_pack", name: "The Gilded Manor", description: "A full pack: the illustrated Gilded Mystery deck (faces + back), candlelit felt, classic SFX, and Velvet at Seven music, bundled together.", price: 2200, icon: "/assets/cards/the_gilded_mystery/QS.webp" },
   { id: "confetti", type: "victory", name: "Confetti Explosion", price: 400 },
   { id: "fireworks", type: "victory", name: "Golden Fireworks", price: 1000 },
   { id: "unstick_wand", type: "power_up", name: "Unstick Wand", description: "Forces one legal-but-blocked move to become available.", price: 300, icon: "/assets/store/item_unstick_wand_1787130506774.png" },
