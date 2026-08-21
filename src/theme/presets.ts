@@ -102,7 +102,7 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
   },
   gilded_manor: {
     id: "gilded_manor",
-    name: "The Gilded Manor",
+    name: "The Gilded Mystery",
     tableColor: "#1a1410",
     tableGradientEnd: "#0d0a08",
     accentColor: "#d4af37",
