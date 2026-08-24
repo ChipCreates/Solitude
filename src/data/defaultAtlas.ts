@@ -1,14 +1,7 @@
-// Coordinate manifest for default_atlas.webp: one sprite sheet holding
-// both the illustrated (desktop) and compact (mobile) default decks (plus
-// a joker for each), so the two 52-card sets ship as a single asset
-// instead of 106 separate files. Cell keys are "<deckId>:<rankSuitCode>"
-// (plus "joker"), matching the codes CardWidget already builds per card.
-
-import type { AtlasCell } from "./gildedMysteryAtlas";
+import type { AtlasCell } from './gildedMysteryAtlas';
 
 export const DEFAULT_ATLAS_URL = "/assets/cards/default_atlas.webp";
 export const DEFAULT_ATLAS_SIZE = { width: 9100, height: 6370 };
-
 export const DEFAULT_ATLAS_CELLS: Record<string, AtlasCell> = {
   "default:AH": { x: 0, y: 0, w: 700, h: 980 },
   "default:AD": { x: 700, y: 0, w: 700, h: 980 },
