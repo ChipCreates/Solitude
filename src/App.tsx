@@ -100,6 +100,7 @@ export const App: React.FC = () => {
 
   const cardBoundsListRef = useRef<CardBounds[]>([]);
   const animatedCardsRef = useRef(new Map<number, AnimatedCard>());
+  const bgCacheRef = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
   const dragStateRef = useRef<{
     ptrX: number;
     ptrY: number;
@@ -129,6 +130,8 @@ export const App: React.FC = () => {
   const [hintGhost, setHintGhost] = useState<{startX: number, startY: number, endX: number, endY: number, width: number, height: number, rank: number, suit: number, faceUp?: boolean} | null>(null);
   const [ghostPos, setGhostPos] = useState({x: 0, y: 0});
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const isAutoPlayingRef = useRef(false);
+  useEffect(() => { isAutoPlayingRef.current = isAutoPlaying; }, [isAutoPlaying]);
   const autoPlayTimeoutRef = useRef<number | null>(null);
   const shouldCancelAutoPlayRef = useRef(false);
   const isWonRef = useRef(false);
@@ -473,20 +476,38 @@ export const App: React.FC = () => {
       }
       ctx.save();
       ctx.scale(dpr, dpr);
-      const g = ctx.createRadialGradient(rect.width / 2, rect.height / 2, 100, rect.width / 2, rect.height / 2, Math.max(rect.width, rect.height));
-      g.addColorStop(0, currentTheme.tableColor);
-      g.addColorStop(1, currentTheme.tableGradientEnd);
+      // The table background (radial gradient + optional texture) never
+      // changes frame-to-frame -- recomputing the gradient and re-blending
+      // the texture into a full-canvas fill every single frame (60x/sec)
+      // was pure wasted paint cost competing with the card animations for
+      // frame budget. Render it once into an offscreen canvas and blit that
+      // cached bitmap instead, only rebuilding when size/theme actually change.
       const boardTexture = currentTheme.boardTextureUrl ? getCachedImage(currentTheme.boardTextureUrl) : null;
-      if (boardTexture) {
-        ctx.drawImage(boardTexture, 0, 0, rect.width, rect.height);
-        ctx.globalAlpha = 0.35;
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, rect.width, rect.height);
-        ctx.globalAlpha = 1;
-      } else {
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, rect.width, rect.height);
+      const bgKey = `${Math.floor(rect.width)}x${Math.floor(rect.height)}x${dpr}|${currentTheme.tableColor}|${currentTheme.tableGradientEnd}|${currentTheme.boardTextureUrl ?? ""}|${boardTexture ? "1" : "0"}`;
+      let bg = bgCacheRef.current;
+      if (!bg || bg.key !== bgKey) {
+        const off = document.createElement("canvas");
+        off.width = Math.max(1, Math.floor(rect.width * dpr));
+        off.height = Math.max(1, Math.floor(rect.height * dpr));
+        const octx = off.getContext("2d")!;
+        octx.scale(dpr, dpr);
+        const g = octx.createRadialGradient(rect.width / 2, rect.height / 2, 100, rect.width / 2, rect.height / 2, Math.max(rect.width, rect.height));
+        g.addColorStop(0, currentTheme.tableColor);
+        g.addColorStop(1, currentTheme.tableGradientEnd);
+        if (boardTexture) {
+          octx.drawImage(boardTexture, 0, 0, rect.width, rect.height);
+          octx.globalAlpha = 0.35;
+          octx.fillStyle = g;
+          octx.fillRect(0, 0, rect.width, rect.height);
+          octx.globalAlpha = 1;
+        } else {
+          octx.fillStyle = g;
+          octx.fillRect(0, 0, rect.width, rect.height);
+        }
+        bg = { key: bgKey, canvas: off };
+        bgCacheRef.current = bg;
       }
+      ctx.drawImage(bg.canvas, 0, 0, rect.width, rect.height);
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = "rgba(255,255,255,0.15)";
       ctx.fillStyle = "rgba(255,255,255,0.03)";
@@ -508,7 +529,12 @@ export const App: React.FC = () => {
           if (dragInfo) {
             anim.x = ds!.ptrX - dragInfo.offsetX; anim.y = ds!.ptrY - dragInfo.offsetY; anim.vx = 0; anim.vy = 0;
           } else {
-            const spring = 400, damp = 30;
+            // Snappier during autoplay to match its faster pace (previously
+            // expressed as a shorter CSS transition duration on the
+            // React-managed transform below -- now that this spring is the
+            // sole driver of position, the speed difference lives here instead.
+            const spring = isAutoPlayingRef.current ? 900 : 400;
+            const damp = isAutoPlayingRef.current ? 46 : 30;
             anim.vx += ((b.x - anim.x) * spring - anim.vx * damp) * dt;
             anim.vy += ((b.y - anim.y) * spring - anim.vy * damp) * dt;
             anim.x += anim.vx * dt; anim.y += anim.vy * dt;
@@ -752,7 +778,6 @@ export const App: React.FC = () => {
 
   // ─── Pointer Events ───────────────────────────────────────────────────────
   const lastTapTimeRef = useRef(0);
-  const tapTimerRef = useRef<number | null>(null);
   const DOUBLE_TAP_MS = 280;
 
   // Card bounds (cardBoundsListRef) and animated positions are stored in
@@ -850,19 +875,25 @@ export const App: React.FC = () => {
     // For Pyramid: fire tap immediately, no double-tap
     if (gameTypeRef.current === 3) { handleTap(hit); return; }
 
-    // For others: detect double-tap with 280ms window
+    // Stock has no double-tap behavior (handleDoubleTap only acts on
+    // face-up tableau/waste/foundation cards) -- routing it through the
+    // 280ms double-tap disambiguation just adds latency to the single most
+    // frequent click in the game for no benefit, so fire it immediately.
+    if (hit.pileKind === 0) { handleTap(hit); return; }
+
+    // Single tap fires immediately -- it's a no-op for regular tableau/
+    // waste/foundation cards in most games (only Golf/TriPeaks act on it,
+    // moving the card to waste). This used to be deferred by DOUBLE_TAP_MS
+    // to see whether a second click was coming, which added a flat ~280ms
+    // of input latency to every click for the sake of games where a single
+    // tap does nothing anyway. Double-tap is now detected independently
+    // alongside the immediate single-tap action, so a fast second click
+    // still triggers the foundation auto-move with no added delay of its own.
     const now = Date.now();
-    if (now - lastTapTimeRef.current < DOUBLE_TAP_MS) {
-      if (tapTimerRef.current !== null) { clearTimeout(tapTimerRef.current); tapTimerRef.current = null; }
-      lastTapTimeRef.current = 0;
-      handleDoubleTap(hit);
-    } else {
-      lastTapTimeRef.current = now;
-      if (tapTimerRef.current !== null) clearTimeout(tapTimerRef.current);
-      tapTimerRef.current = window.setTimeout(() => {
-        handleTap(hit); lastTapTimeRef.current = 0; tapTimerRef.current = null;
-      }, DOUBLE_TAP_MS);
-    }
+    const isDoubleTap = now - lastTapTimeRef.current < DOUBLE_TAP_MS;
+    lastTapTimeRef.current = isDoubleTap ? 0 : now;
+    handleTap(hit);
+    if (isDoubleTap) handleDoubleTap(hit);
   }, [handleTap, handleDoubleTap, updateLayout]);
 
   // ─── Game Management ──────────────────────────────────────────────────────
@@ -1512,24 +1543,22 @@ export const App: React.FC = () => {
           })()}
           {/* Render Cards */}
           {cardBoundsListRef.current.filter(b => b.cardId !== -1).map(b => {
-            const ds = dragStateRef.current;
-            const dragInfo = ds?.draggedMap.get(b.cardId);
-            const isDragging = !!dragInfo;
-            const x = isDragging ? ds!.ptrX - dragInfo!.offsetX : b.x;
-            const y = isDragging ? ds!.ptrY - dragInfo!.offsetY : b.y;
-
             const isPerfectlyStacked = b.pileKind === 0 || b.pileKind === 2 || b.pileKind === 7;
-            
+
             return (
               <div
                 id={`card-dom-${b.cardId}`}
                 key={b.cardId}
                 style={{
+                  // Position (transform) and z-index are owned exclusively by
+                  // the spring-physics rAF loop in the render effect above --
+                  // it reads/writes this element by id every frame. Setting
+                  // transform here too used to fight that loop (a CSS
+                  // transition and an imperative rAF write racing on the same
+                  // property every frame), which is what caused the stutter/
+                  // jitter in card moves and flips.
                   position: "absolute", left: 0, top: 0, width: b.width, height: b.height,
-                  transform: `translate3d(${x}px, ${y}px, 0px)`,
                   willChange: "transform",
-                  zIndex: isDragging ? 2000 + dragInfo!.relativeIndex : (b.pileKind === 3 ? b.cardIndex + 10 : 20 + b.cardIndex),
-                  transition: isDragging ? "none" : (isAutoPlaying ? "transform 0.12s cubic-bezier(0.25, 1, 0.5, 1)" : "transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"),
                 }}
               >
                 <CardWidget
