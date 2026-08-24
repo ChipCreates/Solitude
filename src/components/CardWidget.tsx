@@ -1,6 +1,7 @@
 import React from 'react';
 import { GILDED_MYSTERY_ATLAS_URL, GILDED_MYSTERY_ATLAS_SIZE, GILDED_MYSTERY_ATLAS_CELLS, AtlasCell } from '../data/gildedMysteryAtlas';
 import { DEFAULT_ATLAS_URL, DEFAULT_ATLAS_SIZE, DEFAULT_ATLAS_CELLS } from '../data/defaultAtlas';
+import { FANTASY_ATLAS_URL, FANTASY_ATLAS_SIZE, FANTASY_ATLAS_CELLS } from '../data/fantasyAtlas';
 
 export interface CardWidgetProps {
   id: number;
@@ -87,7 +88,7 @@ const SUIT_CODE = ['H', 'D', 'C', 'S']; // matches the engine's suit-index order
 // pip instead of a full illustration) for when a card is drawn too small
 // for the illustrated artwork's detail to read. Swapped in automatically by
 // rendered pixel width -- not a separately equippable/purchasable deck.
-const COMPACT_DECK_VARIANT: Record<string, string> = { gilded_mystery: 'gilded_mystery_mini', default: 'default_mini' };
+const COMPACT_DECK_VARIANT: Record<string, string> = { gilded_mystery: 'gilded_mystery_mini', default: 'default_mini', fantasy: 'fantasy_mini' };
 // Matches the "compact tier" threshold gridLayout.ts already uses for
 // cardWidth-driven layout decisions, so both kick in at the same size.
 const COMPACT_WIDTH_THRESHOLD = 70;
@@ -112,13 +113,20 @@ interface AtlasManifest {
 const ATLASES: Record<string, AtlasManifest> = {
   gilded_mystery: { url: GILDED_MYSTERY_ATLAS_URL, size: GILDED_MYSTERY_ATLAS_SIZE, cells: GILDED_MYSTERY_ATLAS_CELLS },
   default: { url: DEFAULT_ATLAS_URL, size: DEFAULT_ATLAS_SIZE, cells: DEFAULT_ATLAS_CELLS },
+  fantasy: { url: FANTASY_ATLAS_URL, size: FANTASY_ATLAS_SIZE, cells: FANTASY_ATLAS_CELLS },
 };
 const DECK_ATLAS_FAMILY: Record<string, string> = {
   gilded_mystery: 'gilded_mystery',
   gilded_mystery_mini: 'gilded_mystery',
   default: 'default',
   default_mini: 'default',
+  fantasy: 'fantasy',
+  fantasy_mini: 'fantasy',
 };
+// Decks whose atlas also has a "back" cell -- keyed by cardBackPattern id
+// (a separately-chosen setting from cardFaceSet, but happens to share the
+// same id for these two decks).
+const ATLAS_BACK_FAMILY: Record<string, string> = { gilded_mystery: 'gilded_mystery', fantasy: 'fantasy' };
 
 function rankSuitCode(rank: number, suit: number): string {
   const rankCode = RANK_CODE[rank] ?? String(rank);
@@ -217,7 +225,8 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
   // The back has no compact variant (no text/pips to shrink) so it always
   // draws from the desktop-sized "back" cell, scaled to whatever size this
   // card is rendered at.
-  const backSprite = cardBackPattern === 'gilded_mystery' ? atlasSprite('gilded_mystery', 'back', width) : null;
+  const backFamily = ATLAS_BACK_FAMILY[cardBackPattern];
+  const backSprite = backFamily ? atlasSprite(backFamily, 'back', width) : null;
 
   return (
     <div

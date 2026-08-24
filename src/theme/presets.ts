@@ -113,6 +113,19 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
     sfxSetId: "classic",
     musicTrackId: "velvet_at_seven",
   },
+  fantasy_realm: {
+    id: "fantasy_realm",
+    name: "Fantasy Realm",
+    tableColor: "#0f2418",
+    tableGradientEnd: "#081208",
+    accentColor: "#c9a24b",
+    cardFaceOverlay: "#102015",
+    defaultOverlayIntensity: 0,
+    cardBackPatternId: "fantasy",
+    cardFaceSetId: "fantasy",
+    sfxSetId: "classic",
+    musicTrackId: "velvet_at_seven",
+  },
 };
 
 export interface ThemePackSetters {
