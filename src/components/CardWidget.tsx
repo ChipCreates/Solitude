@@ -29,13 +29,15 @@ export const getBackPatternCss = (pattern: string) => {
     case 'dragon': return `url(/assets/cards/card_back_dragon_1787130558476.png)`;
     case 'celestial': return `url(/assets/cards/card_back_celestial_1787130567064.png)`;
     case 'gilded_mystery': return `url(/assets/cards/the_gilded_mystery/back.webp)`;
+    case 'royal_navy': return `url(/assets/cards/back_navy_gold.png)`;
+    case 'crimson_lattice': return `url(/assets/cards/back_red_lattice.png)`;
+    case 'diamond': return `url(/assets/cards/back_diamond_classic.png)`;
     case 'crosshatch':
       return `linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%, rgba(255,255,255,0.1)), linear-gradient(-45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%, rgba(255,255,255,0.1))`;
     case 'dots':
       return `radial-gradient(circle, rgba(255,255,255,0.15) 15%, transparent 16%), radial-gradient(circle, rgba(255,255,255,0.15) 15%, transparent 16%)`;
     case 'waves':
       return `repeating-radial-gradient(circle at 0 0, transparent 0, rgba(255,255,255,0.05) 10px, transparent 11px, rgba(255,255,255,0.05) 12px, transparent 20px)`;
-    case 'diamond':
     default:
       return `repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 10px, transparent 10px, transparent 20px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 10px, transparent 10px, transparent 20px)`;
   }
@@ -49,11 +51,13 @@ export const getBackPatternSize = (pattern: string) => {
     case 'mystic':
     case 'dragon':
     case 'celestial':
-    case 'gilded_mystery': return '100% 100%';
+    case 'gilded_mystery':
+    case 'royal_navy':
+    case 'crimson_lattice':
+    case 'diamond': return '100% 100%';
     case 'crosshatch': return '20px 20px';
     case 'dots': return '20px 20px';
     case 'waves': return '40px 40px';
-    case 'diamond':
     default: return 'auto';
   }
 };
@@ -66,7 +70,10 @@ export const getBackPatternPosition = (pattern: string) => {
     case 'mystic':
     case 'dragon':
     case 'celestial':
-    case 'gilded_mystery': return 'center';
+    case 'gilded_mystery':
+    case 'royal_navy':
+    case 'crimson_lattice':
+    case 'diamond': return 'center';
     case 'dots': return '0 0, 10px 10px';
     case 'crosshatch': return '0 0, 10px 10px';
     default: return '0 0';
@@ -153,6 +160,29 @@ export function atlasSprite(deckId: string, code: string, displayWidth: number):
     backgroundImage: `url(${atlas.url})`,
     backgroundSize: `${atlas.size.width * scale}px ${atlas.size.height * scale}px`,
     backgroundPosition: `-${cell.x * scale}px -${cell.y * scale}px`,
+    backgroundRepeat: 'no-repeat',
+  };
+}
+
+// Same crop as atlasSprite, but expressed as CSS percentages so it stays
+// correctly aligned on an element sized by its container (e.g. `width:
+// 100%` in a responsive grid) rather than one rendered at a known pixel
+// width. Standard sprite-scaling trick: background-size/position in %
+// are relative to the element's own box, so the crop tracks it on resize.
+export function atlasSpritePercent(deckId: string, code: string): AtlasSprite | null {
+  const family = DECK_ATLAS_FAMILY[deckId];
+  if (!family) return null;
+  const atlas = ATLASES[family];
+  const cell = atlas.cells[`${deckId}:${code}`];
+  if (!cell) return null;
+  const sizeXPct = (atlas.size.width / cell.w) * 100;
+  const sizeYPct = (atlas.size.height / cell.h) * 100;
+  const posXPct = (cell.x / (atlas.size.width - cell.w)) * 100;
+  const posYPct = (cell.y / (atlas.size.height - cell.h)) * 100;
+  return {
+    backgroundImage: `url(${atlas.url})`,
+    backgroundSize: `${sizeXPct}% ${sizeYPct}%`,
+    backgroundPosition: `${posXPct}% ${posYPct}%`,
     backgroundRepeat: 'no-repeat',
   };
 }

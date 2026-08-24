@@ -13,6 +13,7 @@ import { getAvatarOption } from "../data/avatars";
 import { getGamePortrait } from "../data/gamePortraits";
 import { applyThemePack } from "../theme/presets";
 import { STORE_ITEMS } from "../data/storeItems";
+import { atlasSpritePercent } from "./CardWidget";
 import { SettingsPage } from "./SettingsPage";
 import { ThemePackDetailPage } from "./ThemePackDetailPage";
 
@@ -679,7 +680,9 @@ export const MetaGameHub: React.FC<MetaGameHubProps> = ({ activeTab, onTabChange
                                 </div>
                               )}
                               <div style={{ width: "100%", display: "flex", justifyContent: "center", marginBottom: "24px" }}>
-                                {item.icon ? (
+                                {item.iconAtlas ? (
+                                  <div style={{ width: "100%", aspectRatio: "5/7", borderRadius: "10px", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", ...(atlasSpritePercent(item.iconAtlas.deckId, item.iconAtlas.code) ?? {}) }} />
+                                ) : item.icon ? (
                                   <img src={item.icon} alt={item.name} style={{ width: "100%", aspectRatio: "5/7", objectFit: "cover", borderRadius: "10px", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }} />
                                 ) : (
                                   <div style={{ width: "100%", aspectRatio: "5/7", background: "rgba(255,255,255,0.05)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", border: "1px dashed rgba(255,255,255,0.1)" }}>
