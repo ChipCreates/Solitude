@@ -1,4 +1,6 @@
 import React from 'react';
+import { GILDED_MYSTERY_ATLAS_URL, GILDED_MYSTERY_ATLAS_SIZE, GILDED_MYSTERY_ATLAS_CELLS, AtlasCell } from '../data/gildedMysteryAtlas';
+import { DEFAULT_ATLAS_URL, DEFAULT_ATLAS_SIZE, DEFAULT_ATLAS_CELLS } from '../data/defaultAtlas';
 
 export interface CardWidgetProps {
   id: number;
@@ -73,37 +75,150 @@ export const getBackPatternPosition = (pattern: string) => {
 // Every card face is a pre-rendered image, one file per deck per rank/suit,
 // named by the same two-character code across all decks (e.g. "AH", "TC",
 // "KS") so a single path formula covers every deck -- only the file
-// extension and folder name vary. The deck id used for equip/store matching
-// ("gilded_mystery") doesn't always match its asset folder name on disk
-// ("the_gilded_mystery"), so that mapping is explicit rather than assumed.
-const CARD_DECK_EXTENSION: Record<string, string> = { default: 'png', gilded_mystery: 'webp' };
-const CARD_DECK_FOLDER: Record<string, string> = { default: 'default', gilded_mystery: 'the_gilded_mystery' };
+// extension and folder name vary. Every current deck is atlas-backed (see
+// DECK_ATLAS_FAMILY below) so both maps are empty today; they exist for the
+// next per-file deck, and cardImagePath falls back sanely without an entry.
+const CARD_DECK_EXTENSION: Record<string, string> = {};
+const CARD_DECK_FOLDER: Record<string, string> = {};
 const RANK_CODE: Record<number, string> = { 1: 'A', 10: 'T', 11: 'J', 12: 'Q', 13: 'K' };
 const SUIT_CODE = ['H', 'D', 'C', 'S']; // matches the engine's suit-index order (0=hearts..3=spades)
 
-function cardImagePath(deckId: string, rank: number, suit: number): string {
+// Decks with an alternate, simplified rendering (flat rank + single large
+// pip instead of a full illustration) for when a card is drawn too small
+// for the illustrated artwork's detail to read. Swapped in automatically by
+// rendered pixel width -- not a separately equippable/purchasable deck.
+const COMPACT_DECK_VARIANT: Record<string, string> = { gilded_mystery: 'gilded_mystery_mini', default: 'default_mini' };
+// Matches the "compact tier" threshold gridLayout.ts already uses for
+// cardWidth-driven layout decisions, so both kick in at the same size.
+const COMPACT_WIDTH_THRESHOLD = 70;
+
+function resolveDeckId(deckId: string, width: number): string {
+  const compactId = COMPACT_DECK_VARIANT[deckId];
+  return compactId && width < COMPACT_WIDTH_THRESHOLD ? compactId : deckId;
+}
+
+interface AtlasManifest {
+  url: string;
+  size: { width: number; height: number };
+  cells: Record<string, AtlasCell>;
+}
+
+// One sprite sheet per illustrated deck, each holding both its desktop and
+// compact face sets (plus backs/jokers where available) -- see
+// gildedMysteryAtlas.ts / defaultAtlas.ts. Every deck id that's atlas-backed
+// (desktop and mini alike) maps to the family containing its cells; drawn
+// via CSS background-position rather than an <img src> per card. Any deck
+// id absent from this map falls back to individual files via cardImagePath.
+const ATLASES: Record<string, AtlasManifest> = {
+  gilded_mystery: { url: GILDED_MYSTERY_ATLAS_URL, size: GILDED_MYSTERY_ATLAS_SIZE, cells: GILDED_MYSTERY_ATLAS_CELLS },
+  default: { url: DEFAULT_ATLAS_URL, size: DEFAULT_ATLAS_SIZE, cells: DEFAULT_ATLAS_CELLS },
+};
+const DECK_ATLAS_FAMILY: Record<string, string> = {
+  gilded_mystery: 'gilded_mystery',
+  gilded_mystery_mini: 'gilded_mystery',
+  default: 'default',
+  default_mini: 'default',
+};
+
+function rankSuitCode(rank: number, suit: number): string {
   const rankCode = RANK_CODE[rank] ?? String(rank);
-  const ext = CARD_DECK_EXTENSION[deckId] ?? 'png';
-  const folder = CARD_DECK_FOLDER[deckId] ?? deckId;
+  return `${rankCode}${SUIT_CODE[suit]}`;
+}
+
+interface AtlasSprite {
+  backgroundImage: string;
+  backgroundSize: string;
+  backgroundPosition: string;
+  backgroundRepeat: 'no-repeat';
+}
+
+// Cells and the on-screen card are both a fixed 5:7 ratio, so one scale
+// factor (derived from width alone) correctly maps the cell on both axes.
+export function atlasSprite(deckId: string, code: string, displayWidth: number): AtlasSprite | null {
+  const family = DECK_ATLAS_FAMILY[deckId];
+  if (!family) return null;
+  const atlas = ATLASES[family];
+  const cell = atlas.cells[`${deckId}:${code}`];
+  if (!cell) return null;
+  const scale = displayWidth / cell.w;
+  return {
+    backgroundImage: `url(${atlas.url})`,
+    backgroundSize: `${atlas.size.width * scale}px ${atlas.size.height * scale}px`,
+    backgroundPosition: `-${cell.x * scale}px -${cell.y * scale}px`,
+    backgroundRepeat: 'no-repeat',
+  };
+}
+
+export function cardImagePath(deckId: string, rank: number, suit: number, width = Infinity): string {
+  const resolvedDeckId = resolveDeckId(deckId, width);
+  const rankCode = RANK_CODE[rank] ?? String(rank);
+  const ext = CARD_DECK_EXTENSION[resolvedDeckId] ?? 'png';
+  const folder = CARD_DECK_FOLDER[resolvedDeckId] ?? resolvedDeckId;
   return `/assets/cards/${folder}/${rankCode}${SUIT_CODE[suit]}.${ext}`;
 }
 
 // Warms the browser's image cache/decode for a whole deck ahead of time, so
 // dealing/animating cards doesn't stutter on first-time image decode. Safe
 // to call repeatedly (e.g. on every deck switch) -- already-cached requests
-// resolve instantly.
+// resolve instantly. Actual card width isn't known this early (it depends on
+// the variant's layout), so decks with a compact variant preload both --
+// whichever one CardWidget ends up choosing per-card is already warm.
 export function preloadCardDeck(deckId: string): void {
-  for (let rank = 1; rank <= 13; rank++) {
-    for (let suit = 0; suit < 4; suit++) {
-      const img = new Image();
-      img.src = cardImagePath(deckId, rank, suit);
+  const family = DECK_ATLAS_FAMILY[deckId];
+  if (family) {
+    // Every face (both size variants) plus backs/jokers where available
+    // live in one sprite sheet -- a single fetch warms the whole deck.
+    const img = new Image();
+    img.src = ATLASES[family].url;
+    return;
+  }
+  const deckIds = [deckId, COMPACT_DECK_VARIANT[deckId]].filter((id): id is string => !!id);
+  for (const id of deckIds) {
+    for (let rank = 1; rank <= 13; rank++) {
+      for (let suit = 0; suit < 4; suit++) {
+        const img = new Image();
+        img.src = cardImagePath(id, rank, suit);
+      }
     }
   }
+}
+
+export function isAtlasBackedDeck(deckId: string): boolean {
+  return !!DECK_ATLAS_FAMILY[deckId];
+}
+
+// Same warming as preloadCardDeck, but resolves once the assets are actually
+// ready (or after a safety timeout, so a slow/broken network can't hang the
+// caller forever) -- for gating the splash screen on an atlas fetch actually
+// finishing, unlike per-file decks where individual images trickle in and
+// there's nothing worth blocking on.
+export function preloadCardDeckAsync(deckId: string, timeoutMs = 8000): Promise<void> {
+  const family = DECK_ATLAS_FAMILY[deckId];
+  if (!family) {
+    preloadCardDeck(deckId);
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const img = new Image();
+    let settled = false;
+    const done = () => { if (!settled) { settled = true; resolve(); } };
+    img.onload = done;
+    img.onerror = done;
+    img.src = ATLASES[family].url;
+    setTimeout(done, timeoutMs);
+  });
 }
 
 const CardWidgetComponent: React.FC<CardWidgetProps> = ({
   id, rank, suit, faceUp, width, height, theme, cardFaceSet, cardBackPattern, cardBackColor, isSelected, isHint, hideShadow
 }) => {
+  const resolvedFaceDeck = resolveDeckId(cardFaceSet, width);
+  const faceSprite = atlasSprite(resolvedFaceDeck, rankSuitCode(rank, suit), width);
+  // The back has no compact variant (no text/pips to shrink) so it always
+  // draws from the desktop-sized "back" cell, scaled to whatever size this
+  // card is rendered at.
+  const backSprite = cardBackPattern === 'gilded_mystery' ? atlasSprite('gilded_mystery', 'back', width) : null;
+
   return (
     <div
       id={`card-wrapper-${id}`}
@@ -137,11 +252,15 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
             overflow: 'hidden'
           }}
         >
-          <img
-            src={cardImagePath(cardFaceSet, rank, suit)}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-          />
+          {faceSprite ? (
+            <div style={{ width: '100%', height: '100%', ...faceSprite }} />
+          ) : (
+            <img
+              src={cardImagePath(cardFaceSet, rank, suit, width)}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+            />
+          )}
         </div>
 
         {/* BACK */}
@@ -150,9 +269,11 @@ const CardWidgetComponent: React.FC<CardWidgetProps> = ({
             position: 'absolute', width: '100%', height: '100%', backfaceVisibility: 'hidden',
             transform: 'rotateY(180deg)',
             backgroundColor: cardBackColor,
-            backgroundImage: getBackPatternCss(cardBackPattern),
-            backgroundSize: getBackPatternSize(cardBackPattern),
-            backgroundPosition: getBackPatternPosition(cardBackPattern),
+            ...(backSprite ?? {
+              backgroundImage: getBackPatternCss(cardBackPattern),
+              backgroundSize: getBackPatternSize(cardBackPattern),
+              backgroundPosition: getBackPatternPosition(cardBackPattern),
+            }),
             borderRadius: '8px',
             border: (isSelected || isHint) ? `2.5px solid #ffd700` : `1px solid ${theme.accentColor || 'rgba(255,255,255,0.2)'}`,
             boxShadow: (isSelected || isHint) ? `0 0 12px ${theme.accentColor || '#ffd700'}` : (hideShadow ? 'none' : '0 2px 8px rgba(0,0,0,0.3)'),

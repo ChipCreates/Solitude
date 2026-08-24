@@ -19,7 +19,7 @@ import { GAME_TYPE_NAMES } from "./data/gameTypes";
 import { checkWinAchievements } from "./achievements/checkAchievements";
 import type { SaveEnvelope } from "./persistence/store";
 import { MUSIC_TRACKS, CUSTOM_TRACK_ID } from "./data/musicTracks";
-import { CardWidget, preloadCardDeck } from "./components/CardWidget";
+import { CardWidget, isAtlasBackedDeck, preloadCardDeck, preloadCardDeckAsync } from "./components/CardWidget";
 import { GameChooserGrid } from "./components/GameChooserGrid";
 import { VictoryModal } from "./components/VictoryModal";
 import { HelpModal } from "./components/HelpModal";
@@ -82,6 +82,11 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"gameboard" | "store" | "trophy" | "settings">("gameboard");
   const [isEngineReady, setIsEngineReady] = useState(false);
   const [isSplashComplete, setIsSplashComplete] = useState(false);
+  // Only ever false while the equipped deck is atlas-backed (Gilded Mystery)
+  // and its several-MB sprite sheet hasn't finished loading yet -- gates the
+  // splash screen so gameplay never starts mid-fetch. Per-file decks resolve
+  // this immediately (nothing worth blocking splash on).
+  const [isCardAtlasReady, setIsCardAtlasReady] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [winData, setWinData] = useState<{ xpGained: number, leveledUp: boolean, newLevel: number, newXP: number, newlyUnlockedAchievements: string[] } | null>(null);
 
@@ -158,8 +163,23 @@ export const App: React.FC = () => {
 
   // Warm the browser's image cache/decode for the equipped deck up front,
   // so dealing/animating cards doesn't stutter decoding each face the first
-  // time it's needed mid-animation.
-  useEffect(() => { preloadCardDeck(cardFaceSetId); }, [cardFaceSetId]);
+  // time it's needed mid-animation. Atlas-backed decks additionally gate the
+  // splash screen on that fetch actually finishing, since unlike per-file
+  // decks it's one several-MB request worth waiting on rather than firing
+  // and forgetting.
+  useEffect(() => {
+    if (!isAtlasBackedDeck(cardFaceSetId)) {
+      preloadCardDeck(cardFaceSetId);
+      setIsCardAtlasReady(true);
+      return;
+    }
+    setIsCardAtlasReady(false);
+    let cancelled = false;
+    preloadCardDeckAsync(cardFaceSetId).then(() => {
+      if (!cancelled) setIsCardAtlasReady(true);
+    });
+    return () => { cancelled = true; };
+  }, [cardFaceSetId]);
 
   useEffect(() => { audioService.setConfig(soundEnabled, soundVolume); }, [soundEnabled, soundVolume]);
   useEffect(() => { audioService.setSfxSet(sfxSetId); }, [sfxSetId]);
@@ -1446,10 +1466,10 @@ export const App: React.FC = () => {
 
   return (
     <>
-      {(!isEngineReady || !isSplashComplete) && (
+      {(!isEngineReady || !isSplashComplete || !isCardAtlasReady) && (
         <SplashPage onLoadComplete={handleSplashComplete} />
       )}
-      {isEngineReady && isSplashComplete && (
+      {isEngineReady && isSplashComplete && isCardAtlasReady && (
         <MetaGameHub
           activeTab={activeTab}
           onTabChange={setActiveTab}
